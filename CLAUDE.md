@@ -9,9 +9,9 @@
 | Field | Value |
 |-------|-------|
 | **Current phase** | Phase 1 — Signal Validation |
-| **Next task** | 1.2 — BehavioralCollector + StepSignals |
+| **Next task** | 1.3 — KL-divergence calibration |
 | **Blocked?** | No |
-| **Last session** | 2026-04-09 — Task 1.1 complete (MockBackend + agent pair) |
+| **Last session** | 2026-04-09 — Task 1.2 complete (BehavioralCollector + StepSignals, 89 tests, 96% cov) |
 
 > Update this table at the end of every session before closing.
 
