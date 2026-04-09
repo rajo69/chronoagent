@@ -9,9 +9,9 @@
 | Field | Value |
 |-------|-------|
 | **Current phase** | Phase 1 — Signal Validation |
-| **Next task** | 1.5 — Memory poisoning attacks |
+| **Next task** | 1.6 — Experiment runner |
 | **Blocked?** | No |
-| **Last session** | 2026-04-09 — Task 1.4 complete (retrieval_entropy + step_entropy, normalised [0,1]) |
+| **Last session** | 2026-04-09 — Task 1.5 complete (MINJAStyleAttack + AGENTPOISONStyleAttack, 21 tests green) |
 
 > Update this table at the end of every session before closing.
 
