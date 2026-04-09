@@ -1,0 +1,5 @@
+# Development overrides.
+env: dev
+llm_backend: mock
+database_url: sqlite:///./chronoagent_dev.db
+chroma_persist_dir: ./chroma_data_dev

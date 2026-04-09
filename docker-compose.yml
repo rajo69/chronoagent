@@ -1,0 +1,49 @@
+services:
+  app:
+    build:
+      context: .
+      target: runtime
+    ports:
+      - "8000:8000"
+    environment:
+      CHRONO_ENV: prod
+      CHRONO_REDIS_URL: redis://redis:6379/0
+      CHRONO_DATABASE_URL: postgresql+asyncpg://chrono:changeme@postgres:5432/chronoagent
+      CHRONO_CHROMA_PERSIST_DIR: /data/chroma
+      CHRONO_TOGETHER_API_KEY: ${CHRONO_TOGETHER_API_KEY}
+    volumes:
+      - chroma_data:/data/chroma
+    depends_on:
+      - redis
+      - postgres
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: chrono
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: chronoagent
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  chroma:
+    image: chromadb/chroma:latest
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  chroma_data:

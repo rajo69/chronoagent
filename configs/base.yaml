@@ -1,0 +1,18 @@
+# Base configuration — overridden by env-specific files then env vars.
+env: dev
+llm_backend: together
+together_model: mistralai/Mixtral-8x7B-Instruct-v0.1
+
+redis_url: redis://localhost:6379/0
+database_url: sqlite:///./chronoagent.db
+chroma_persist_dir: ./chroma_data
+
+forecaster_enabled: true
+forecaster_horizon: 10
+bocpd_hazard_rate: 0.01
+ensemble_weights_bocpd: 0.4
+ensemble_weights_chronos: 0.6
+
+health_score_window: 50
+escalation_threshold: 0.3
+escalation_cooldown: 300
