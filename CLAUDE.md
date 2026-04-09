@@ -9,9 +9,9 @@
 | Field | Value |
 |-------|-------|
 | **Current phase** | Phase 2 — Core Agent Pipeline |
-| **Next task** | 2.5 — `agents/style_reviewer.py` — `StyleFinding`; queries style conventions from memory |
+| **Next task** | 2.6 — `agents/summarizer.py` — synthesizes all findings into `ReviewReport` (markdown); queries report templates |
 | **Blocked?** | No |
-| **Last session** | 2026-04-09 — Task 2.4 complete. SecurityFinding dataclass (severity/desc/line_ref/cwe_id), CWE top-25 KB (25 entries), structured parser with regex, mock responses updated with [CWE-NNN] tags. 185 tests, 92.57% coverage. |
+| **Last session** | 2026-04-09 — Task 2.5 complete. StyleFinding dataclass (category/desc/line_ref), 30-entry style KB, regex categoriser (complexity/naming/documentation/formatting/readability/other), StyleReviewerAgent. 206 tests. |
 
 > Update this table at the end of every session before closing.
 
