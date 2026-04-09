@@ -24,55 +24,55 @@ from chronoagent.agents.backends.base import LLMBackend
 _SECURITY_REVIEW_RESPONSES: list[str] = [
     (
         "SECURITY REVIEW FINDINGS:\n"
-        "1. SQL injection risk in user input handling (line 42) - SEVERITY: HIGH\n"
-        "2. Missing input validation on API endpoint parameters - SEVERITY: MEDIUM\n"
-        "3. Hardcoded credentials detected in config module - SEVERITY: CRITICAL\n"
+        "1. [CWE-89] SQL injection risk in user input handling (line 42) - SEVERITY: HIGH\n"
+        "2. [CWE-20] Missing input validation on API endpoint parameters (line 17) - SEVERITY: MEDIUM\n"
+        "3. [CWE-798] Hardcoded credentials detected in config module (line 8) - SEVERITY: CRITICAL\n"
         "RECOMMENDATION: Block merge. Address critical and high findings before re-review."
     ),
     (
         "SECURITY REVIEW FINDINGS:\n"
-        "1. Insecure direct object reference in resource endpoint - SEVERITY: HIGH\n"
-        "2. Missing rate limiting on authentication route - SEVERITY: MEDIUM\n"
-        "3. Debug logging exposes sensitive user data - SEVERITY: MEDIUM\n"
+        "1. [CWE-639] Insecure direct object reference in resource endpoint (line 55) - SEVERITY: HIGH\n"
+        "2. [CWE-307] Missing rate limiting on authentication route - SEVERITY: MEDIUM\n"
+        "3. [CWE-532] Debug logging exposes sensitive user data (line 31) - SEVERITY: MEDIUM\n"
         "RECOMMENDATION: Request changes. Fix high severity items and re-submit."
     ),
     (
         "SECURITY REVIEW FINDINGS:\n"
-        "1. Cross-site scripting (XSS) via unsanitized template variable - SEVERITY: HIGH\n"
-        "2. CSRF protection bypassed on state-modifying endpoint - SEVERITY: HIGH\n"
+        "1. [CWE-79] Cross-site scripting (XSS) via unsanitized template variable (line 23) - SEVERITY: HIGH\n"
+        "2. [CWE-352] CSRF protection bypassed on state-modifying endpoint - SEVERITY: HIGH\n"
         "RECOMMENDATION: Block merge. Both findings require immediate remediation."
     ),
     (
         "SECURITY REVIEW FINDINGS:\n"
-        "1. Dependency with known CVE-2024-1234 (severity 8.1) - SEVERITY: HIGH\n"
-        "2. Overly broad file permissions set in deployment script - SEVERITY: LOW\n"
-        "3. Missing security headers (HSTS, CSP) in HTTP response - SEVERITY: MEDIUM\n"
+        "1. [CWE-937] Dependency with known CVE-2024-1234 in requirements.txt - SEVERITY: HIGH\n"
+        "2. [CWE-284] Overly broad file permissions set in deployment script (line 12) - SEVERITY: LOW\n"
+        "3. [CWE-16] Missing security headers (HSTS, CSP) in HTTP response middleware - SEVERITY: MEDIUM\n"
         "RECOMMENDATION: Update vulnerable dependency before merge. Other items in follow-up."
     ),
     (
         "SECURITY REVIEW FINDINGS:\n"
-        "1. Path traversal vulnerability in file upload handler - SEVERITY: CRITICAL\n"
-        "2. Weak password hashing algorithm (MD5) used for token generation - SEVERITY: HIGH\n"
+        "1. [CWE-22] Path traversal vulnerability in file upload handler (line 67) - SEVERITY: CRITICAL\n"
+        "2. [CWE-287] Weak password hashing algorithm (MD5) used for token generation (line 14) - SEVERITY: HIGH\n"
         "RECOMMENDATION: Block merge. Path traversal is exploitable immediately."
     ),
     (
         "SECURITY REVIEW FINDINGS:\n"
-        "1. Insecure deserialization of untrusted pickle data - SEVERITY: CRITICAL\n"
-        "2. Race condition in token refresh logic allows session fixation - SEVERITY: HIGH\n"
-        "3. Verbose error messages leak stack traces to client - SEVERITY: LOW\n"
+        "1. [CWE-502] Insecure deserialization of untrusted pickle data (line 88) - SEVERITY: CRITICAL\n"
+        "2. [CWE-362] Race condition in token refresh logic allows session fixation (line 103) - SEVERITY: HIGH\n"
+        "3. [CWE-532] Verbose error messages leak stack traces to client (line 76) - SEVERITY: LOW\n"
         "RECOMMENDATION: Block merge. Deserialization vulnerability is remotely exploitable."
     ),
     (
         "SECURITY REVIEW FINDINGS:\n"
         "1. No significant security issues found in diff scope - SEVERITY: NONE\n"
-        "2. Minor: unused import of deprecated crypto module - SEVERITY: INFO\n"
+        "2. [CWE-532] Minor: unused import of deprecated crypto module (line 3) - SEVERITY: LOW\n"
         "RECOMMENDATION: Approve with minor nit. Clean up unused import."
     ),
     (
         "SECURITY REVIEW FINDINGS:\n"
-        "1. Authentication bypass via JWT algorithm confusion - SEVERITY: CRITICAL\n"
-        "2. Missing authorization check on admin-only resource - SEVERITY: HIGH\n"
-        "3. Session tokens not invalidated on logout - SEVERITY: MEDIUM\n"
+        "1. [CWE-347] Authentication bypass via JWT algorithm confusion (line 29) - SEVERITY: CRITICAL\n"
+        "2. [CWE-284] Missing authorization check on admin-only resource (line 51) - SEVERITY: HIGH\n"
+        "3. [CWE-287] Session tokens not invalidated on logout (line 38) - SEVERITY: MEDIUM\n"
         "RECOMMENDATION: Block merge. JWT vulnerability allows full authentication bypass."
     ),
 ]

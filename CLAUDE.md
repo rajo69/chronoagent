@@ -9,9 +9,9 @@
 | Field | Value |
 |-------|-------|
 | **Current phase** | Phase 2 — Core Agent Pipeline |
-| **Next task** | 2.4 — `agents/security_reviewer.py` full impl: `SecurityFinding` (severity, desc, line ref); queries CWE patterns |
+| **Next task** | 2.5 — `agents/style_reviewer.py` — `StyleFinding`; queries style conventions from memory |
 | **Blocked?** | No |
-| **Last session** | 2026-04-09 — Task 2.3 complete. PlannerAgent with ReviewSubtask/DecompositionResult, MockBackend PLANNER variant, 10-entry KB. 174 tests, 92% coverage. |
+| **Last session** | 2026-04-09 — Task 2.4 complete. SecurityFinding dataclass (severity/desc/line_ref/cwe_id), CWE top-25 KB (25 entries), structured parser with regex, mock responses updated with [CWE-NNN] tags. 185 tests, 92.57% coverage. |
 
 > Update this table at the end of every session before closing.
 

@@ -8,9 +8,11 @@ import pytest
 from chronoagent.agents.backends.mock import MockBackend
 from chronoagent.agents.base import BaseAgent, Task, TaskResult
 from chronoagent.agents.security_reviewer import (
+    SecurityFinding,
     SecurityReview,
     SecurityReviewerAgent,
     SyntheticPR,
+    _parse_finding,
 )
 from chronoagent.agents.planner import DecompositionResult, PlannerAgent, ReviewSubtask
 from chronoagent.agents.summarizer import SummarizerAgent, Summary
@@ -65,6 +67,57 @@ class TestSyntheticPR:
     def test_default_files_changed(self) -> None:
         pr = SyntheticPR(pr_id="x", title="t", description="d", diff="")
         assert pr.files_changed == []
+
+
+class TestSecurityFinding:
+    def test_dataclass_fields(self) -> None:
+        f = SecurityFinding(severity="high", description="SQL injection", line_ref="line 42", cwe_id="CWE-89")
+        assert f.severity == "high"
+        assert f.description == "SQL injection"
+        assert f.line_ref == "line 42"
+        assert f.cwe_id == "CWE-89"
+
+    def test_defaults(self) -> None:
+        f = SecurityFinding(severity="low", description="minor issue")
+        assert f.line_ref == ""
+        assert f.cwe_id == ""
+
+    def test_parse_finding_full_format(self) -> None:
+        line = "1. [CWE-89] SQL injection in query builder (line 42) - SEVERITY: HIGH"
+        f = _parse_finding(line)
+        assert f.cwe_id == "CWE-89"
+        assert f.severity == "high"
+        assert "line 42" in f.line_ref
+        assert "SQL injection" in f.description
+
+    def test_parse_finding_no_cwe(self) -> None:
+        line = "2. Missing rate limiting on auth route - SEVERITY: MEDIUM"
+        f = _parse_finding(line)
+        assert f.cwe_id == ""
+        assert f.severity == "medium"
+        assert "Missing rate limiting" in f.description
+
+    def test_parse_finding_no_line_ref(self) -> None:
+        line = "3. [CWE-79] XSS via template variable - SEVERITY: HIGH"
+        f = _parse_finding(line)
+        assert f.line_ref == ""
+        assert f.cwe_id == "CWE-79"
+        assert f.severity == "high"
+
+    def test_parse_finding_severity_none(self) -> None:
+        line = "1. No significant security issues found - SEVERITY: NONE"
+        f = _parse_finding(line)
+        assert f.severity == "none"
+
+    def test_parse_finding_severity_critical(self) -> None:
+        line = "1. [CWE-22] Path traversal in upload handler (line 67) - SEVERITY: CRITICAL"
+        f = _parse_finding(line)
+        assert f.severity == "critical"
+
+    def test_parse_finding_info_maps_to_low(self) -> None:
+        line = "2. [CWE-532] Minor unused import (line 3) - SEVERITY: INFO"
+        f = _parse_finding(line)
+        assert f.severity == "low"
 
 
 class TestSecurityReviewerAgent:
@@ -155,6 +208,34 @@ class TestSecurityReviewerAgent:
         assert isinstance(result.output["review"], SecurityReview)
         assert result.llm_latency_ms >= 0.0
         assert result.retrieval_latency_ms >= 0.0
+
+    def test_review_findings_are_security_findings(
+        self, chroma_client: chromadb.ClientAPI, sample_pr: SyntheticPR
+    ) -> None:
+        agent = SecurityReviewerAgent.create(chroma_client=chroma_client)
+        review = agent.review(sample_pr)
+        assert isinstance(review.findings, list)
+        assert all(isinstance(f, SecurityFinding) for f in review.findings)
+
+    def test_review_finding_fields_populated(
+        self, chroma_client: chromadb.ClientAPI, sample_pr: SyntheticPR
+    ) -> None:
+        agent = SecurityReviewerAgent.create(chroma_client=chroma_client)
+        review = agent.review(sample_pr)
+        for finding in review.findings:
+            assert finding.severity in ("none", "low", "medium", "high", "critical")
+            assert isinstance(finding.description, str)
+            assert isinstance(finding.line_ref, str)
+            assert isinstance(finding.cwe_id, str)
+
+    def test_review_findings_have_cwe_ids(
+        self, chroma_client: chromadb.ClientAPI, sample_pr: SyntheticPR
+    ) -> None:
+        agent = SecurityReviewerAgent.create(chroma_client=chroma_client)
+        review = agent.review(sample_pr)
+        # At least one finding should carry a CWE ID (mock responses include them)
+        cwe_findings = [f for f in review.findings if f.cwe_id]
+        assert len(cwe_findings) >= 1
 
     def test_multiple_prs_processed(self, chroma_client: chromadb.ClientAPI) -> None:
         agent = SecurityReviewerAgent.create(chroma_client=chroma_client)

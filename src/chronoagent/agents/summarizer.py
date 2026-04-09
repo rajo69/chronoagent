@@ -167,7 +167,15 @@ class SummarizerAgent(BaseAgent):
         Returns:
             :class:`Summary` with key points and retrieval metadata.
         """
-        findings_text = "\n".join(review.findings) or "No findings."
+        findings_text = (
+            "\n".join(
+                f"[{f.cwe_id}] {f.description} ({f.line_ref}) - {f.severity.upper()}"
+                if f.cwe_id
+                else f"{f.description} - {f.severity.upper()}"
+                for f in review.findings
+            )
+            or "No findings."
+        )
         query = f"{pr.title} {review.severity} {findings_text[:200]}"
         retrieval = self._retrieve_memory(query)
 
