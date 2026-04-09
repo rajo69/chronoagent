@@ -9,9 +9,9 @@
 | Field | Value |
 |-------|-------|
 | **Current phase** | Phase 1 — Signal Validation |
-| **Next task** | 1.6 — Experiment runner |
+| **Next task** | 1.7 — signal_validation.yaml config |
 | **Blocked?** | No |
-| **Last session** | 2026-04-09 — Task 1.5 complete (MINJAStyleAttack + AGENTPOISONStyleAttack, 21 tests green) |
+| **Last session** | 2026-04-09 — Task 1.6 complete (SignalValidationRunner + cohens_d, 134 tests green, 93% cov) |
 
 > Update this table at the end of every session before closing.
 
