@@ -12,6 +12,7 @@ from chronoagent.agents.security_reviewer import (
     SecurityReviewerAgent,
     SyntheticPR,
 )
+from chronoagent.agents.planner import DecompositionResult, PlannerAgent, ReviewSubtask
 from chronoagent.agents.summarizer import SummarizerAgent, Summary
 
 
@@ -243,3 +244,97 @@ class TestSummarizerAgent:
             review = reviewer.review(pr)
             summary = summarizer.summarize(pr, review)
             assert summary.pr_id == pr.pr_id
+
+
+class TestPlannerAgent:
+    def test_create_returns_agent(self, chroma_client: chromadb.ClientAPI) -> None:
+        agent = PlannerAgent.create(chroma_client=chroma_client)
+        assert agent.agent_id == "planner"
+
+    def test_decompose_returns_decomposition_result(
+        self, chroma_client: chromadb.ClientAPI, sample_pr: SyntheticPR
+    ) -> None:
+        agent = PlannerAgent.create(chroma_client=chroma_client)
+        result = agent.decompose(sample_pr)
+        assert isinstance(result, DecompositionResult)
+        assert result.pr_id == "pr_test"
+
+    def test_decompose_returns_subtasks(
+        self, chroma_client: chromadb.ClientAPI, sample_pr: SyntheticPR
+    ) -> None:
+        agent = PlannerAgent.create(chroma_client=chroma_client)
+        result = agent.decompose(sample_pr)
+        assert len(result.subtasks) > 0
+        assert all(isinstance(s, ReviewSubtask) for s in result.subtasks)
+
+    def test_subtask_fields(
+        self, chroma_client: chromadb.ClientAPI, sample_pr: SyntheticPR
+    ) -> None:
+        agent = PlannerAgent.create(chroma_client=chroma_client)
+        result = agent.decompose(sample_pr)
+        for subtask in result.subtasks:
+            assert subtask.subtask_id.startswith("s")
+            assert subtask.task_type in ("security_review", "style_review")
+            assert subtask.code_segment != ""
+
+    def test_decompose_retrieves_docs(
+        self, chroma_client: chromadb.ClientAPI, sample_pr: SyntheticPR
+    ) -> None:
+        agent = PlannerAgent.create(top_k=3, chroma_client=chroma_client)
+        result = agent.decompose(sample_pr)
+        assert result.retrieved_docs == 3
+        assert len(result.retrieval_distances) == 3
+
+    def test_decompose_records_latencies(
+        self, chroma_client: chromadb.ClientAPI, sample_pr: SyntheticPR
+    ) -> None:
+        agent = PlannerAgent.create(chroma_client=chroma_client)
+        result = agent.decompose(sample_pr)
+        assert result.retrieval_latency_ms >= 0.0
+        assert result.llm_latency_ms >= 0.0
+
+    def test_decompose_raw_response_non_empty(
+        self, chroma_client: chromadb.ClientAPI, sample_pr: SyntheticPR
+    ) -> None:
+        agent = PlannerAgent.create(chroma_client=chroma_client)
+        result = agent.decompose(sample_pr)
+        assert result.raw_response.strip() != ""
+
+    def test_decompose_deterministic_same_seed(
+        self, sample_pr: SyntheticPR
+    ) -> None:
+        c1 = chromadb.EphemeralClient()
+        c2 = chromadb.EphemeralClient()
+        a1 = PlannerAgent.create(seed=42, chroma_client=c1)
+        a2 = PlannerAgent.create(seed=42, chroma_client=c2)
+        r1 = a1.decompose(sample_pr)
+        r2 = a2.decompose(sample_pr)
+        assert r1.raw_response == r2.raw_response
+
+    def test_execute_returns_task_result(
+        self, chroma_client: chromadb.ClientAPI, sample_pr: SyntheticPR
+    ) -> None:
+        agent = PlannerAgent.create(chroma_client=chroma_client)
+        task = Task(
+            task_id="t3",
+            task_type="plan",
+            payload={"pr": sample_pr},
+        )
+        result = agent.execute(task)
+        assert isinstance(result, TaskResult)
+        assert result.task_id == "t3"
+        assert result.agent_id == "planner"
+        assert result.status == "success"
+        assert isinstance(result.output["decomposition"], DecompositionResult)
+        assert result.llm_latency_ms >= 0.0
+        assert result.retrieval_latency_ms >= 0.0
+
+    def test_multiple_prs_decomposed(self, chroma_client: chromadb.ClientAPI) -> None:
+        agent = PlannerAgent.create(chroma_client=chroma_client)
+        prs = [
+            SyntheticPR(pr_id=f"pr_{i}", title=f"PR {i}", description="desc", diff="")
+            for i in range(5)
+        ]
+        results = [agent.decompose(pr) for pr in prs]
+        assert len(results) == 5
+        assert all(isinstance(r, DecompositionResult) for r in results)
