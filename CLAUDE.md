@@ -9,9 +9,9 @@
 | Field | Value |
 |-------|-------|
 | **Current phase** | Phase 2 — Core Agent Pipeline |
-| **Next task** | 2.9 — Seed data script — ~50 vuln patterns (CWE top 25), ~30 style docs, ~10 report templates, ~20 sample reviews |
+| **Next task** | 2.10 — `pipeline/graph.py` — LangGraph `StateGraph`: plan -> (security_review \|\| style_review) -> summarize -> END |
 | **Blocked?** | No |
-| **Last session** | 2026-04-09 — Task 2.8 complete. MemoryStore wrapping ChromaDB Collection: add (upsert + optional pre-computed embeddings), query (clamps n_results, returns QueryResult), delete, get_all_embeddings. 27 new tests, 260 passing total, 93% coverage. |
+| **Last session** | 2026-04-09 — Task 2.9 complete. `scripts/seed_memory.py`: seeds 4 ChromaDB collections (50 security patterns, 30 style conventions, 10 report templates, 20 sample reviews) via MockBackend. `--chroma-dir` and `--reset` CLI flags. 27 new tests, 287 passing total, 93% coverage. |
 
 > Update this table at the end of every session before closing.
 
