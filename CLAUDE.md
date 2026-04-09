@@ -9,9 +9,9 @@
 | Field | Value |
 |-------|-------|
 | **Current phase** | Phase 2 — Core Agent Pipeline |
-| **Next task** | 2.11 — `api/routers/review.py` — `POST /api/v1/review`, `GET /api/v1/review/{id}` |
+| **Next task** | 2.12 — `tests/integration/test_pipeline_e2e.py` — MockBackend, submit diff, assert ReviewReport with findings, assert agent order |
 | **Blocked?** | No |
-| **Last session** | 2026-04-09 — Task 2.10 complete. `pipeline/graph.py`: LangGraph `StateGraph` fan-out (plan → security_review ∥ style_review) → summarize → END. `ReviewPipeline` class with `.create()` factory and `.run(pr) → ReviewReport`. 17 new tests, 304 passing total, 93.6% coverage. |
+| **Last session** | 2026-04-09 — Task 2.11 complete. `api/routers/review.py`: `POST /api/v1/review` (runs pipeline, stores report, returns 201) and `GET /api/v1/review/{id}` (retrieves by pr_id or 404). Pipeline + store initialised in lifespan. 17 new tests, 321 passing total, 94.2% coverage. |
 
 > Update this table at the end of every session before closing.
 
