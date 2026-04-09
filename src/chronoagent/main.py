@@ -10,8 +10,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from chronoagent.agents.summarizer import ReviewReport
 from chronoagent.config import Settings, load_settings
 from chronoagent.observability.logging import configure_logging, get_logger
+from chronoagent.pipeline.graph import ReviewPipeline
 
 logger = get_logger(__name__)
 
@@ -31,7 +33,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     logger.info("chronoagent starting", env=settings.env, backend=settings.llm_backend)
 
-    # Future phases will initialise DB / Redis / Chroma here.
+    app.state.pipeline: ReviewPipeline = ReviewPipeline.create()
+    app.state.review_store: dict[str, ReviewReport] = {}
+
     yield
 
     logger.info("chronoagent shutting down")
@@ -48,6 +52,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         Configured :class:`~fastapi.FastAPI` application.
     """
     from chronoagent.api.health import router as health_router
+    from chronoagent.api.routers.review import router as review_router
 
     resolved_settings = settings or load_settings()
 
@@ -59,6 +64,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = resolved_settings
     app.include_router(health_router)
+    app.include_router(review_router)
 
     return app
 
