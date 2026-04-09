@@ -1,4 +1,4 @@
-"""Tests for BaseAgent ABC, SecurityReviewerAgent, SummarizerAgent, and StyleReviewerAgent."""
+"""Tests for BaseAgent ABC, SecurityReviewerAgent, SummarizerAgent, StyleReviewerAgent, and AgentRegistry."""
 
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ from chronoagent.agents.style_reviewer import (
     _parse_finding as _parse_style_finding,
 )
 from chronoagent.agents.summarizer import ReviewReport, SummarizerAgent, Summary
+from chronoagent.agents.registry import AgentRegistry, UnknownTaskTypeError
 
 
 @pytest.fixture
@@ -789,3 +790,81 @@ class TestSummarizerAgentSynthesize:
         ]
         assert len(reports) == 5
         assert all(isinstance(r, ReviewReport) for r in reports)
+
+
+# ---------------------------------------------------------------------------
+# AgentRegistry (task 2.7)
+# ---------------------------------------------------------------------------
+
+
+class TestAgentRegistry:
+    """Tests for AgentRegistry capability map and lookup."""
+
+    def test_get_class_plan(self) -> None:
+        registry = AgentRegistry()
+        assert registry.get_class("plan") is PlannerAgent
+
+    def test_get_class_security_review(self) -> None:
+        registry = AgentRegistry()
+        assert registry.get_class("security_review") is SecurityReviewerAgent
+
+    def test_get_class_style_review(self) -> None:
+        registry = AgentRegistry()
+        assert registry.get_class("style_review") is StyleReviewerAgent
+
+    def test_get_class_summarize(self) -> None:
+        registry = AgentRegistry()
+        assert registry.get_class("summarize") is SummarizerAgent
+
+    def test_unknown_task_type_raises(self) -> None:
+        registry = AgentRegistry()
+        with pytest.raises(UnknownTaskTypeError) as exc_info:
+            registry.get_class("nonexistent_type")
+        assert exc_info.value.task_type == "nonexistent_type"
+
+    def test_unknown_task_type_message_contains_known_types(self) -> None:
+        registry = AgentRegistry()
+        with pytest.raises(UnknownTaskTypeError, match="plan"):
+            registry.get_class("bad_type")
+
+    def test_supported_task_types_sorted(self) -> None:
+        registry = AgentRegistry()
+        types = registry.supported_task_types()
+        assert types == sorted(types)
+        assert set(types) == {"plan", "security_review", "style_review", "summarize"}
+
+    def test_has_returns_true_for_known(self) -> None:
+        registry = AgentRegistry()
+        for t in ("plan", "security_review", "style_review", "summarize"):
+            assert registry.has(t) is True
+
+    def test_has_returns_false_for_unknown(self) -> None:
+        assert AgentRegistry().has("unknown") is False
+
+    def test_capabilities_returns_all_four(self) -> None:
+        registry = AgentRegistry()
+        caps = registry.capabilities()
+        assert set(caps.keys()) == {"plan", "security_review", "style_review", "summarize"}
+        assert caps["plan"] is PlannerAgent
+        assert caps["security_review"] is SecurityReviewerAgent
+        assert caps["style_review"] is StyleReviewerAgent
+        assert caps["summarize"] is SummarizerAgent
+
+    def test_capabilities_snapshot_is_copy(self) -> None:
+        """Mutating the returned dict must not affect the registry."""
+        registry = AgentRegistry()
+        caps = registry.capabilities()
+        caps["plan"] = StyleReviewerAgent  # type: ignore[assignment]
+        assert registry.get_class("plan") is PlannerAgent
+
+    def test_get_class_returns_baseagent_subclass(self) -> None:
+        registry = AgentRegistry()
+        for task_type in registry.supported_task_types():
+            cls = registry.get_class(task_type)
+            assert issubclass(cls, BaseAgent), f"{cls} is not a BaseAgent subclass"
+
+    def test_multiple_registry_instances_share_same_map(self) -> None:
+        """Two independent instances see the same capability map."""
+        r1 = AgentRegistry()
+        r2 = AgentRegistry()
+        assert r1.capabilities() == r2.capabilities()
