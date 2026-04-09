@@ -21,7 +21,7 @@ from chronoagent.agents.style_reviewer import (
     StyleReviewerAgent,
     _parse_finding as _parse_style_finding,
 )
-from chronoagent.agents.summarizer import SummarizerAgent, Summary
+from chronoagent.agents.summarizer import ReviewReport, SummarizerAgent, Summary
 
 
 @pytest.fixture
@@ -300,20 +300,26 @@ class TestSummarizerAgent:
     def test_execute_returns_task_result(
         self, chroma_client: chromadb.ClientAPI, sample_pr: SyntheticPR
     ) -> None:
-        reviewer = SecurityReviewerAgent.create(chroma_client=chroma_client)
+        sec_agent = SecurityReviewerAgent.create(chroma_client=chroma_client)
+        style_agent = StyleReviewerAgent.create(chroma_client=chroma_client)
         summarizer = SummarizerAgent.create(chroma_client=chroma_client)
-        review = reviewer.review(sample_pr)
+        security_review = sec_agent.review(sample_pr)
+        style_review = style_agent.review(sample_pr)
         task = Task(
             task_id="t2",
-            task_type="summarize",
-            payload={"pr": sample_pr, "review": review},
+            task_type="synthesize",
+            payload={
+                "pr": sample_pr,
+                "security_review": security_review,
+                "style_review": style_review,
+            },
         )
         result = summarizer.execute(task)
         assert isinstance(result, TaskResult)
         assert result.task_id == "t2"
         assert result.agent_id == "summarizer"
         assert result.status == "success"
-        assert isinstance(result.output["summary"], Summary)
+        assert isinstance(result.output["report"], ReviewReport)
 
     def test_end_to_end_pipeline(self, chroma_client: chromadb.ClientAPI) -> None:
         reviewer = SecurityReviewerAgent.create(chroma_client=chroma_client)
@@ -578,3 +584,208 @@ class TestStyleReviewerAgent:
     def test_custom_agent_id(self, chroma_client: chromadb.ClientAPI) -> None:
         agent = StyleReviewerAgent.create(agent_id="my_style_agent", chroma_client=chroma_client)
         assert agent.agent_id == "my_style_agent"
+
+
+# ---------------------------------------------------------------------------
+# ReviewReport dataclass
+# ---------------------------------------------------------------------------
+
+
+class TestReviewReport:
+    def test_dataclass_fields(self) -> None:
+        report = ReviewReport(
+            pr_id="pr_1",
+            title="Add upload endpoint",
+            overall_risk="high",
+            security_findings=[],
+            style_findings=[],
+            markdown="# Report",
+            retrieved_docs=3,
+            retrieval_distances=[0.1, 0.2, 0.3],
+            retrieval_latency_ms=5.0,
+            llm_latency_ms=12.0,
+            raw_response="raw",
+        )
+        assert report.pr_id == "pr_1"
+        assert report.title == "Add upload endpoint"
+        assert report.overall_risk == "high"
+        assert report.markdown == "# Report"
+        assert report.retrieved_docs == 3
+
+    def test_overall_risk_valid_values(self) -> None:
+        valid = {"none", "low", "medium", "high", "critical"}
+        for risk in valid:
+            r = ReviewReport(
+                pr_id="x", title="t", overall_risk=risk,
+                security_findings=[], style_findings=[], markdown="",
+                retrieved_docs=0, retrieval_distances=[], retrieval_latency_ms=0.0,
+                llm_latency_ms=0.0, raw_response="",
+            )
+            assert r.overall_risk == risk
+
+
+# ---------------------------------------------------------------------------
+# SummarizerAgent — synthesize() (Phase 2 interface)
+# ---------------------------------------------------------------------------
+
+
+class TestSummarizerAgentSynthesize:
+    @pytest.fixture
+    def agents(
+        self, chroma_client: chromadb.ClientAPI
+    ) -> tuple[SecurityReviewerAgent, StyleReviewerAgent, SummarizerAgent]:
+        return (
+            SecurityReviewerAgent.create(chroma_client=chroma_client),
+            StyleReviewerAgent.create(chroma_client=chroma_client),
+            SummarizerAgent.create(chroma_client=chroma_client),
+        )
+
+    def test_synthesize_returns_review_report(
+        self,
+        agents: tuple[SecurityReviewerAgent, StyleReviewerAgent, SummarizerAgent],
+        sample_pr: SyntheticPR,
+    ) -> None:
+        sec, style, summarizer = agents
+        report = summarizer.synthesize(sample_pr, sec.review(sample_pr), style.review(sample_pr))
+        assert isinstance(report, ReviewReport)
+        assert report.pr_id == "pr_test"
+        assert report.title == sample_pr.title
+
+    def test_synthesize_overall_risk_valid(
+        self,
+        agents: tuple[SecurityReviewerAgent, StyleReviewerAgent, SummarizerAgent],
+        sample_pr: SyntheticPR,
+    ) -> None:
+        sec, style, summarizer = agents
+        report = summarizer.synthesize(sample_pr, sec.review(sample_pr), style.review(sample_pr))
+        assert report.overall_risk in ("none", "low", "medium", "high", "critical")
+
+    def test_synthesize_markdown_contains_pr_title(
+        self,
+        agents: tuple[SecurityReviewerAgent, StyleReviewerAgent, SummarizerAgent],
+        sample_pr: SyntheticPR,
+    ) -> None:
+        sec, style, summarizer = agents
+        report = summarizer.synthesize(sample_pr, sec.review(sample_pr), style.review(sample_pr))
+        assert sample_pr.title in report.markdown
+
+    def test_synthesize_markdown_has_sections(
+        self,
+        agents: tuple[SecurityReviewerAgent, StyleReviewerAgent, SummarizerAgent],
+        sample_pr: SyntheticPR,
+    ) -> None:
+        sec, style, summarizer = agents
+        report = summarizer.synthesize(sample_pr, sec.review(sample_pr), style.review(sample_pr))
+        assert "## Security Findings" in report.markdown
+        assert "## Style Findings" in report.markdown
+        assert "## Executive Summary" in report.markdown
+
+    def test_synthesize_retrieves_templates(
+        self,
+        chroma_client: chromadb.ClientAPI,
+        sample_pr: SyntheticPR,
+    ) -> None:
+        sec = SecurityReviewerAgent.create(chroma_client=chroma_client)
+        style = StyleReviewerAgent.create(chroma_client=chroma_client)
+        summarizer = SummarizerAgent.create(top_k=3, chroma_client=chroma_client)
+        report = summarizer.synthesize(sample_pr, sec.review(sample_pr), style.review(sample_pr))
+        assert report.retrieved_docs == 3
+        assert len(report.retrieval_distances) == 3
+
+    def test_synthesize_records_latencies(
+        self,
+        agents: tuple[SecurityReviewerAgent, StyleReviewerAgent, SummarizerAgent],
+        sample_pr: SyntheticPR,
+    ) -> None:
+        sec, style, summarizer = agents
+        report = summarizer.synthesize(sample_pr, sec.review(sample_pr), style.review(sample_pr))
+        assert report.retrieval_latency_ms >= 0.0
+        assert report.llm_latency_ms >= 0.0
+
+    def test_synthesize_propagates_security_findings(
+        self,
+        agents: tuple[SecurityReviewerAgent, StyleReviewerAgent, SummarizerAgent],
+        sample_pr: SyntheticPR,
+    ) -> None:
+        sec, style, summarizer = agents
+        sec_review = sec.review(sample_pr)
+        report = summarizer.synthesize(sample_pr, sec_review, style.review(sample_pr))
+        assert report.security_findings == sec_review.findings
+
+    def test_synthesize_propagates_style_findings(
+        self,
+        agents: tuple[SecurityReviewerAgent, StyleReviewerAgent, SummarizerAgent],
+        sample_pr: SyntheticPR,
+    ) -> None:
+        sec, style, summarizer = agents
+        style_review = style.review(sample_pr)
+        report = summarizer.synthesize(sample_pr, sec.review(sample_pr), style_review)
+        assert report.style_findings == style_review.findings
+
+    def test_synthesize_raw_response_non_empty(
+        self,
+        agents: tuple[SecurityReviewerAgent, StyleReviewerAgent, SummarizerAgent],
+        sample_pr: SyntheticPR,
+    ) -> None:
+        sec, style, summarizer = agents
+        report = summarizer.synthesize(sample_pr, sec.review(sample_pr), style.review(sample_pr))
+        assert report.raw_response.strip() != ""
+
+    def test_synthesize_deterministic_same_seed(self, sample_pr: SyntheticPR) -> None:
+        c1, c2 = chromadb.EphemeralClient(), chromadb.EphemeralClient()
+        s1 = SummarizerAgent.create(seed=42, chroma_client=c1)
+        s2 = SummarizerAgent.create(seed=42, chroma_client=c2)
+        sec1 = SecurityReviewerAgent.create(seed=42, chroma_client=c1)
+        sec2 = SecurityReviewerAgent.create(seed=42, chroma_client=c2)
+        style1 = StyleReviewerAgent.create(seed=42, chroma_client=c1)
+        style2 = StyleReviewerAgent.create(seed=42, chroma_client=c2)
+        r1 = s1.synthesize(sample_pr, sec1.review(sample_pr), style1.review(sample_pr))
+        r2 = s2.synthesize(sample_pr, sec2.review(sample_pr), style2.review(sample_pr))
+        assert r1.raw_response == r2.raw_response
+
+    def test_synthesize_empty_findings(
+        self, chroma_client: chromadb.ClientAPI, sample_pr: SyntheticPR
+    ) -> None:
+        from chronoagent.agents.security_reviewer import SecurityFinding, SecurityReview
+        from chronoagent.agents.style_reviewer import StyleReview
+
+        summarizer = SummarizerAgent.create(chroma_client=chroma_client)
+        empty_sec = SecurityReview(
+            pr_id=sample_pr.pr_id,
+            findings=[],
+            severity="none",
+            recommendation="Approve.",
+            retrieved_docs=0,
+            retrieval_distances=[],
+            retrieval_latency_ms=0.0,
+            llm_latency_ms=0.0,
+            raw_response="",
+        )
+        empty_style = StyleReview(
+            pr_id=sample_pr.pr_id,
+            findings=[],
+            recommendation="Approve.",
+            retrieved_docs=0,
+            retrieval_distances=[],
+            retrieval_latency_ms=0.0,
+            llm_latency_ms=0.0,
+            raw_response="",
+        )
+        report = summarizer.synthesize(sample_pr, empty_sec, empty_style)
+        assert report.overall_risk == "none"
+        assert "No security findings." in report.markdown
+        assert "No style findings." in report.markdown
+
+    def test_multiple_prs_synthesized(self, chroma_client: chromadb.ClientAPI) -> None:
+        sec = SecurityReviewerAgent.create(chroma_client=chroma_client)
+        style = StyleReviewerAgent.create(chroma_client=chroma_client)
+        summarizer = SummarizerAgent.create(chroma_client=chroma_client)
+        prs = [
+            SyntheticPR(pr_id=f"pr_{i}", title=f"PR {i}", description="desc", diff="")
+            for i in range(5)
+        ]
+        reports = [
+            summarizer.synthesize(pr, sec.review(pr), style.review(pr)) for pr in prs
+        ]
+        assert len(reports) == 5
+        assert all(isinstance(r, ReviewReport) for r in reports)

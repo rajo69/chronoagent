@@ -184,8 +184,8 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 - [x] 2.2 `agents/backends/` -- `LLMBackend` ABC (`generate`, `embed`), `TogetherAIBackend` (default), `MockBackend` (deterministic fixtures — primary for all tests/experiments), `OllamaBackend` (optional, skip if no GPU)
 - [x] 2.3 `agents/planner.py` -- Decomposes PR diff into `list[ReviewSubtask]` with task_type + code_segment; queries memory for similar decompositions
 - [x] 2.4 `agents/security_reviewer.py` -- Full impl: checks for vulns, outputs `SecurityFinding` (severity, desc, line ref); queries CWE patterns from memory
-- [ ] 2.5 `agents/style_reviewer.py` -- Checks quality/naming/complexity, outputs `StyleFinding`; queries style conventions from memory
-- [ ] 2.6 `agents/summarizer.py` -- Synthesizes all findings into `ReviewReport` (markdown); queries report templates
+- [x] 2.5 `agents/style_reviewer.py` -- Checks quality/naming/complexity, outputs `StyleFinding`; queries style conventions from memory
+- [x] 2.6 `agents/summarizer.py` -- Synthesizes all findings into `ReviewReport` (markdown); queries report templates
 - [ ] 2.7 `agents/registry.py` -- `AgentRegistry`: capability map, agent lookup by type
 - [ ] 2.8 `memory/store.py` -- ChromaDB wrapper: `add`, `query`, `delete`, `get_all_embeddings`
 - [ ] 2.9 Seed data script -- ~50 vuln patterns (CWE top 25), ~30 style docs, ~10 report templates, ~20 sample reviews

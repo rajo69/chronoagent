@@ -9,9 +9,9 @@
 | Field | Value |
 |-------|-------|
 | **Current phase** | Phase 2 — Core Agent Pipeline |
-| **Next task** | 2.6 — `agents/summarizer.py` — synthesizes all findings into `ReviewReport` (markdown); queries report templates |
+| **Next task** | 2.7 — `agents/registry.py` — `AgentRegistry`: capability map, agent lookup by type |
 | **Blocked?** | No |
-| **Last session** | 2026-04-09 — Task 2.5 complete. StyleFinding dataclass (category/desc/line_ref), 30-entry style KB, regex categoriser (complexity/naming/documentation/formatting/readability/other), StyleReviewerAgent. 206 tests. |
+| **Last session** | 2026-04-09 — Task 2.6 complete. ReviewReport dataclass (pr_id/title/overall_risk/security_findings/style_findings/markdown), 10-entry report template KB, MockBackendVariant.REPORT (8 fixtures), synthesize() method, _build_markdown(), _parse_synthesis(). 220 tests. |
 
 > Update this table at the end of every session before closing.
 

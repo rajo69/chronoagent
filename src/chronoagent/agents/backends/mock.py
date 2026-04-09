@@ -204,6 +204,79 @@ _STYLE_REVIEW_RESPONSES: list[str] = [
     ),
 ]
 
+_REPORT_RESPONSES: list[str] = [
+    (
+        "EXECUTIVE SUMMARY: Critical security vulnerabilities detected requiring immediate remediation. "
+        "The PR introduces hardcoded credentials and SQL injection risks alongside style issues "
+        "that reduce long-term maintainability.\n"
+        "NEXT STEPS:\n"
+        "- Rotate all hardcoded credentials immediately and migrate to a secrets manager\n"
+        "- Parameterize all database queries using ORM methods\n"
+        "- Refactor oversized functions into testable units before re-submission\n"
+        "OVERALL RISK: CRITICAL"
+    ),
+    (
+        "EXECUTIVE SUMMARY: High severity authentication vulnerability identified. The IDOR and rate "
+        "limiting gaps require remediation before merge. Style issues are secondary concerns.\n"
+        "NEXT STEPS:\n"
+        "- Add object-level authorization to all resource endpoints\n"
+        "- Implement rate limiting middleware on authentication routes\n"
+        "- Standardize naming conventions across the module\n"
+        "OVERALL RISK: HIGH"
+    ),
+    (
+        "EXECUTIVE SUMMARY: High severity XSS and CSRF vulnerabilities found in frontend template "
+        "changes. Both findings are exploitable and must be resolved before merge.\n"
+        "NEXT STEPS:\n"
+        "- Sanitize all template outputs using the templating engine's escape filter\n"
+        "- Enforce CSRF token validation on all state-modifying endpoints\n"
+        "- Fix trailing whitespace identified in style review\n"
+        "OVERALL RISK: HIGH"
+    ),
+    (
+        "EXECUTIVE SUMMARY: Medium risk from known CVE in updated dependency. Conditional approval "
+        "pending dependency pin. Style findings are minor and can be addressed post-merge.\n"
+        "NEXT STEPS:\n"
+        "- Pin vulnerable dependency to patched version before merge\n"
+        "- Address magic numbers and nesting depth in follow-up PR\n"
+        "OVERALL RISK: MEDIUM"
+    ),
+    (
+        "EXECUTIVE SUMMARY: Critical path traversal vulnerability in file upload handler presents "
+        "immediate exploitation risk. Weak hashing compounds the severity.\n"
+        "NEXT STEPS:\n"
+        "- Restrict upload paths to a designated safe directory with path normalization\n"
+        "- Replace MD5 token hashing with BLAKE2b or SHA-256\n"
+        "- Reduce function complexity flagged in style review\n"
+        "OVERALL RISK: CRITICAL"
+    ),
+    (
+        "EXECUTIVE SUMMARY: Critical deserialization vulnerability enables remote code execution. "
+        "The pickle usage must be eliminated before this PR can proceed.\n"
+        "NEXT STEPS:\n"
+        "- Replace pickle.loads with JSON schema validation\n"
+        "- Add mutex to token refresh logic to prevent race condition\n"
+        "- Remove TODO comments and resolve open items via issue tracker\n"
+        "OVERALL RISK: CRITICAL"
+    ),
+    (
+        "EXECUTIVE SUMMARY: No significant security issues in this PR's diff scope. Routine cleanup "
+        "changes present minimal risk. Style nits are optional.\n"
+        "NEXT STEPS:\n"
+        "- Remove unused deprecated import as optional follow-up\n"
+        "OVERALL RISK: LOW"
+    ),
+    (
+        "EXECUTIVE SUMMARY: Critical JWT algorithm confusion vulnerability allows full authentication "
+        "bypass. This is a high-priority security incident requiring immediate action.\n"
+        "NEXT STEPS:\n"
+        "- Enforce algorithm allowlist (RS256/ES256 only) in JWT validation\n"
+        "- Add authorization guard to admin-only resource endpoints\n"
+        "- Invalidate active sessions until fix is deployed\n"
+        "OVERALL RISK: CRITICAL"
+    ),
+]
+
 
 class MockBackendVariant(StrEnum):
     """Response library variant for :class:`MockBackend`.
@@ -213,12 +286,14 @@ class MockBackendVariant(StrEnum):
         SUMMARY: Summary responses.
         PLANNER: Planner decomposition responses.
         STYLE: Style review responses.
+        REPORT: Full review report synthesis responses.
     """
 
     SECURITY = "security"
     SUMMARY = "summary"
     PLANNER = "planner"
     STYLE = "style"
+    REPORT = "report"
 
 
 _VARIANT_LIBRARIES: dict[MockBackendVariant, list[str]] = {
@@ -226,6 +301,7 @@ _VARIANT_LIBRARIES: dict[MockBackendVariant, list[str]] = {
     MockBackendVariant.SUMMARY: _SUMMARY_RESPONSES,
     MockBackendVariant.PLANNER: _PLANNER_RESPONSES,
     MockBackendVariant.STYLE: _STYLE_REVIEW_RESPONSES,
+    MockBackendVariant.REPORT: _REPORT_RESPONSES,
 }
 
 _EMBED_DIM = 384
@@ -269,7 +345,7 @@ class MockBackend(LLMBackend):
     def __init__(
         self,
         seed: int = 42,
-        variant: MockBackendVariant | Literal["security", "summary", "planner", "style"] = (
+        variant: MockBackendVariant | Literal["security", "summary", "planner", "style", "report"] = (
             MockBackendVariant.SECURITY
         ),
         response_library: list[str] | None = None,
