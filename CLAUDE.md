@@ -8,10 +8,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Current phase** | Phase 2 — Core Agent Pipeline |
-| **Next task** | 2.12 — `tests/integration/test_pipeline_e2e.py` — MockBackend, submit diff, assert ReviewReport with findings, assert agent order |
+| **Current phase** | Phase 3 — Behavioral Monitor |
+| **Next task** | 3.1 — first task of Phase 3 (see PLAN.md) |
 | **Blocked?** | No |
-| **Last session** | 2026-04-09 — Task 2.11 complete. `api/routers/review.py`: `POST /api/v1/review` (runs pipeline, stores report, returns 201) and `GET /api/v1/review/{id}` (retrieves by pr_id or 404). Pipeline + store initialised in lifespan. 17 new tests, 321 passing total, 94.2% coverage. |
+| **Last session** | 2026-04-10 — Task 2.12 complete. `tests/integration/test_pipeline_e2e.py`: 31 e2e tests across 4 groups (ReviewReport structure, agent order via call-log wrapping, multi-PR independence, MockBackend determinism). All 31 pass. Full suite: 349 passing, 94.29% coverage. Phase 2 fully done [x]. |
 
 > Update this table at the end of every session before closing.
 
