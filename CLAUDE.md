@@ -8,10 +8,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Current phase** | Phase 0 — Bootstrap |
-| **Next task** | 0.1 — `pyproject.toml` |
+| **Current phase** | Phase 1 — Signal Validation |
+| **Next task** | 1.1 — Minimal agent pair (MockBackend) |
 | **Blocked?** | No |
-| **Last session** | Not started |
+| **Last session** | 2026-04-09 — Phase 0 complete |
 
 > Update this table at the end of every session before closing.
 
@@ -121,7 +121,7 @@ chronoagent run-experiment --config configs/experiments/signal_validation.yaml -
 
 | # | Phase | Status |
 |---|-------|--------|
-| 0 | Bootstrap | `[ ]` |
+| 0 | Bootstrap | `[x]` |
 | 1 | Signal Validation (GO/NO-GO) | `[ ]` |
 | 2 | Core Agent Pipeline | `[ ]` |
 | 3 | Behavioral Monitor | `[ ]` |

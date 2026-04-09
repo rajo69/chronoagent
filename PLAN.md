@@ -43,7 +43,7 @@ The checkboxes + Log sections tell the full story — no other context needed.
 
 | # | Phase | Complexity | Status | Depends On |
 |---|-------|-----------|--------|------------|
-| 0 | Bootstrap | Low | `[ ]` | -- |
+| 0 | Bootstrap | Low | `[x]` | -- |
 | 1 | Signal Validation (GO/NO-GO) | **High** | `[ ]` | 0 |
 | 2 | Core Agent Pipeline | Medium | `[ ]` | 0, 1 (collector) |
 | 3 | Behavioral Monitor | Medium | `[ ]` | 2 |
@@ -78,33 +78,33 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 - CI green on push
 
 **Tasks:**
-- [ ] 0.1 `pyproject.toml` -- PEP 621, Python >=3.11. Deps split:
+- [x] 0.1 `pyproject.toml` -- PEP 621, Python >=3.11. Deps split:
   - Core: fastapi, uvicorn, pydantic, pydantic-settings, langchain, langgraph, chromadb, redis, sqlalchemy, alembic, structlog, prometheus-client, httpx, typer, pyyaml, ruptures, numpy, scipy, scikit-learn
   - `[forecaster]`: chronos-forecasting (optional, allows CPU-only envs to skip)
   - `[dev]`: pytest, pytest-asyncio, pytest-cov, hypothesis, ruff, mypy, pre-commit
   - `[experiments]`: matplotlib, seaborn, pandas
-- [ ] 0.2 `src/chronoagent/config.py` -- Pydantic `Settings` with `env_prefix="CHRONO_"` and `.env` support. YAML overlay loader in CLI merges YAML -> env -> defaults. Key fields: env (dev/prod/test), llm_backend (**together**/mock/ollama), together_api_key, together_model (default: `mistralai/Mixtral-8x7B-Instruct-v0.1`), ollama_base_url (optional), ollama_model (optional, phi3:mini), redis_url, database_url (sqlite default for dev), chroma_persist_dir, health_score_window (50), bocpd_hazard_rate (0.01), forecaster_enabled (true), forecaster_horizon (10), ensemble_weights (bocpd=0.4, chronos=0.6), escalation_threshold (0.3), escalation_cooldown (300s)
-- [ ] 0.3 `src/chronoagent/main.py` -- FastAPI app factory with lifespan for DB/Redis/Chroma init, mount health router
-- [ ] 0.4 `src/chronoagent/cli.py` -- Typer CLI: `serve`, `run-experiment`, `check-health`
-- [ ] 0.5 `src/chronoagent/observability/logging.py` -- structlog, JSON in prod, colored in dev, consistent fields (`agent_id`, `task_id`, `phase`)
-- [ ] 0.6 `Dockerfile` (multi-stage, Python 3.11-slim), `docker-compose.yml` (app, redis, postgres, chroma), `.env.example` documenting all `CHRONO_*` vars
-- [ ] 0.7 `configs/` -- `base.yaml`, `dev.yaml`, `prod.yaml` with merge hierarchy
-- [ ] 0.8 `tests/unit/test_config.py` -- Settings loads defaults
-- [ ] 0.9 `.github/workflows/ci.yml` -- checkout, install, ruff check, mypy, pytest
-- [ ] 0.10 `Makefile` -- `dev`, `test`, `lint`, `docker-up`, `docker-down`, `update-readme`
+- [x] 0.2 `src/chronoagent/config.py` -- Pydantic `Settings` with `env_prefix="CHRONO_"` and `.env` support. YAML overlay loader in CLI merges YAML -> env -> defaults. Key fields: env (dev/prod/test), llm_backend (**together**/mock/ollama), together_api_key, together_model (default: `mistralai/Mixtral-8x7B-Instruct-v0.1`), ollama_base_url (optional), ollama_model (optional, phi3:mini), redis_url, database_url (sqlite default for dev), chroma_persist_dir, health_score_window (50), bocpd_hazard_rate (0.01), forecaster_enabled (true), forecaster_horizon (10), ensemble_weights (bocpd=0.4, chronos=0.6), escalation_threshold (0.3), escalation_cooldown (300s)
+- [x] 0.3 `src/chronoagent/main.py` -- FastAPI app factory with lifespan for DB/Redis/Chroma init, mount health router
+- [x] 0.4 `src/chronoagent/cli.py` -- Typer CLI: `serve`, `run-experiment`, `check-health`
+- [x] 0.5 `src/chronoagent/observability/logging.py` -- structlog, JSON in prod, colored in dev, consistent fields (`agent_id`, `task_id`, `phase`)
+- [x] 0.6 `Dockerfile` (multi-stage, Python 3.11-slim), `docker-compose.yml` (app, redis, postgres, chroma), `.env.example` documenting all `CHRONO_*` vars
+- [x] 0.7 `configs/` -- `base.yaml`, `dev.yaml`, `prod.yaml` with merge hierarchy
+- [x] 0.8 `tests/unit/test_config.py` -- Settings loads defaults
+- [x] 0.9 `.github/workflows/ci.yml` -- checkout, install, ruff check, mypy, pytest
+- [x] 0.10 `Makefile` -- `dev`, `test`, `lint`, `docker-up`, `docker-down`, `update-readme`
 
 **Git & CI/CD setup (do this before any code):**
-- [ ] 0.11 `git init` + initial commit on `main`. Set branch protection: `main` requires PR + green CI. All work on feature branches (`feat/`, `fix/`, `chore/`). Never commit directly to main.
-- [ ] 0.12 Conventional commits enforced via `commitizen` (`cz commit`). Format: `feat(scorer): add BOCPD streaming`, `fix(monitor): handle zero-variance KL-div`, `chore(ci): add mypy step`. Add to `pyproject.toml`: `[tool.commitizen] version_provider = "pep621"`.
-- [ ] 0.13 `.pre-commit-config.yaml` with hooks: `ruff` (lint+format), `mypy` (type check), `commitizen` (commit message), `trailing-whitespace`, `end-of-file-fixer`. Run `pre-commit install` — blocks bad commits locally before they reach CI.
-- [ ] 0.14 Lock file: use `uv` (`pip install uv`). Run `uv pip compile pyproject.toml -o requirements.lock`. Commit the lock file. CI installs from lock file for reproducibility.
-- [ ] 0.15 `.github/workflows/ci.yml` triggers on every push + PR to main: install from lock, pre-commit, mypy, pytest with coverage (fail below 80%). PRs to main require this to pass.
-- [ ] 0.16 `.github/workflows/release.yml` triggers on `git tag v*`: bump version via commitizen (`cz bump`), build wheel, build + push Docker image to GHCR, create GitHub Release with changelog auto-generated from conventional commits.
+- [x] 0.11 `git init` + initial commit on `main`. Set branch protection: `main` requires PR + green CI. All work on feature branches (`feat/`, `fix/`, `chore/`). Never commit directly to main.
+- [x] 0.12 Conventional commits enforced via `commitizen` (`cz commit`). Format: `feat(scorer): add BOCPD streaming`, `fix(monitor): handle zero-variance KL-div`, `chore(ci): add mypy step`. Add to `pyproject.toml`: `[tool.commitizen] version_provider = "pep621"`.
+- [x] 0.13 `.pre-commit-config.yaml` with hooks: `ruff` (lint+format), `mypy` (type check), `commitizen` (commit message), `trailing-whitespace`, `end-of-file-fixer`. Run `pre-commit install` — blocks bad commits locally before they reach CI.
+- [x] 0.14 Lock file: use `uv` (`pip install uv`). Run `uv pip compile pyproject.toml -o requirements.lock`. Commit the lock file. CI installs from lock file for reproducibility.
+- [x] 0.15 `.github/workflows/ci.yml` triggers on every push + PR to main: install from lock, pre-commit, mypy, pytest with coverage (fail below 80%). PRs to main require this to pass.
+- [x] 0.16 `.github/workflows/release.yml` triggers on `git tag v*`: bump version via commitizen (`cz bump`), build wheel, build + push Docker image to GHCR, create GitHub Release with changelog auto-generated from conventional commits.
 
 **Dev practices enforced from commit 1:**
-- [ ] 0.17 All modules: full type hints. `mypy --strict` in CI — no `Any` without explicit comment.
-- [ ] 0.18 All public functions: docstrings (one-line summary, Args, Returns). No inline comments except for non-obvious logic.
-- [ ] 0.19 `ruff` config in `pyproject.toml`: `line-length=100`, `select=["E","F","I","N","UP","B","SIM"]`. Format on save.
+- [x] 0.17 All modules: full type hints. `mypy --strict` in CI — no `Any` without explicit comment.
+- [x] 0.18 All public functions: docstrings (one-line summary, Args, Returns). No inline comments except for non-obvious logic.
+- [x] 0.19 `ruff` config in `pyproject.toml`: `line-length=100`, `select=["E","F","I","N","UP","B","SIM"]`. Format on save.
 
 **Key Files:** `pyproject.toml`, `config.py`, `main.py`, `cli.py`, `Dockerfile`, `docker-compose.yml`, `ci.yml`, `.pre-commit-config.yaml`, `requirements.lock`
 
@@ -114,10 +114,10 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 ### Phase 0 Log
 | | |
 |--|--|
-| **Findings** | _fill in: what worked, what didn't, any surprises_ |
-| **Challenges** | _fill in: blockers encountered_ |
-| **Decisions** | _fill in: choices made + one-line reason each_ |
-| **Completed** | _fill in: date_ |
+| **Findings** | 44 tests pass, 95.77% coverage (gate ≥80%). Python 3.13 on Windows (py launcher). `uv pip compile` produces lock file cleanly. |
+| **Challenges** | No `pip` on PATH — must use `py -m pip`. CRLF warnings on Windows git (cosmetic, not blocking). |
+| **Decisions** | Used `py` launcher instead of `python3`. Ensemble weights split into two separate fields (`ensemble_weights_bocpd`, `ensemble_weights_chronos`) instead of a nested dict — simpler env-var override. |
+| **Completed** | 2026-04-09 |
 
 ---
 
