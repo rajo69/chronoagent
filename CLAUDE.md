@@ -9,9 +9,9 @@
 | Field | Value |
 |-------|-------|
 | **Current phase** | Phase 1 — Signal Validation |
-| **Next task** | 1.7 — signal_validation.yaml config |
+| **Next task** | 1.8 — Analysis script (plots, Cohen's d, PELT changepoint, AWT, decision matrix) |
 | **Blocked?** | No |
-| **Last session** | 2026-04-09 — Task 1.6 complete (SignalValidationRunner + cohens_d, 134 tests green, 93% cov) |
+| **Last session** | 2026-04-09 — Task 1.7 complete (configs/experiments/signal_validation.yaml, YAML parses clean) |
 
 > Update this table at the end of every session before closing.
 
