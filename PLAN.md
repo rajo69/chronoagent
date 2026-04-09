@@ -180,8 +180,8 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 - Full trace logging per agent
 
 **Tasks:**
-- [ ] 2.1 `agents/base.py` -- `BaseAgent` ABC: `execute(Task) -> TaskResult`, instrumented `_call_llm`, `_retrieve_memory`
-- [ ] 2.2 `agents/backends/` -- `LLMBackend` ABC (`generate`, `embed`), `TogetherAIBackend` (default), `MockBackend` (deterministic fixtures — primary for all tests/experiments), `OllamaBackend` (optional, skip if no GPU)
+- [x] 2.1 `agents/base.py` -- `BaseAgent` ABC: `execute(Task) -> TaskResult`, instrumented `_call_llm`, `_retrieve_memory`
+- [x] 2.2 `agents/backends/` -- `LLMBackend` ABC (`generate`, `embed`), `TogetherAIBackend` (default), `MockBackend` (deterministic fixtures — primary for all tests/experiments), `OllamaBackend` (optional, skip if no GPU)
 - [ ] 2.3 `agents/planner.py` -- Decomposes PR diff into `list[ReviewSubtask]` with task_type + code_segment; queries memory for similar decompositions
 - [ ] 2.4 `agents/security_reviewer.py` -- Full impl: checks for vulns, outputs `SecurityFinding` (severity, desc, line ref); queries CWE patterns from memory
 - [ ] 2.5 `agents/style_reviewer.py` -- Checks quality/naming/complexity, outputs `StyleFinding`; queries style conventions from memory

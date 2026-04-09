@@ -12,10 +12,9 @@ from dataclasses import dataclass, field
 
 import chromadb
 from chromadb.api import ClientAPI
-from langchain_core.language_models.llms import LLM
 
+from chronoagent.agents.backends.mock import MockBackend, MockBackendVariant
 from chronoagent.agents.base import BaseAgent, RetrievalResult, Task, TaskResult
-from chronoagent.llm.mock_backend import MockBackend
 
 # ---------------------------------------------------------------------------
 # Synthetic PR corpus used to pre-populate the security knowledge base
@@ -155,7 +154,8 @@ class SecurityReviewerAgent(BaseAgent):
 
     Args:
         agent_id: Unique identifier for this agent instance.
-        llm: LangChain-compatible language model backend.
+        backend: :class:`~chronoagent.agents.backends.base.LLMBackend` for
+            generation and embeddings.
         collection: ChromaDB collection containing security patterns.
         top_k: Number of security patterns to retrieve per PR.
     """
@@ -241,10 +241,11 @@ class SecurityReviewerAgent(BaseAgent):
             Configured :class:`SecurityReviewerAgent`.
         """
         client = chroma_client or chromadb.EphemeralClient()
+        backend = MockBackend(seed=seed, variant=MockBackendVariant.SECURITY)
         collection = cls.build_collection(
             client,
             name=f"{agent_id}_security_kb",
             documents=_SECURITY_KNOWLEDGE_BASE,
+            backend=backend,
         )
-        llm: LLM = MockBackend(seed=seed)
-        return cls(agent_id=agent_id, llm=llm, collection=collection, top_k=top_k)
+        return cls(agent_id=agent_id, backend=backend, collection=collection, top_k=top_k)

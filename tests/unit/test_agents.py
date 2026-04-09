@@ -5,6 +5,7 @@ from __future__ import annotations
 import chromadb
 import pytest
 
+from chronoagent.agents.backends.mock import MockBackend
 from chronoagent.agents.base import BaseAgent, Task, TaskResult
 from chronoagent.agents.security_reviewer import (
     SecurityReview,
@@ -37,7 +38,7 @@ class TestBaseAgentABC:
         with pytest.raises(TypeError):
             BaseAgent(  # type: ignore[abstract]
                 agent_id="x",
-                llm=None,  # type: ignore[arg-type]
+                backend=None,  # type: ignore[arg-type]
                 collection=None,  # type: ignore[arg-type]
             )
 

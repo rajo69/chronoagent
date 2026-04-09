@@ -6,6 +6,7 @@ import chromadb
 import numpy as np
 import pytest
 
+from chronoagent.agents.backends.mock import MockBackend
 from chronoagent.agents.base import BaseAgent
 from chronoagent.memory.poisoning import AGENTPOISONStyleAttack, MINJAStyleAttack
 
@@ -34,6 +35,7 @@ def collection() -> chromadb.Collection:
         client=client,
         name="test_collection",
         documents=seed_docs,
+        backend=MockBackend(),
     )
     return col  # type: ignore[return-value]
 

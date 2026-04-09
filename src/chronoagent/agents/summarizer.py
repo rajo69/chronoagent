@@ -12,11 +12,10 @@ from dataclasses import dataclass
 
 import chromadb
 from chromadb.api import ClientAPI
-from langchain_core.language_models.llms import LLM
 
+from chronoagent.agents.backends.mock import MockBackend, MockBackendVariant
 from chronoagent.agents.base import BaseAgent, RetrievalResult, Task, TaskResult
 from chronoagent.agents.security_reviewer import SecurityReview, SyntheticPR
-from chronoagent.llm.mock_backend import MockSummaryBackend
 
 # ---------------------------------------------------------------------------
 # Historical summary corpus pre-populated into ChromaDB
@@ -145,7 +144,8 @@ class SummarizerAgent(BaseAgent):
 
     Args:
         agent_id: Unique identifier for this agent instance.
-        llm: LangChain-compatible language model backend.
+        backend: :class:`~chronoagent.agents.backends.base.LLMBackend` for
+            generation and embeddings.
         collection: ChromaDB collection containing historical context.
         top_k: Number of historical patterns to retrieve per step.
     """
@@ -223,11 +223,11 @@ class SummarizerAgent(BaseAgent):
         top_k: int = 3,
         chroma_client: ClientAPI | None = None,
     ) -> SummarizerAgent:
-        """Factory method creating a ready-to-use agent with MockSummaryBackend.
+        """Factory method creating a ready-to-use agent with MockBackend.
 
         Args:
             agent_id: Unique identifier for this agent instance.
-            seed: Seed for the :class:`MockSummaryBackend` response selection.
+            seed: Seed for the :class:`MockBackend` response selection.
             top_k: Number of historical patterns to retrieve per step.
             chroma_client: ChromaDB client; ephemeral in-memory client used if None.
 
@@ -235,10 +235,11 @@ class SummarizerAgent(BaseAgent):
             Configured :class:`SummarizerAgent`.
         """
         client = chroma_client or chromadb.EphemeralClient()
+        backend = MockBackend(seed=seed, variant=MockBackendVariant.SUMMARY)
         collection = cls.build_collection(
             client,
             name=f"{agent_id}_history_kb",
             documents=_SUMMARY_CONTEXT_DOCS,
+            backend=backend,
         )
-        llm: LLM = MockSummaryBackend(seed=seed)
-        return cls(agent_id=agent_id, llm=llm, collection=collection, top_k=top_k)
+        return cls(agent_id=agent_id, backend=backend, collection=collection, top_k=top_k)
