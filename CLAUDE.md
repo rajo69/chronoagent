@@ -9,9 +9,9 @@
 | Field | Value |
 |-------|-------|
 | **Current phase** | Phase 1 — Signal Validation |
-| **Next task** | 1.3 — KL-divergence calibration |
+| **Next task** | 1.4 — Shannon entropy of retrieval scores |
 | **Blocked?** | No |
-| **Last session** | 2026-04-09 — Task 1.2 complete (BehavioralCollector + StepSignals, 89 tests, 96% cov) |
+| **Last session** | 2026-04-09 — Task 1.3 complete (KLCalibrator, diagonal Gaussian baseline, scipy override) |
 
 > Update this table at the end of every session before closing.
 

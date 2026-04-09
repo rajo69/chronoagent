@@ -135,7 +135,7 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 **Tasks:**
 - [x] 1.1 Minimal agent pair -- `SecurityReviewerAgent` + `SummarizerAgent` using LangChain + **MockBackend** (not Ollama — no GPU needed, deterministic), both with ChromaDB retrieval. MockBackend returns realistic but fixed responses to simulate real agent behavior.
 - [x] 1.2 `monitor/collector.py` -- `BehavioralCollector` with `StepSignals` dataclass (6 fields), `start_step`/`end_step`, `get_signal_matrix() -> (T, 6) ndarray`
-- [ ] 1.3 `monitor/kl_divergence.py` -- Calibration run fits Gaussian on clean retrieval embeddings; per-step KL from baseline via `scipy.stats.entropy`
+- [x] 1.3 `monitor/kl_divergence.py` -- Calibration run fits Gaussian on clean retrieval embeddings; per-step KL from baseline via `scipy.stats.entropy`
 - [ ] 1.4 `monitor/entropy.py` -- Shannon entropy of top-k similarity score distribution per retrieval; normalized to [0,1]
 - [ ] 1.5 `memory/poisoning.py` -- `MINJAStyleAttack` (query-optimized trigger embeddings) + `AGENTPOISONStyleAttack` (backdoor trigger docs); both inject into ChromaDB
 - [ ] 1.6 `experiments/runner.py` -- Phase A: clean run (N PRs) -> Phase B: inject attack -> Phase C: poisoned run (N PRs) -> Phase D: compute stats

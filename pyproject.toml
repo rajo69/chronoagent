@@ -75,6 +75,11 @@ python_version = "3.11"
 mypy_path = "src"
 ignore_missing_imports = false
 
+[[tool.mypy.overrides]]
+module = ["scipy.*"]
+ignore_missing_imports = true
+disable_error_code = ["import-untyped"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
