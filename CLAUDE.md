@@ -9,9 +9,9 @@
 | Field | Value |
 |-------|-------|
 | **Current phase** | Phase 1 — Signal Validation |
-| **Next task** | 1.8 — Analysis script (plots, Cohen's d, PELT changepoint, AWT, decision matrix) |
+| **Next task** | 1.9 — Write decision document with pivot ruling |
 | **Blocked?** | No |
-| **Last session** | 2026-04-09 — Task 1.7 complete (configs/experiments/signal_validation.yaml, YAML parses clean) |
+| **Last session** | 2026-04-09 — Task 1.8 complete (experiments/analysis.py: SignalAnalyzer, PELT, AWT, decision matrix CSV + plots; CLI run-experiment wired up) |
 
 > Update this table at the end of every session before closing.
 
