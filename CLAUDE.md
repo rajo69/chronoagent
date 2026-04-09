@@ -8,10 +8,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Current phase** | Phase 1 → Phase 2 (Phase 1 complete) |
-| **Next task** | 2.1 — LangGraph 4-agent pipeline (Planner → SecurityReviewer ‖ StyleReviewer → Summarizer) |
+| **Current phase** | Phase 2 — Core Agent Pipeline |
+| **Next task** | 2.3 — `agents/planner.py` (decomposes PR diff into `list[ReviewSubtask]`) |
 | **Blocked?** | No |
-| **Last session** | 2026-04-09 — Task 1.9 complete (docs/phase1_decision.md: decision doc, Pivot A applied, KL-div confirmed as anchor signal) |
+| **Last session** | 2026-04-09 — Tasks 2.1 + 2.2 complete. BaseAgent ABC + LLMBackend ABC with MockBackend/TogetherAIBackend/OllamaBackend. BaseAgent now uses LLMBackend (not LangChain LLM). 164 tests pass. |
 
 > Update this table at the end of every session before closing.
 
