@@ -44,7 +44,7 @@ The checkboxes + Log sections tell the full story — no other context needed.
 | # | Phase | Complexity | Status | Depends On |
 |---|-------|-----------|--------|------------|
 | 0 | Bootstrap | Low | `[x]` | -- |
-| 1 | Signal Validation (GO/NO-GO) | **High** | `[ ]` | 0 |
+| 1 | Signal Validation (GO/NO-GO) | **High** | `[x]` | 0 |
 | 2 | Core Agent Pipeline | Medium | `[ ]` | 0, 1 (collector) |
 | 3 | Behavioral Monitor | Medium | `[ ]` | 2 |
 | 4 | Temporal Health Scorer | **High** | `[ ]` | 3 |
@@ -141,7 +141,7 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 - [x] 1.6 `experiments/runner.py` -- Phase A: clean run (N PRs) -> Phase B: inject attack -> Phase C: poisoned run (N PRs) -> Phase D: compute stats
 - [x] 1.7 `configs/experiments/signal_validation.yaml` -- seed, step counts, attack type, agent list, signal list, analysis params
 - [x] 1.8 Analysis script -- per-signal time-series plots, Cohen's d, PELT changepoint detection, AWT estimation, decision matrix table
-- [ ] 1.9 Write decision document with pivot ruling
+- [x] 1.9 Write decision document with pivot ruling
 
 **Key Files:** `agents/security_reviewer.py`, `agents/summarizer.py`, `monitor/collector.py`, `monitor/kl_divergence.py`, `monitor/entropy.py`, `memory/poisoning.py`, `experiments/runner.py`
 
@@ -158,13 +158,13 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 ### Phase 1 Log
 | | |
 |--|--|
-| **Signal Results** | _fill in: Cohen's d per signal, AWT estimate_ |
-| **GO/NO-GO Decision** | _fill in: GO / PIVOT A / PIVOT B_ |
-| **Pivot Taken** | _fill in: none / Pivot A / Pivot B — and why_ |
-| **Findings** | _fill in_ |
-| **Challenges** | _fill in_ |
-| **Decisions** | _fill in_ |
-| **Completed** | _fill in: date_ |
+| **Signal Results** | KL-div: d=1.611 (MINJA), d=1.348 (AGENTPOISON). All other signals d<0.4. Entropy/retrieval_count/tool_calls are MockBackend constants (σ=0). AWT=0 (concurrent). |
+| **GO/NO-GO Decision** | Conditional GO with Pivot A. Strict criterion: NO-GO (1/6 signals). Adjusted: primary signal confirmed; MockBackend limits 3/6 signals. |
+| **Pivot Taken** | Pivot A — AWT=0; reframe to concurrent detection. No code changes. |
+| **Findings** | KL-divergence is the only backend-independent signal; works under both MINJA and AGENTPOISON (d>1.3). PELT detects changepoint at step 9/25. Entropy flat due to uniform MockBackend similarity scores. |
+| **Challenges** | MockBackend eliminates 3/6 signals as observable (σ=0). Token-count effect is a PR-seed confound, not attack signal. |
+| **Decisions** | KL-div promoted as anchor signal for Phase 2 monitor integration. Entropy/retrieval_count deferred to Phase 2+ with real LLM backend. Full doc: `docs/phase1_decision.md`. |
+| **Completed** | 2026-04-09 |
 
 ---
 
