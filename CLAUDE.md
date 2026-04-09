@@ -9,9 +9,9 @@
 | Field | Value |
 |-------|-------|
 | **Current phase** | Phase 2 — Core Agent Pipeline |
-| **Next task** | 2.8 — `memory/store.py` — ChromaDB wrapper: `add`, `query`, `delete`, `get_all_embeddings` |
+| **Next task** | 2.9 — Seed data script — ~50 vuln patterns (CWE top 25), ~30 style docs, ~10 report templates, ~20 sample reviews |
 | **Blocked?** | No |
-| **Last session** | 2026-04-09 — Task 2.7 complete. AgentRegistry with _CAPABILITY_MAP (plan/security_review/style_review/summarize → agent class), get_class(), has(), supported_task_types(), capabilities(). UnknownTaskTypeError. 13 new tests, 91 passing in test_agents.py. |
+| **Last session** | 2026-04-09 — Task 2.8 complete. MemoryStore wrapping ChromaDB Collection: add (upsert + optional pre-computed embeddings), query (clamps n_results, returns QueryResult), delete, get_all_embeddings. 27 new tests, 260 passing total, 93% coverage. |
 
 > Update this table at the end of every session before closing.
 
