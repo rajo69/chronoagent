@@ -9,9 +9,9 @@
 | Field | Value |
 |-------|-------|
 | **Current phase** | Phase 2 — Core Agent Pipeline |
-| **Next task** | 2.10 — `pipeline/graph.py` — LangGraph `StateGraph`: plan -> (security_review \|\| style_review) -> summarize -> END |
+| **Next task** | 2.11 — `api/routers/review.py` — `POST /api/v1/review`, `GET /api/v1/review/{id}` |
 | **Blocked?** | No |
-| **Last session** | 2026-04-09 — Task 2.9 complete. `scripts/seed_memory.py`: seeds 4 ChromaDB collections (50 security patterns, 30 style conventions, 10 report templates, 20 sample reviews) via MockBackend. `--chroma-dir` and `--reset` CLI flags. 27 new tests, 287 passing total, 93% coverage. |
+| **Last session** | 2026-04-09 — Task 2.10 complete. `pipeline/graph.py`: LangGraph `StateGraph` fan-out (plan → security_review ∥ style_review) → summarize → END. `ReviewPipeline` class with `.create()` factory and `.run(pr) → ReviewReport`. 17 new tests, 304 passing total, 93.6% coverage. |
 
 > Update this table at the end of every session before closing.
 

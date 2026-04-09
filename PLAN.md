@@ -188,8 +188,8 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 - [x] 2.6 `agents/summarizer.py` -- Synthesizes all findings into `ReviewReport` (markdown); queries report templates
 - [x] 2.7 `agents/registry.py` -- `AgentRegistry`: capability map, agent lookup by type
 - [x] 2.8 `memory/store.py` -- ChromaDB wrapper: `add`, `query`, `delete`, `get_all_embeddings`
-- [ ] 2.9 Seed data script -- ~50 vuln patterns (CWE top 25), ~30 style docs, ~10 report templates, ~20 sample reviews
-- [ ] 2.10 `pipeline/graph.py` -- LangGraph `StateGraph`: plan -> (security_review || style_review) -> summarize -> END
+- [x] 2.9 Seed data script -- ~50 vuln patterns (CWE top 25), ~30 style docs, ~10 report templates, ~20 sample reviews
+- [x] 2.10 `pipeline/graph.py` -- LangGraph `StateGraph`: plan -> (security_review || style_review) -> summarize -> END
 - [ ] 2.11 `api/routers/review.py` -- `POST /api/v1/review`, `GET /api/v1/review/{id}`
 - [ ] 2.12 `tests/integration/test_pipeline_e2e.py` -- MockBackend, submit diff, assert ReviewReport with findings, assert agent order
 
