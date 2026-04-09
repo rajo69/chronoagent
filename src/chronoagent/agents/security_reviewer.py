@@ -14,7 +14,7 @@ import chromadb
 from chromadb.api import ClientAPI
 from langchain_core.language_models.llms import LLM
 
-from chronoagent.agents.base import BaseAgent, RetrievalResult
+from chronoagent.agents.base import BaseAgent, RetrievalResult, Task, TaskResult
 from chronoagent.llm.mock_backend import MockBackend
 
 # ---------------------------------------------------------------------------
@@ -177,7 +177,7 @@ class SecurityReviewerAgent(BaseAgent):
             :class:`SecurityReview` with findings, severity, and retrieval metadata.
         """
         query = f"{pr.title} {pr.description} {pr.diff[:200]}"
-        retrieval = self.retrieve(query)
+        retrieval = self._retrieve_memory(query)
 
         context_block = "\n".join(
             f"- {doc}" for doc in retrieval.documents
@@ -193,13 +193,33 @@ class SecurityReviewerAgent(BaseAgent):
             "Provide your security review:"
         )
 
-        t0 = time.perf_counter()
-        raw_response = self.llm.invoke(prompt)
-        llm_latency_ms = (time.perf_counter() - t0) * 1_000
+        raw_response, llm_latency_ms = self._call_llm(prompt)
 
-        review = _parse_review(str(raw_response), pr.pr_id, retrieval)
+        review = _parse_review(raw_response, pr.pr_id, retrieval)
         review.llm_latency_ms = llm_latency_ms
         return review
+
+    def execute(self, task: Task) -> TaskResult:
+        """Execute a security review task.
+
+        Args:
+            task: Task with ``payload["pr"]`` set to a :class:`SyntheticPR`.
+
+        Returns:
+            :class:`TaskResult` with ``output["review"]`` containing the
+            :class:`SecurityReview`.
+        """
+        pr: SyntheticPR = task.payload["pr"]
+        review = self.review(pr)
+        return TaskResult(
+            task_id=task.task_id,
+            agent_id=self.agent_id,
+            status="success",
+            output={"review": review},
+            llm_latency_ms=review.llm_latency_ms,
+            retrieval_latency_ms=review.retrieval_latency_ms,
+            timestamp=time.time(),
+        )
 
     @classmethod
     def create(

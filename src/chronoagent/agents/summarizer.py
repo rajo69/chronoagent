@@ -14,7 +14,7 @@ import chromadb
 from chromadb.api import ClientAPI
 from langchain_core.language_models.llms import LLM
 
-from chronoagent.agents.base import BaseAgent, RetrievalResult
+from chronoagent.agents.base import BaseAgent, RetrievalResult, Task, TaskResult
 from chronoagent.agents.security_reviewer import SecurityReview, SyntheticPR
 from chronoagent.llm.mock_backend import MockSummaryBackend
 
@@ -169,7 +169,7 @@ class SummarizerAgent(BaseAgent):
         """
         findings_text = "\n".join(review.findings) or "No findings."
         query = f"{pr.title} {review.severity} {findings_text[:200]}"
-        retrieval = self.retrieve(query)
+        retrieval = self._retrieve_memory(query)
 
         context_block = "\n".join(
             f"- {doc}" for doc in retrieval.documents
@@ -185,13 +185,35 @@ class SummarizerAgent(BaseAgent):
             "Provide your summary:"
         )
 
-        t0 = time.perf_counter()
-        raw_response = self.llm.invoke(prompt)
-        llm_latency_ms = (time.perf_counter() - t0) * 1_000
+        raw_response, llm_latency_ms = self._call_llm(prompt)
 
-        summary = _parse_summary(str(raw_response), pr.pr_id, retrieval, review.severity)
+        summary = _parse_summary(raw_response, pr.pr_id, retrieval, review.severity)
         summary.llm_latency_ms = llm_latency_ms
         return summary
+
+    def execute(self, task: Task) -> TaskResult:
+        """Execute a summarization task.
+
+        Args:
+            task: Task with ``payload["pr"]`` set to a :class:`SyntheticPR`
+                and ``payload["review"]`` set to a :class:`SecurityReview`.
+
+        Returns:
+            :class:`TaskResult` with ``output["summary"]`` containing the
+            :class:`Summary`.
+        """
+        pr: SyntheticPR = task.payload["pr"]
+        review: SecurityReview = task.payload["review"]
+        summary = self.summarize(pr, review)
+        return TaskResult(
+            task_id=task.task_id,
+            agent_id=self.agent_id,
+            status="success",
+            output={"summary": summary},
+            llm_latency_ms=summary.llm_latency_ms,
+            retrieval_latency_ms=summary.retrieval_latency_ms,
+            timestamp=time.time(),
+        )
 
     @classmethod
     def create(

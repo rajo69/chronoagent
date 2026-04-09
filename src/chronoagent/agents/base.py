@@ -6,14 +6,54 @@ an LLM backend and a ChromaDB collection for retrieval-augmented generation.
 
 from __future__ import annotations
 
+import abc
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any, Literal
 
 from chromadb import Collection
 from chromadb.api import ClientAPI
 from langchain_core.language_models.llms import LLM
 
 from chronoagent.llm.mock_backend import MockEmbeddingFunction
+
+
+@dataclass
+class Task:
+    """Unit of work submitted to an agent.
+
+    Attributes:
+        task_id: Unique identifier for this task.
+        task_type: Agent-specific type tag (e.g. ``"security_review"``, ``"summarize"``).
+        payload: Agent-specific input data.
+    """
+
+    task_id: str
+    task_type: str
+    payload: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class TaskResult:
+    """Outcome produced by an agent executing a :class:`Task`.
+
+    Attributes:
+        task_id: Matches :attr:`Task.task_id`.
+        agent_id: ID of the agent that produced this result.
+        status: ``"success"`` or ``"error"``.
+        output: Agent-specific output data.
+        llm_latency_ms: Wall-clock time of the LLM call in milliseconds.
+        retrieval_latency_ms: Wall-clock time of the memory query in milliseconds.
+        timestamp: Unix epoch (seconds) when the result was produced.
+    """
+
+    task_id: str
+    agent_id: str
+    status: Literal["success", "error"]
+    output: dict[str, Any]
+    llm_latency_ms: float
+    retrieval_latency_ms: float
+    timestamp: float
 
 
 @dataclass
@@ -33,11 +73,11 @@ class RetrievalResult:
     latency_ms: float
 
 
-class BaseAgent:
+class BaseAgent(abc.ABC):
     """Foundation class for all ChronoAgent agents.
 
-    Provides ChromaDB retrieval utilities and a common interface for
-    subclasses to implement task-specific processing.
+    Provides instrumented LLM calls, ChromaDB memory retrieval, and an
+    abstract :meth:`execute` interface that every concrete agent must implement.
 
     Args:
         agent_id: Unique identifier for this agent instance.
@@ -59,7 +99,32 @@ class BaseAgent:
         self.top_k = top_k
         self._embed = MockEmbeddingFunction()
 
-    def retrieve(self, query: str) -> RetrievalResult:
+    @abc.abstractmethod
+    def execute(self, task: Task) -> TaskResult:
+        """Execute a task and return a structured result.
+
+        Args:
+            task: The :class:`Task` to process.
+
+        Returns:
+            :class:`TaskResult` with output, latencies, and status.
+        """
+
+    def _call_llm(self, prompt: str) -> tuple[str, float]:
+        """Call the LLM backend and measure latency.
+
+        Args:
+            prompt: Input prompt string.
+
+        Returns:
+            Tuple of ``(response_text, latency_ms)``.
+        """
+        t0 = time.perf_counter()
+        response = self.llm.invoke(prompt)
+        latency_ms = (time.perf_counter() - t0) * 1_000
+        return str(response), latency_ms
+
+    def _retrieve_memory(self, query: str) -> RetrievalResult:
         """Query the ChromaDB collection for context relevant to *query*.
 
         Args:

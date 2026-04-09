@@ -1,10 +1,11 @@
-"""Tests for SecurityReviewerAgent and SummarizerAgent."""
+"""Tests for BaseAgent ABC, SecurityReviewerAgent, and SummarizerAgent."""
 
 from __future__ import annotations
 
 import chromadb
 import pytest
 
+from chronoagent.agents.base import BaseAgent, Task, TaskResult
 from chronoagent.agents.security_reviewer import (
     SecurityReview,
     SecurityReviewerAgent,
@@ -28,6 +29,34 @@ def sample_pr() -> SyntheticPR:
         diff="+def upload(file):\n+    path = base_dir + file.filename\n+    save(path, file)",
         files_changed=["api/upload.py"],
     )
+
+
+class TestBaseAgentABC:
+    def test_cannot_instantiate_base_agent(self) -> None:
+        """BaseAgent is abstract — direct instantiation must raise TypeError."""
+        with pytest.raises(TypeError):
+            BaseAgent(  # type: ignore[abstract]
+                agent_id="x",
+                llm=None,  # type: ignore[arg-type]
+                collection=None,  # type: ignore[arg-type]
+            )
+
+    def test_task_defaults(self) -> None:
+        task = Task(task_id="t1", task_type="security_review")
+        assert task.payload == {}
+
+    def test_task_result_fields(self) -> None:
+        result = TaskResult(
+            task_id="t1",
+            agent_id="agent",
+            status="success",
+            output={"key": "value"},
+            llm_latency_ms=10.0,
+            retrieval_latency_ms=5.0,
+            timestamp=0.0,
+        )
+        assert result.status == "success"
+        assert result.output["key"] == "value"
 
 
 class TestSyntheticPR:
@@ -90,6 +119,41 @@ class TestSecurityReviewerAgent:
         review = agent.review(sample_pr)
         assert review.raw_response.strip() != ""
 
+    def test_call_llm_returns_text_and_latency(
+        self, chroma_client: chromadb.ClientAPI
+    ) -> None:
+        agent = SecurityReviewerAgent.create(chroma_client=chroma_client)
+        text, latency_ms = agent._call_llm("test prompt")
+        assert isinstance(text, str)
+        assert len(text) > 0
+        assert latency_ms >= 0.0
+
+    def test_retrieve_memory_returns_result(
+        self, chroma_client: chromadb.ClientAPI
+    ) -> None:
+        agent = SecurityReviewerAgent.create(top_k=2, chroma_client=chroma_client)
+        result = agent._retrieve_memory("SQL injection")
+        assert len(result.documents) == 2
+        assert result.latency_ms >= 0.0
+
+    def test_execute_returns_task_result(
+        self, chroma_client: chromadb.ClientAPI, sample_pr: SyntheticPR
+    ) -> None:
+        agent = SecurityReviewerAgent.create(chroma_client=chroma_client)
+        task = Task(
+            task_id="t1",
+            task_type="security_review",
+            payload={"pr": sample_pr},
+        )
+        result = agent.execute(task)
+        assert isinstance(result, TaskResult)
+        assert result.task_id == "t1"
+        assert result.agent_id == "security_reviewer"
+        assert result.status == "success"
+        assert isinstance(result.output["review"], SecurityReview)
+        assert result.llm_latency_ms >= 0.0
+        assert result.retrieval_latency_ms >= 0.0
+
     def test_multiple_prs_processed(self, chroma_client: chromadb.ClientAPI) -> None:
         agent = SecurityReviewerAgent.create(chroma_client=chroma_client)
         prs = [
@@ -143,6 +207,24 @@ class TestSummarizerAgent:
         review = reviewer.review(sample_pr)
         summary = summarizer.summarize(sample_pr, review)
         assert summary.risk_level in ("none", "low", "medium", "high", "critical")
+
+    def test_execute_returns_task_result(
+        self, chroma_client: chromadb.ClientAPI, sample_pr: SyntheticPR
+    ) -> None:
+        reviewer = SecurityReviewerAgent.create(chroma_client=chroma_client)
+        summarizer = SummarizerAgent.create(chroma_client=chroma_client)
+        review = reviewer.review(sample_pr)
+        task = Task(
+            task_id="t2",
+            task_type="summarize",
+            payload={"pr": sample_pr, "review": review},
+        )
+        result = summarizer.execute(task)
+        assert isinstance(result, TaskResult)
+        assert result.task_id == "t2"
+        assert result.agent_id == "summarizer"
+        assert result.status == "success"
+        assert isinstance(result.output["summary"], Summary)
 
     def test_end_to_end_pipeline(self, chroma_client: chromadb.ClientAPI) -> None:
         reviewer = SecurityReviewerAgent.create(chroma_client=chroma_client)
