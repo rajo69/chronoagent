@@ -9,9 +9,9 @@
 | Field | Value |
 |-------|-------|
 | **Current phase** | Phase 1 — Signal Validation |
-| **Next task** | 1.4 — Shannon entropy of retrieval scores |
+| **Next task** | 1.5 — Memory poisoning attacks |
 | **Blocked?** | No |
-| **Last session** | 2026-04-09 — Task 1.3 complete (KLCalibrator, diagonal Gaussian baseline, scipy override) |
+| **Last session** | 2026-04-09 — Task 1.4 complete (retrieval_entropy + step_entropy, normalised [0,1]) |
 
 > Update this table at the end of every session before closing.
 
