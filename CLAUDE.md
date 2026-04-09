@@ -9,9 +9,9 @@
 | Field | Value |
 |-------|-------|
 | **Current phase** | Phase 2 — Core Agent Pipeline |
-| **Next task** | 2.3 — `agents/planner.py` (decomposes PR diff into `list[ReviewSubtask]`) |
+| **Next task** | 2.4 — `agents/security_reviewer.py` full impl: `SecurityFinding` (severity, desc, line ref); queries CWE patterns |
 | **Blocked?** | No |
-| **Last session** | 2026-04-09 — Tasks 2.1 + 2.2 complete. BaseAgent ABC + LLMBackend ABC with MockBackend/TogetherAIBackend/OllamaBackend. BaseAgent now uses LLMBackend (not LangChain LLM). 164 tests pass. |
+| **Last session** | 2026-04-09 — Task 2.3 complete. PlannerAgent with ReviewSubtask/DecompositionResult, MockBackend PLANNER variant, 10-entry KB. 174 tests, 92% coverage. |
 
 > Update this table at the end of every session before closing.
 
