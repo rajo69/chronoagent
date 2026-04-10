@@ -139,6 +139,12 @@ class TestConstruction:
             {"retrieval_history_max": 0},
             {"retrieval_spike_z": 0.0},
             {"retrieval_spike_z": -1.0},
+            {"iso_n_estimators": 0},
+            {"iso_n_estimators": -10},
+            {"iso_saturation_quantile": 0.0},
+            {"iso_saturation_quantile": 1.01},
+            {"iso_saturation_quantile": -0.1},
+            {"refit_interval": -1},
         ],
     )
     def test_invalid_numeric_args_raise(self, kwargs: dict[str, float]) -> None:
@@ -251,51 +257,62 @@ class TestEmbeddingOutlier:
         assert result.signals[0].embedding_outlier == 0.0
         assert not module.baseline_fitted
 
-    def test_outlier_score_high_for_doc_far_from_centroid(self) -> None:
+    def test_outlier_score_separates_in_cluster_from_off_distribution(self) -> None:
+        """Low-dim baseline (3-D) so the IsolationForest has enough signal to
+        distinguish cluster points from off-distribution probes.
+
+        Tested via the private :meth:`_embedding_outlier_score` so the call
+        is independent of the backend's 384-d re-embedding (the public
+        ``check_retrieval`` path requires matching dims with the backend).
+        """
         backend = MockBackend()
-        # Construct a synthetic tight cluster: 40 unit vectors near (1, 0, 0,...).
-        # MockBackend hash embeddings are pseudo-random and nearly orthogonal,
-        # so we cannot rely on text-based clustering for this assertion.
+        module = _make_module(backend)
+        # 200 unit vectors clustered near the north pole.
         rng = np.random.default_rng(7)
-        dim = backend.embed_dim
-        anchor = np.zeros(dim, dtype=np.float64)
-        anchor[0] = 1.0
-        cluster = []
-        for _ in range(40):
-            v = anchor + 0.02 * rng.standard_normal(dim)
+        cluster: list[list[float]] = []
+        for _ in range(200):
+            v = np.array([0.0, 0.0, 1.0]) + 0.1 * rng.standard_normal(3)
             v /= np.linalg.norm(v)
             cluster.append(v.tolist())
-
-        module = _make_module(backend)
         module.fit_baseline(cluster)
         assert module.baseline_fitted
+        assert module.baseline_size == 200
 
-        # In-cluster doc must score very low.
-        in_cluster = anchor.tolist()
-        clean_doc = RetrievedDoc(doc_id="near", text="x", embedding=in_cluster)
+        north_pole = np.array([0.0, 0.0, 1.0])
+        south_pole = np.array([0.0, 0.0, -1.0])
+        equator = np.array([1.0, 0.0, 0.0])
 
-        # Far point: orthogonal to the anchor.
-        far_vec = np.zeros(dim, dtype=np.float64)
-        far_vec[1] = 1.0
-        far_doc = RetrievedDoc(doc_id="far", text="x", embedding=far_vec.tolist())
+        in_score = module._embedding_outlier_score(north_pole)  # noqa: SLF001
+        south_score = module._embedding_outlier_score(south_pole)  # noqa: SLF001
+        equator_score = module._embedding_outlier_score(equator)  # noqa: SLF001
 
-        # Antipodal point: distance 2 (opposite the cluster).
-        antipode_vec = anchor.copy()
-        antipode_vec[0] = -1.0
-        antipode_doc = RetrievedDoc(doc_id="anti", text="x", embedding=antipode_vec.tolist())
+        # In-cluster point sits below the calibration zero, clipped to 0.
+        assert in_score < 0.2
+        # Both off-distribution probes should saturate.
+        assert south_score > 0.8
+        assert equator_score > 0.8
+        assert in_score < south_score
+        assert in_score < equator_score
 
-        result = module.check_retrieval("q", [clean_doc, far_doc, antipode_doc])
-        near_score = result.signals[0].embedding_outlier
-        far_score = result.signals[1].embedding_outlier
-        anti_score = result.signals[2].embedding_outlier
-
-        assert near_score < 0.05
-        assert far_score > 0.5
-        assert anti_score == pytest.approx(1.0, abs=1e-9)
-        # Far and antipodal both saturate (radius is tiny for a tight cluster);
-        # what matters is that the in-cluster doc scores strictly lower.
-        assert near_score < far_score
-        assert near_score < anti_score
+    def test_check_retrieval_outlier_signal_wired_through_public_api(self) -> None:
+        """End-to-end exercise of the embedding-outlier signal through
+        :meth:`check_retrieval`, with a baseline fitted from the same
+        backend the module re-embeds with so dims match."""
+        backend = MockBackend()
+        module = _make_module(backend)
+        # Use 100 backend-derived embeddings as the baseline so
+        # _content_mismatch_score has a matching-dim re-embed to compare.
+        baseline_texts = [f"clean baseline document {i}" for i in range(100)]
+        baseline_embs = backend.embed(baseline_texts)
+        module.fit_baseline(baseline_embs)
+        assert module.baseline_fitted
+        # A doc whose embedding matches its text scores low on mismatch and
+        # gets a (possibly small) outlier score; the call should not error.
+        doc = _clean_doc(backend, "d1", "another clean doc")
+        result = module.check_retrieval("q", [doc])
+        sig = result.signals[0]
+        assert 0.0 <= sig.embedding_outlier <= 1.0
+        assert sig.content_embedding_mismatch == pytest.approx(0.0, abs=1e-9)
 
     def test_fit_baseline_clears_with_empty_input(self) -> None:
         backend = MockBackend()
@@ -309,6 +326,122 @@ class TestEmbeddingOutlier:
         module = _make_module(MockBackend())
         with pytest.raises(ValueError, match="2-D"):
             module.fit_baseline([[[0.1, 0.2]]])  # 3-D nesting
+
+
+# ===========================================================================
+# IsolationForest growth: record_new_docs + auto-refit (Phase 6 task 6.2)
+# ===========================================================================
+
+
+def _toy_baseline(n: int = 200, seed: int = 7) -> list[list[float]]:
+    """Build a 3-D unit-vector cluster near the north pole."""
+    rng = np.random.default_rng(seed)
+    rows: list[list[float]] = []
+    for _ in range(n):
+        v = np.array([0.0, 0.0, 1.0]) + 0.1 * rng.standard_normal(3)
+        v /= np.linalg.norm(v)
+        rows.append(v.tolist())
+    return rows
+
+
+class TestRecordNewDocs:
+    def test_record_new_docs_noop_without_baseline(self) -> None:
+        backend = MockBackend()
+        module = MemoryIntegrityModule(backend=backend, refit_interval=10)
+        # No baseline yet -> nothing to grow.
+        module.record_new_docs(_toy_baseline(5))
+        assert not module.baseline_fitted
+        assert module.pending_refit_count == 0
+
+    def test_record_new_docs_noop_when_interval_zero(self) -> None:
+        backend = MockBackend()
+        module = MemoryIntegrityModule(backend=backend, refit_interval=0)
+        module.fit_baseline(_toy_baseline(50))
+        before = module.baseline_size
+        module.record_new_docs(_toy_baseline(5, seed=11))
+        assert module.pending_refit_count == 0
+        assert module.baseline_size == before
+
+    def test_record_new_docs_buffers_below_interval(self) -> None:
+        backend = MockBackend()
+        module = MemoryIntegrityModule(backend=backend, refit_interval=10)
+        module.fit_baseline(_toy_baseline(50))
+        module.record_new_docs(_toy_baseline(3, seed=11))
+        # Below the interval -> buffered, not yet refit.
+        assert module.pending_refit_count == 3
+        assert module.baseline_size == 50  # unchanged
+
+    def test_record_new_docs_triggers_refit_at_interval(self) -> None:
+        backend = MockBackend()
+        module = MemoryIntegrityModule(backend=backend, refit_interval=10)
+        module.fit_baseline(_toy_baseline(50))
+        # Exactly the interval -> auto-refit.
+        module.record_new_docs(_toy_baseline(10, seed=11))
+        assert module.pending_refit_count == 0
+        assert module.baseline_size == 60
+
+    def test_record_new_docs_refits_with_oversized_batch(self) -> None:
+        backend = MockBackend()
+        module = MemoryIntegrityModule(backend=backend, refit_interval=5)
+        module.fit_baseline(_toy_baseline(20))
+        module.record_new_docs(_toy_baseline(12, seed=11))
+        # Single oversized batch should still trigger one refit.
+        assert module.pending_refit_count == 0
+        assert module.baseline_size == 32
+
+    def test_record_new_docs_empty_input_is_noop(self) -> None:
+        backend = MockBackend()
+        module = MemoryIntegrityModule(backend=backend, refit_interval=5)
+        module.fit_baseline(_toy_baseline(20))
+        module.record_new_docs([])
+        assert module.pending_refit_count == 0
+        assert module.baseline_size == 20
+
+    def test_record_new_docs_zero_norm_input_is_noop(self) -> None:
+        backend = MockBackend()
+        module = MemoryIntegrityModule(backend=backend, refit_interval=5)
+        module.fit_baseline(_toy_baseline(20))
+        module.record_new_docs([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+        assert module.pending_refit_count == 0
+        assert module.baseline_size == 20
+
+    def test_record_new_docs_rejects_non_2d(self) -> None:
+        backend = MockBackend()
+        module = MemoryIntegrityModule(backend=backend, refit_interval=5)
+        module.fit_baseline(_toy_baseline(20))
+        with pytest.raises(ValueError, match="2-D"):
+            module.record_new_docs([[[0.1, 0.2]]])
+
+    def test_refit_preserves_outlier_detection(self) -> None:
+        """After a refit, the calibration is recomputed and the embedding-
+        outlier signal still distinguishes in-cluster from off-distribution
+        points.  ``record_new_docs`` performs at most one refit per call,
+        flushing the entire buffered batch into the new fit."""
+        backend = MockBackend()
+        module = MemoryIntegrityModule(backend=backend, refit_interval=20)
+        module.fit_baseline(_toy_baseline(100))
+        # 25 new docs in a single call -> one refit covering all 25.
+        module.record_new_docs(_toy_baseline(25, seed=11))
+        assert module.baseline_size == 125
+        assert module.pending_refit_count == 0
+
+        north = np.array([0.0, 0.0, 1.0])
+        south = np.array([0.0, 0.0, -1.0])
+        in_score = module._embedding_outlier_score(north)  # noqa: SLF001
+        out_score = module._embedding_outlier_score(south)  # noqa: SLF001
+        assert in_score < 0.2
+        assert out_score > 0.8
+
+    def test_fit_baseline_clears_pending_buffer(self) -> None:
+        backend = MockBackend()
+        module = MemoryIntegrityModule(backend=backend, refit_interval=100)
+        module.fit_baseline(_toy_baseline(50))
+        module.record_new_docs(_toy_baseline(7, seed=11))
+        assert module.pending_refit_count == 7
+        # An explicit re-fit must clear the pending buffer.
+        module.fit_baseline(_toy_baseline(80, seed=13))
+        assert module.pending_refit_count == 0
+        assert module.baseline_size == 80
 
 
 # ===========================================================================
@@ -510,21 +643,18 @@ class TestEdgeCases:
         module.record_retrievals([])
         assert module.total_retrievals == 0
 
-    def test_fit_baseline_with_single_vector(self) -> None:
+    def test_fit_baseline_with_n_lt_2_clears_state(self) -> None:
+        """IsolationForest needs at least two samples to produce a meaningful
+        path-length distribution; below that the baseline must clear so the
+        signal stays silent rather than producing noise."""
         backend = MockBackend()
         module = _make_module(backend)
         dim = backend.embed_dim
         anchor = np.zeros(dim, dtype=np.float64)
         anchor[0] = 1.0
         module.fit_baseline([anchor.tolist()])
-        assert module.baseline_fitted
-        # The single vector is its own centroid -> in-sample distance is 0,
-        # so the radius collapses to the floor and any orthogonal point saturates.
-        far_vec = np.zeros(dim, dtype=np.float64)
-        far_vec[1] = 1.0
-        far = RetrievedDoc(doc_id="far", text="x", embedding=far_vec.tolist())
-        result = module.check_retrieval("q", [far])
-        assert result.signals[0].embedding_outlier == pytest.approx(1.0, abs=1e-9)
+        assert not module.baseline_fitted
+        assert module.baseline_size == 0
 
     def test_fit_baseline_with_only_zero_vectors_clears_state(self) -> None:
         backend = MockBackend()
