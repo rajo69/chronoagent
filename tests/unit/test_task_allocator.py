@@ -22,6 +22,9 @@ Coverage:
 - Custom matrix / threshold / missing_health_default are honoured.
 - Thread-safety smoke test: concurrent publishers plus concurrent
   callers produce coherent results.
+- Round-robin fallback (task 5.6): negotiation timeout/error -> the
+  allocator logs a warning and synthesizes a NegotiationResult whose
+  ``assigned_agent`` cycles through ``AGENT_IDS`` deterministically.
 """
 
 from __future__ import annotations
@@ -421,6 +424,194 @@ def test_decentralized_task_allocator_reexported() -> None:
     from chronoagent import allocator as pkg
 
     assert pkg.DecentralizedTaskAllocator is DecentralizedTaskAllocator
+
+
+# ===========================================================================
+# Round-robin fallback (Phase 5 task 5.6)
+# ===========================================================================
+
+
+class TestRoundRobinFallback:
+    """The allocator's graceful-degradation path.
+
+    ``allocate`` wraps ``run_contract_net`` in a try/except.  When the
+    negotiation function raises (timeout, corrupt snapshot, programming
+    bug, etc.) the allocator must:
+
+    * log a WARNING that names the failure,
+    * synthesize a :class:`NegotiationResult` whose ``assigned_agent``
+      is picked from :data:`AGENT_IDS` in round-robin order,
+    * advance the cursor so subsequent failures cycle through agents,
+    * and never propagate the underlying exception.
+
+    Tests use ``monkeypatch`` to swap ``run_contract_net`` for a stub
+    that raises the desired exception type.  Patching the symbol on
+    the ``task_allocator`` module is the right scope: ``allocate``
+    looks it up by name there, so the patch only affects code under
+    test.
+    """
+
+    @staticmethod
+    def _patch_negotiation_to_raise(
+        monkeypatch: pytest.MonkeyPatch,
+        exc: BaseException,
+    ) -> list[tuple[Any, ...]]:
+        """Replace ``run_contract_net`` with a stub that raises *exc*.
+
+        Returns the call-log list so tests can assert how often the
+        allocator invoked the (failing) negotiation function.
+        """
+        from chronoagent.allocator import task_allocator as ta_mod
+
+        calls: list[tuple[Any, ...]] = []
+
+        def _raising(*args: Any, **kwargs: Any) -> NegotiationResult:
+            calls.append((args, kwargs))
+            raise exc
+
+        monkeypatch.setattr(ta_mod, "run_contract_net", _raising)
+        return calls
+
+    def test_generic_exception_triggers_fallback(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        self._patch_negotiation_to_raise(monkeypatch, RuntimeError("boom"))
+        allocator = DecentralizedTaskAllocator(LocalBus())
+        with caplog.at_level(logging.WARNING, logger="chronoagent.allocator.task_allocator"):
+            result = allocator.allocate("t1", "plan")
+        # Synthesized result, never raised.
+        assert isinstance(result, NegotiationResult)
+        assert result.assigned_agent == AGENT_IDS[0]  # first round-robin pick
+        assert result.escalated is False
+        assert result.winning_bid is None
+        assert result.all_bids == ()
+        assert result.task_id == "t1"
+        assert result.task_type == "plan"
+        assert result.threshold == DEFAULT_BID_THRESHOLD
+        assert "round-robin fallback" in result.rationale
+        assert "RuntimeError" in result.rationale
+        assert "boom" in result.rationale
+        # Warning log captured.
+        assert any(
+            "falling back to round-robin" in rec.message and rec.levelname == "WARNING"
+            for rec in caplog.records
+        )
+
+    def test_timeout_error_triggers_fallback(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        # The plan calls out "negotiation timeout" explicitly; even though
+        # the current run_contract_net is synchronous, the allocator must
+        # treat TimeoutError exactly the same as any other failure.
+        self._patch_negotiation_to_raise(monkeypatch, TimeoutError("negotiation deadline exceeded"))
+        allocator = DecentralizedTaskAllocator(LocalBus())
+        with caplog.at_level(logging.WARNING, logger="chronoagent.allocator.task_allocator"):
+            result = allocator.allocate("t-timeout", "security_review")
+        assert result.assigned_agent == AGENT_IDS[0]
+        assert result.escalated is False
+        assert "TimeoutError" in result.rationale
+        assert "negotiation deadline exceeded" in result.rationale
+        assert any("falling back to round-robin" in rec.message for rec in caplog.records)
+
+    def test_round_robin_cursor_advances_across_calls(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        self._patch_negotiation_to_raise(monkeypatch, RuntimeError("nope"))
+        allocator = DecentralizedTaskAllocator(LocalBus())
+        picks = [
+            allocator.allocate(f"t{i}", "plan").assigned_agent for i in range(len(AGENT_IDS) * 2)
+        ]
+        # Two full passes through AGENT_IDS in canonical order.
+        assert picks == list(AGENT_IDS) * 2
+
+    def test_fallback_records_task_metadata(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        self._patch_negotiation_to_raise(monkeypatch, RuntimeError("x"))
+        allocator = DecentralizedTaskAllocator(LocalBus())
+        # Cycle the cursor a couple of times to verify task_id/task_type
+        # are echoed back faithfully on every fallback.
+        first = allocator.allocate("pr-1::style", "style_review")
+        second = allocator.allocate("pr-2::summarize", "summarize")
+        assert (first.task_id, first.task_type) == ("pr-1::style", "style_review")
+        assert (second.task_id, second.task_type) == ("pr-2::summarize", "summarize")
+        assert first.assigned_agent == AGENT_IDS[0]
+        assert second.assigned_agent == AGENT_IDS[1]
+
+    def test_happy_path_unaffected_by_fallback_machinery(self) -> None:
+        # No monkeypatch: real negotiation runs.  The cursor must NOT
+        # advance on a successful allocation.
+        bus = LocalBus()
+        allocator = DecentralizedTaskAllocator(bus)
+        for agent_id in AGENT_IDS:
+            _publish_dict(bus, agent_id, 1.0)
+        result = allocator.allocate("t-happy", "plan")
+        assert result.assigned_agent == "planner"
+        assert result.winning_bid is not None
+        # Internal cursor untouched.
+        assert allocator._round_robin_cursor == 0
+
+    def test_concurrent_fallback_cursor_is_thread_safe(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Multiple threads each forcing a fallback; every AGENT_IDS slot
+        # should be hit exactly N times after N*len(AGENT_IDS) calls,
+        # which proves the cursor advances atomically.
+        self._patch_negotiation_to_raise(monkeypatch, RuntimeError("race"))
+        allocator = DecentralizedTaskAllocator(LocalBus())
+
+        rounds_per_thread = 25
+        n_threads = 4
+        results: list[str] = []
+        results_lock = threading.Lock()
+        errors: list[BaseException] = []
+
+        def worker() -> None:
+            try:
+                local: list[str] = []
+                for i in range(rounds_per_thread):
+                    r = allocator.allocate(f"t-{i}", "plan")
+                    assert r.assigned_agent is not None
+                    local.append(r.assigned_agent)
+                with results_lock:
+                    results.extend(local)
+            except BaseException as exc:  # pragma: no cover - defensive
+                errors.append(exc)
+
+        threads = [threading.Thread(target=worker) for _ in range(n_threads)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert not errors
+        total = rounds_per_thread * n_threads
+        assert len(results) == total
+        # Even distribution across all 4 agents (cursor advanced atomically).
+        per_agent = total // len(AGENT_IDS)
+        for agent_id in AGENT_IDS:
+            assert results.count(agent_id) == per_agent
+
+    def test_fallback_does_not_propagate_exception_subclasses(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Negotiation may raise its own validation errors.  Verify that
+        # InvalidHealthError (a ValueError subclass) is also caught.
+        from chronoagent.allocator.negotiation import InvalidHealthError
+
+        self._patch_negotiation_to_raise(monkeypatch, InvalidHealthError("planner", float("nan")))
+        allocator = DecentralizedTaskAllocator(LocalBus())
+        result = allocator.allocate("t-bad-health", "plan")
+        assert result.assigned_agent == AGENT_IDS[0]
+        assert "InvalidHealthError" in result.rationale
 
 
 def test_base_handler_never_raises_for_arbitrary_payloads() -> None:
