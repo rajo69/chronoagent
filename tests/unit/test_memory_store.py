@@ -89,9 +89,7 @@ class TestAdd:
         with pytest.raises(ValueError, match="equal length"):
             store.add(documents=["a", "b"], ids=["only_one"])
 
-    def test_mismatched_embeddings_raises(
-        self, store: MemoryStore, backend: MockBackend
-    ) -> None:
+    def test_mismatched_embeddings_raises(self, store: MemoryStore, backend: MockBackend) -> None:
         emb = backend.embed(["vec"])
         with pytest.raises(ValueError, match="embeddings length"):
             store.add(documents=["a", "b"], ids=["x", "y"], embeddings=emb)
@@ -206,9 +204,7 @@ class TestGetAllEmbeddings:
             assert isinstance(vec, list)
             assert all(isinstance(v, float) for v in vec)
 
-    def test_embedding_dimension_consistent(
-        self, store: MemoryStore, backend: MockBackend
-    ) -> None:
+    def test_embedding_dimension_consistent(self, store: MemoryStore, backend: MockBackend) -> None:
         _seed(store, 3)
         vecs = store.get_all_embeddings()
         expected_dim = len(backend.embed(["any"])[0])

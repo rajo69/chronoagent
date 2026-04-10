@@ -145,10 +145,7 @@ def test_minja_go_no_go_is_string(minja_result: ExperimentResult) -> None:
 def test_minja_summary_contains_decision(minja_result: ExperimentResult) -> None:
     summary = minja_result.summary()
     assert minja_result.go_no_go in summary
-    assert any(
-        token in summary
-        for token in ("Cohen", "cohen", "d>", "d >", "GO")
-    )
+    assert any(token in summary for token in ("Cohen", "cohen", "d>", "d >", "GO"))
 
 
 def test_minja_large_effect_consistent(minja_result: ExperimentResult) -> None:

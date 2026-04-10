@@ -199,9 +199,10 @@ class PlannerAgent(BaseAgent):
         query = f"{pr.title} {pr.description} {pr.diff[:200]}"
         retrieval = self._retrieve_memory(query)
 
-        context_block = "\n".join(
-            f"- {doc}" for doc in retrieval.documents
-        ) or "No relevant past decompositions retrieved."
+        context_block = (
+            "\n".join(f"- {doc}" for doc in retrieval.documents)
+            or "No relevant past decompositions retrieved."
+        )
 
         prompt = (
             f"{self.SYSTEM_PROMPT}\n\n"

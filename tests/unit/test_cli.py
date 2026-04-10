@@ -59,9 +59,7 @@ class TestRunExperiment:
         cfg = tmp_path / "experiment.yaml"
         cfg.write_text("seed: 42\n")
         out = tmp_path / "out"
-        result = runner.invoke(
-            app, ["run-experiment", "--config", str(cfg), "--output", str(out)]
-        )
+        result = runner.invoke(app, ["run-experiment", "--config", str(cfg), "--output", str(out)])
         assert str(out) in result.output
 
 
@@ -110,6 +108,5 @@ class TestServe:
         cfg = tmp_path / "custom.yaml"
         cfg.write_text("env: test\n")
         with patch("chronoagent.cli.uvicorn.run"):
-
             runner.invoke(app, ["serve", "--config", str(cfg), "--no-reload"])
             # env var may be set; we just verify no crash

@@ -101,7 +101,7 @@ class TestMINJAStyleAttack:
         )
         # Verify injected docs are retrievable and contain the malicious content.
         result = collection.get(ids=ids, include=["documents"])
-        docs: list[str] = (result.get("documents") or [])
+        docs: list[str] = result.get("documents") or []
         assert all(d in content for d in docs)
 
     def test_poison_embedding_is_close_to_query(self, collection: chromadb.Collection) -> None:
@@ -243,9 +243,7 @@ class TestCombinedAttacks:
         agentpoison.rollback(collection)
         assert collection.count() == initial
 
-    def test_rollback_is_scoped_per_attack_instance(
-        self, collection: chromadb.Collection
-    ) -> None:
+    def test_rollback_is_scoped_per_attack_instance(self, collection: chromadb.Collection) -> None:
         a1 = MINJAStyleAttack(seed=60)
         a2 = MINJAStyleAttack(seed=61)
         initial = collection.count()

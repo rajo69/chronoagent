@@ -125,9 +125,7 @@ def _make_tracked_pipeline(seed: int = 42) -> tuple[ReviewPipeline, list[str]]:
     # Wrap SummarizerAgent.synthesize
     _orig_synth = p._summarizer.synthesize
 
-    def _tracked_synthesize(
-        pr: SyntheticPR, sec: SecurityReview, sty: StyleReview
-    ) -> ReviewReport:
+    def _tracked_synthesize(pr: SyntheticPR, sec: SecurityReview, sty: StyleReview) -> ReviewReport:
         call_log.append("summarize")
         return _orig_synth(pr, sec, sty)
 
@@ -216,9 +214,7 @@ class TestE2EReviewReport:
         report = pipeline.run(_SQL_INJECTION_PR)
         assert report.overall_risk.upper() in report.markdown.upper()
 
-    def test_path_traversal_risk_is_high_or_critical(
-        self, pipeline: ReviewPipeline
-    ) -> None:
+    def test_path_traversal_risk_is_high_or_critical(self, pipeline: ReviewPipeline) -> None:
         """A path-traversal diff produces high or critical overall_risk."""
         report = pipeline.run(_PATH_TRAVERSAL_PR)
         assert report.overall_risk in {"high", "critical"}, (
@@ -309,9 +305,7 @@ class TestE2EAgentOrder:
 class TestE2EMultiplePRs:
     """Each PR produces an independent, correctly-labelled report."""
 
-    def test_three_prs_return_three_independent_reports(
-        self, pipeline: ReviewPipeline
-    ) -> None:
+    def test_three_prs_return_three_independent_reports(self, pipeline: ReviewPipeline) -> None:
         """Running three PRs produces three reports with matching pr_ids."""
         prs = [_SQL_INJECTION_PR, _PATH_TRAVERSAL_PR, _JWT_AUTH_PR]
         reports = [pipeline.run(pr) for pr in prs]

@@ -53,9 +53,9 @@ def serve(
 @app.command("run-experiment")
 def run_experiment(
     config: Annotated[Path, typer.Option(help="Path to experiment YAML config.")],
-    output: Annotated[
-        Path, typer.Option(help="Directory for result artefacts.")
-    ] = Path("results/"),
+    output: Annotated[Path, typer.Option(help="Directory for result artefacts.")] = Path(
+        "results/"
+    ),
 ) -> None:
     """Run a signal-validation experiment.
 

@@ -297,9 +297,10 @@ class StyleReviewerAgent(BaseAgent):
         query = f"{pr.title} {pr.description} {pr.diff[:200]}"
         retrieval = self._retrieve_memory(query)
 
-        context_block = "\n".join(
-            f"- {doc}" for doc in retrieval.documents
-        ) or "No relevant conventions retrieved."
+        context_block = (
+            "\n".join(f"- {doc}" for doc in retrieval.documents)
+            or "No relevant conventions retrieved."
+        )
 
         prompt = (
             f"{self.SYSTEM_PROMPT}\n\n"
