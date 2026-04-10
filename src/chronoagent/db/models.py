@@ -9,7 +9,7 @@ from __future__ import annotations
 import datetime
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, Index, Integer, String
+from sqlalchemy import JSON, Boolean, DateTime, Float, Index, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -142,4 +142,85 @@ class AllocationAuditRecord(Base):
             f"AllocationAuditRecord(id={self.id!r}, task_id={self.task_id!r}, "
             f"task_type={self.task_type!r}, assigned_agent={self.assigned_agent!r}, "
             f"escalated={self.escalated!r})"
+        )
+
+
+class AuditEvent(Base):
+    """Append-only audit log for Phase 7 human escalation trail.
+
+    Every security-relevant event (allocation decision, health update,
+    escalation trigger, quarantine move, human approval) is logged here
+    via :class:`~chronoagent.escalation.audit.AuditTrailLogger`.
+
+    Attributes:
+        id: Auto-increment primary key.
+        event_type: One of ``"allocation"``, ``"health_update"``,
+            ``"escalation"``, ``"quarantine"``, ``"approval"``.
+        agent_id: Agent the event pertains to, or ``None`` for system events.
+        payload: Free-form JSON payload with event-specific context.
+        timestamp: UTC wall-clock time the event was logged.
+    """
+
+    __tablename__ = "audit_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    event_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    agent_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    timestamp: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        Index("ix_ae_event_ts", "event_type", "timestamp"),
+        Index("ix_ae_agent_ts", "agent_id", "timestamp"),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"AuditEvent(id={self.id!r}, event_type={self.event_type!r}, "
+            f"agent_id={self.agent_id!r}, timestamp={self.timestamp!r})"
+        )
+
+
+class EscalationRecord(Base):
+    """Persisted human-escalation record (Phase 7).
+
+    Written by :class:`~chronoagent.escalation.escalation_manager.EscalationHandler`
+    when an agent's health drops below threshold or a quarantine event fires.
+    Status transitions: ``"pending"`` to ``"approved"``, ``"rejected"``, or
+    ``"modified"`` via ``POST /api/v1/escalations/{id}/resolve``.
+
+    Attributes:
+        id: UUID4 hex string primary key (client-facing identifier).
+        agent_id: Agent that triggered the escalation.
+        trigger: ``"low_health"`` or ``"quarantine_event"``.
+        status: ``"pending"``, ``"approved"``, ``"rejected"``, or ``"modified"``.
+        context: JSON snapshot: health score and components, flagged doc IDs,
+            recent allocation task IDs, and caller extras.
+        resolution_notes: Optional free-form text captured on resolve.
+        created_at: UTC timestamp of escalation creation.
+        resolved_at: UTC timestamp of resolution; ``None`` while pending.
+    """
+
+    __tablename__ = "escalation_records"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    agent_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    trigger: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    context: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    resolution_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    resolved_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    __table_args__ = (
+        Index("ix_er_status_created", "status", "created_at"),
+        Index("ix_er_agent_created", "agent_id", "created_at"),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"EscalationRecord(id={self.id!r}, agent_id={self.agent_id!r}, "
+            f"trigger={self.trigger!r}, status={self.status!r})"
         )

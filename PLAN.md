@@ -378,10 +378,10 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 - Cooldown prevents repeated escalation for same agent
 
 **Tasks:**
-- [ ] 7.1 `escalation/escalation_manager.py` -- `EscalationHandler`: threshold check, cooldown tracking, context assembly, publish escalation event
-- [ ] 7.2 `escalation/audit.py` -- `AuditTrailLogger`: log events (allocation, health update, escalation, quarantine, approval) to PostgreSQL `audit_events` table
-- [ ] 7.3 `api/routers/escalation.py` -- `GET /api/v1/escalations?status=pending`, `POST /api/v1/escalations/{id}/resolve`
-- [ ] 7.4 Tests: low health -> escalation fires; cooldown -> no repeat; resolve updates status; full context present
+- [x] 7.1 `escalation/escalation_manager.py` -- `EscalationHandler`: threshold check, cooldown tracking, context assembly, publish escalation event
+- [x] 7.2 `escalation/audit.py` -- `AuditTrailLogger`: log events (allocation, health update, escalation, quarantine, approval) to PostgreSQL `audit_events` table
+- [x] 7.3 `api/routers/escalation.py` -- `GET /api/v1/escalations?status=pending`, `POST /api/v1/escalations/{id}/resolve`
+- [x] 7.4 Tests: low health -> escalation fires; cooldown -> no repeat; resolve updates status; full context present
 
 **Key Files:** `escalation/*.py`
 
@@ -392,10 +392,10 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 ### Phase 7 Log
 | | |
 |--|--|
-| **Findings** | _fill in_ |
-| **Challenges** | _fill in_ |
-| **Decisions** | _fill in_ |
-| **Completed** | _fill in: date_ |
+| **Findings** | 50 new tests; 845 total pass; coverage 94.29%. Escalation handler correctly suppresses on threshold and cooldown; quarantine events bypass threshold. Bus handler helpers (on_health_update, on_quarantine_event) swallow malformed payloads safely. StaticPool required for SQLite in-memory test isolation in router tests. |
+| **Challenges** | SQLite in-memory test isolation: `create_all` and session-factory connections use different connections without StaticPool, so tables are invisible to the session. Fixed by using `StaticPool` in router test fixture. Cooldown lock scope: lock must be released before bus.publish to avoid reentrancy (LocalBus is synchronous). |
+| **Decisions** | Escalation storage is SQLAlchemy (not in-memory dict) for restart durability and audit trail alignment. Cooldown is in-memory per agent (acceptable reset on restart). Separate `EscalationOutcome` dataclass (handler return type) from `EscalationRecord` ORM model to avoid ORM coupling at handler boundary. `memory.py` quarantine endpoint gains optional `agent_id` for bus event triggering; backward-compatible. |
+| **Completed** | 2026-04-11 |
 
 ---
 
