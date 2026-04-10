@@ -9,7 +9,10 @@ from chronoagent.agents.planner import PlannerAgent
 from chronoagent.agents.security_reviewer import SecurityReviewerAgent, SyntheticPR
 from chronoagent.agents.style_reviewer import StyleReviewerAgent
 from chronoagent.agents.summarizer import ReviewReport, SummarizerAgent
+from chronoagent.allocator.task_allocator import DecentralizedTaskAllocator
+from chronoagent.messaging.local_bus import LocalBus
 from chronoagent.pipeline.graph import PipelineState, ReviewPipeline
+from chronoagent.scorer.health_scorer import HEALTH_CHANNEL, HealthUpdate
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -200,6 +203,194 @@ class TestPipelineState:
         annotations = PipelineState.__annotations__
         assert "pr" in annotations
         assert "decomposition" in annotations
+        assert "security_allocation" in annotations
+        assert "style_allocation" in annotations
         assert "security_review" in annotations
         assert "style_review" in annotations
         assert "report" in annotations
+
+
+# ---------------------------------------------------------------------------
+# Allocator-gated routing (Phase 5.4)
+# ---------------------------------------------------------------------------
+
+
+def _publish_health(bus: LocalBus, agent_id: str, health: float) -> None:
+    bus.publish(
+        HEALTH_CHANNEL,
+        HealthUpdate(
+            agent_id=agent_id,
+            health=health,
+            bocpd_score=0.0,
+            chronos_score=0.0,
+        ),
+    )
+
+
+class TestAllocatorGating:
+    """Verify the allocate_{security,style} nodes and conditional routing."""
+
+    def test_default_allocator_routes_to_specialists(
+        self, pipeline: ReviewPipeline, sample_pr: SyntheticPR
+    ) -> None:
+        """With the built-in default allocator (empty health cache,
+        missing_health_default=1.0) the specialist branch always wins
+        and the produced report must contain real findings from the
+        specialists (not the escalation placeholder)."""
+        state = pipeline._graph.invoke({"pr": sample_pr})
+        # Both allocations were recorded on the state.
+        assert "security_allocation" in state
+        assert "style_allocation" in state
+        assert state["security_allocation"].assigned_agent == "security_reviewer"
+        assert state["style_allocation"].assigned_agent == "style_reviewer"
+        assert state["security_allocation"].escalated is False
+        assert state["style_allocation"].escalated is False
+        # Winning scores are 1.0 (capability * health = 1.0 * 1.0).
+        assert state["security_allocation"].winning_bid is not None
+        assert state["security_allocation"].winning_bid.score == pytest.approx(1.0)
+        # Reviews are the real outputs, not placeholders — their
+        # raw_response should not be the negotiation rationale.
+        assert state["security_review"].raw_response != state["security_allocation"].rationale
+        assert state["style_review"].raw_response != state["style_allocation"].rationale
+
+    def test_healthy_snapshot_routes_to_specialists(
+        self, sample_pr: SyntheticPR, chroma_client: chromadb.ClientAPI
+    ) -> None:
+        """An explicit allocator with full-health updates routes the
+        same way as the default allocator."""
+        bus = LocalBus()
+        allocator = DecentralizedTaskAllocator(bus)
+        for agent_id in ("planner", "security_reviewer", "style_reviewer", "summarizer"):
+            _publish_health(bus, agent_id, 1.0)
+        pipeline = ReviewPipeline.create(chroma_client=chroma_client, allocator=allocator)
+        state = pipeline._graph.invoke({"pr": sample_pr})
+        assert state["security_allocation"].assigned_agent == "security_reviewer"
+        assert state["style_allocation"].assigned_agent == "style_reviewer"
+        assert isinstance(state["report"], ReviewReport)
+
+    def test_non_specialist_winner_is_escalated(
+        self, sample_pr: SyntheticPR, chroma_client: chromadb.ClientAPI
+    ) -> None:
+        """When the allocator picks a non-specialist, _route_{security,
+        style} drops the task into the escalation branch.  With the
+        default matrix, health={planner: 0.1, security_reviewer: 0.0,
+        style_reviewer: 0.1, summarizer: 1.0} gives these bids:
+
+        security_review:
+            planner     0.30 * 0.1 = 0.03
+            security    1.00 * 0.0 = 0.00
+            style       0.55 * 0.1 = 0.055
+            summarizer  0.35 * 1.0 = 0.35   <- wins, non-specialist
+        style_review:
+            planner     0.30 * 0.1 = 0.03
+            security    0.55 * 0.0 = 0.00
+            style       1.00 * 0.1 = 0.10
+            summarizer  0.35 * 1.0 = 0.35   <- wins, non-specialist
+
+        Both branches produce a non-specialist winner above the default
+        0.25 threshold, so neither is strictly escalated but both are
+        routed to the escalation nodes because the router only treats
+        the matching specialist as "runnable"."""
+        bus = LocalBus()
+        allocator = DecentralizedTaskAllocator(bus)
+        _publish_health(bus, "planner", 0.1)
+        _publish_health(bus, "security_reviewer", 0.0)
+        _publish_health(bus, "style_reviewer", 0.1)
+        _publish_health(bus, "summarizer", 1.0)
+        pipeline = ReviewPipeline.create(chroma_client=chroma_client, allocator=allocator)
+        state = pipeline._graph.invoke({"pr": sample_pr})
+        # Allocator winners are non-specialists and not strictly escalated.
+        assert state["security_allocation"].assigned_agent == "summarizer"
+        assert state["security_allocation"].escalated is False
+        assert state["style_allocation"].assigned_agent == "summarizer"
+        assert state["style_allocation"].escalated is False
+        # But the graph routed both to the escalation nodes.
+        assert state["security_review"].findings == []
+        assert state["security_review"].recommendation.startswith("escalated:")
+        assert state["style_review"].findings == []
+        assert state["style_review"].recommendation.startswith("escalated:")
+        # Summarizer still produced a report.
+        assert isinstance(state["report"], ReviewReport)
+        assert state["report"].pr_id == sample_pr.pr_id
+
+    def test_all_low_health_both_branches_escalate(
+        self, sample_pr: SyntheticPR, chroma_client: chromadb.ClientAPI
+    ) -> None:
+        """Every agent crushed to 0.01 -> both branches escalate
+        (strict escalation, assigned_agent=None)."""
+        bus = LocalBus()
+        allocator = DecentralizedTaskAllocator(bus)
+        for agent_id in ("planner", "security_reviewer", "style_reviewer", "summarizer"):
+            _publish_health(bus, agent_id, 0.01)
+        pipeline = ReviewPipeline.create(chroma_client=chroma_client, allocator=allocator)
+        state = pipeline._graph.invoke({"pr": sample_pr})
+        assert state["security_allocation"].escalated is True
+        assert state["security_allocation"].assigned_agent is None
+        assert state["style_allocation"].escalated is True
+        assert state["style_allocation"].assigned_agent is None
+        # Placeholders emitted.
+        assert state["security_review"].findings == []
+        assert state["style_review"].findings == []
+        # raw_response carries the negotiation rationale verbatim.
+        assert state["security_review"].raw_response == state["security_allocation"].rationale
+        assert state["style_review"].raw_response == state["style_allocation"].rationale
+        # The report is still produced via the summarizer.
+        assert isinstance(state["report"], ReviewReport)
+
+    def test_run_public_api_survives_full_escalation(
+        self, sample_pr: SyntheticPR, chroma_client: chromadb.ClientAPI
+    ) -> None:
+        """`run()` continues to return a ReviewReport even when every
+        task is escalated — the escalation stays inside the graph."""
+        bus = LocalBus()
+        allocator = DecentralizedTaskAllocator(bus)
+        for agent_id in ("planner", "security_reviewer", "style_reviewer", "summarizer"):
+            _publish_health(bus, agent_id, 0.0)
+        pipeline = ReviewPipeline.create(chroma_client=chroma_client, allocator=allocator)
+        report = pipeline.run(sample_pr)
+        assert isinstance(report, ReviewReport)
+        assert report.pr_id == sample_pr.pr_id
+        assert sample_pr.title in report.markdown
+
+    def test_allocations_task_ids_include_pr_id_and_task_type(
+        self, sample_pr: SyntheticPR, chroma_client: chromadb.ClientAPI
+    ) -> None:
+        """Task IDs carry PR + task type so the audit layer (5.5) can
+        correlate allocations back to the PR."""
+        pipeline = ReviewPipeline.create(chroma_client=chroma_client)
+        state = pipeline._graph.invoke({"pr": sample_pr})
+        assert state["security_allocation"].task_id == f"{sample_pr.pr_id}::security_review"
+        assert state["security_allocation"].task_type == "security_review"
+        assert state["style_allocation"].task_id == f"{sample_pr.pr_id}::style_review"
+        assert state["style_allocation"].task_type == "style_review"
+
+    def test_explicit_allocator_injected_into_pipeline_instance(
+        self, chroma_client: chromadb.ClientAPI
+    ) -> None:
+        """Constructor honours a supplied allocator (not a default)."""
+        bus = LocalBus()
+        allocator = DecentralizedTaskAllocator(bus)
+        pipeline = ReviewPipeline.create(chroma_client=chroma_client, allocator=allocator)
+        assert pipeline._allocator is allocator
+
+    def test_default_allocator_constructed_when_none_supplied(
+        self, chroma_client: chromadb.ClientAPI
+    ) -> None:
+        """Omitting the allocator builds a default one internally."""
+        pipeline = ReviewPipeline.create(chroma_client=chroma_client)
+        assert isinstance(pipeline._allocator, DecentralizedTaskAllocator)
+
+    def test_graph_contains_allocator_and_escalation_nodes(self, pipeline: ReviewPipeline) -> None:
+        """The compiled graph exposes the new nodes by name."""
+        node_names = set(pipeline._graph.get_graph().nodes.keys())
+        for expected in (
+            "plan",
+            "allocate_security",
+            "allocate_style",
+            "security_review",
+            "escalate_security",
+            "style_review",
+            "escalate_style",
+            "summarize",
+        ):
+            assert expected in node_names, f"missing node: {expected}"
