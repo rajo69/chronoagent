@@ -61,15 +61,15 @@ The project is built in numbered phases. Each phase has an exit criterion and a 
 | 3 | Behavioral Monitor | ✅ Done |
 | 4 | Temporal Health Scorer | ✅ Done |
 | 5 | Decentralized Task Allocator | ✅ Done |
-| 6 | Memory Integrity Module | ⏳ Next |
-| 7 | Human Escalation Layer | ⬜ Planned |
-| 8 | Observability Dashboard | ⬜ Planned |
+| 6 | Memory Integrity Module | ✅ Done |
+| 7 | Human Escalation Layer | ✅ Done |
+| 8 | Observability Dashboard | ⏳ Next |
 | 9 | Production Hardening | ⬜ Planned |
 | 10 | Research Experiment Suite | ⬜ Planned |
 | 11 | Paper Scaffold and Reproducibility | ⬜ Planned |
 | 12 | CI/CD and Release | ⬜ Planned |
 
-**Currently:** Phase 5 (Decentralized Task Allocator) is complete. The contract-net negotiation protocol, the health-aware `DecentralizedTaskAllocator`, the LangGraph pipeline integration, the `AllocationAuditRecord` persistence model, and the round-robin fallback on negotiation failure are all live and tested. 650 unit and integration tests pass with around 93% line coverage.
+**Currently:** Phase 7 (Human Escalation Layer) is complete. Auto-escalation fires on health below threshold or quarantine events, with per-agent cooldown, full context snapshots (health components, flagged doc IDs, recent allocation history), an append-only audit trail, and a REST API for human resolution (approve/reject/modify). 845 tests pass with 94% line coverage.
 
 **An honest pivot worth recording:** Phase 1 was a hard signal-validation gate. Before building anything else, we measured whether the behavioral signals we wanted to forecast were actually distinguishable from noise. KL divergence from a clean baseline turned out to be a strong primary signal (Cohen's d ≈ 1.6 on the MINJA attack benchmark), while three of the six secondary signals were effectively constant under our test conditions. The original framing around "advance warning time" did not survive the data. The project was reframed around concurrent detection plus reliability-weighted allocation, which the data does support. The full ruling is in [`docs/phase1_decision.md`](./docs/phase1_decision.md).
 
