@@ -8,10 +8,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Current phase** | Phase 1 — Signal Validation |
-| **Next task** | 1.1 — Minimal agent pair (MockBackend) |
+| **Current phase** | Phase 4 — Temporal Health Scorer |
+| **Next task** | 4.1 — first task of Phase 4 (see PLAN.md) |
 | **Blocked?** | No |
-| **Last session** | 2026-04-09 — Phase 0 complete |
+| **Last session** | 2026-04-10 — Phase 3 complete [x]. Tasks 3.1–3.7 done: `db/models.py` (AgentSignalRecord + Alembic migration 001), `db/session.py` (engine + session factory), expanded `BehavioralCollector` (calibration, rolling_stats, persist_step), `api/routers/signals.py` (GET /api/v1/agents/{id}/signals?window=50), `api/deps.py` (get_db DI), Hypothesis property tests for KL-div and entropy. 462 tests, 96.27% coverage. |
 
 > Update this table at the end of every session before closing.
 
@@ -122,9 +122,9 @@ chronoagent run-experiment --config configs/experiments/signal_validation.yaml -
 | # | Phase | Status |
 |---|-------|--------|
 | 0 | Bootstrap | `[x]` |
-| 1 | Signal Validation (GO/NO-GO) | `[ ]` |
+| 1 | Signal Validation (GO/NO-GO) | `[x]` |
 | 2 | Core Agent Pipeline | `[ ]` |
-| 3 | Behavioral Monitor | `[ ]` |
+| 3 | Behavioral Monitor | `[x]` |
 | 4 | Temporal Health Scorer | `[ ]` |
 | 5 | Decentralized Task Allocator | `[ ]` |
 | 6 | Memory Integrity Module | `[ ]` |
@@ -141,8 +141,8 @@ chronoagent run-experiment --config configs/experiments/signal_validation.yaml -
 
 | Pivot | Triggered? | Action Taken |
 |-------|-----------|--------------|
-| A (AWT=0) | No | — |
-| B (no signal) | No | — |
+| A (AWT=0) | **Yes** | Concurrent detection reframe. No code changes. |
+| B (no signal) | No | KL-div confirmed. 3/6 signals MockBackend constants. |
 | C (Chronos underperforms) | No | — |
 
 ---
@@ -154,3 +154,4 @@ chronoagent run-experiment --config configs/experiments/signal_validation.yaml -
 | `CLAUDE.md` | This file — session context, git workflow, quick-ref |
 | `PLAN.md` | Full implementation plan — phases, tasks, logs, pivot protocol |
 | `chrono_agent_research.md` | Research dossier — role alignments, literature gaps (for applications) |
+| `docs/phase1_decision.md` | Phase 1 GO/NO-GO ruling, raw results, pivot analysis |

@@ -75,9 +75,25 @@ python_version = "3.11"
 mypy_path = "src"
 ignore_missing_imports = false
 
+[[tool.mypy.overrides]]
+module = [
+    "scipy.*",
+    "ruptures.*",
+    "matplotlib.*",
+    "pandas.*",
+    "seaborn.*",
+    "torch",
+    "torch.*",
+    "chronos",
+    "chronos.*",
+]
+ignore_missing_imports = true
+disable_error_code = ["import-untyped"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+pythonpath = ["."]
 addopts = "--cov=chronoagent --cov-report=term-missing --cov-fail-under=80"
 
 [tool.coverage.run]

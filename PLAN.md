@@ -44,9 +44,9 @@ The checkboxes + Log sections tell the full story — no other context needed.
 | # | Phase | Complexity | Status | Depends On |
 |---|-------|-----------|--------|------------|
 | 0 | Bootstrap | Low | `[x]` | -- |
-| 1 | Signal Validation (GO/NO-GO) | **High** | `[ ]` | 0 |
+| 1 | Signal Validation (GO/NO-GO) | **High** | `[x]` | 0 |
 | 2 | Core Agent Pipeline | Medium | `[ ]` | 0, 1 (collector) |
-| 3 | Behavioral Monitor | Medium | `[ ]` | 2 |
+| 3 | Behavioral Monitor | Medium | `[x]` | 2 |
 | 4 | Temporal Health Scorer | **High** | `[ ]` | 3 |
 | 5 | Decentralized Task Allocator | **High** | `[ ]` | 4 |
 | 6 | Memory Integrity Module | Medium | `[ ]` | 2, 3 |
@@ -133,15 +133,15 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 - Decision document: viable signals identified, AWT assessment, proceed/pivot ruling
 
 **Tasks:**
-- [ ] 1.1 Minimal agent pair -- `SecurityReviewerAgent` + `SummarizerAgent` using LangChain + **MockBackend** (not Ollama — no GPU needed, deterministic), both with ChromaDB retrieval. MockBackend returns realistic but fixed responses to simulate real agent behavior.
-- [ ] 1.2 `monitor/collector.py` -- `BehavioralCollector` with `StepSignals` dataclass (6 fields), `start_step`/`end_step`, `get_signal_matrix() -> (T, 6) ndarray`
-- [ ] 1.3 `monitor/kl_divergence.py` -- Calibration run fits Gaussian on clean retrieval embeddings; per-step KL from baseline via `scipy.stats.entropy`
-- [ ] 1.4 `monitor/entropy.py` -- Shannon entropy of top-k similarity score distribution per retrieval; normalized to [0,1]
-- [ ] 1.5 `memory/poisoning.py` -- `MINJAStyleAttack` (query-optimized trigger embeddings) + `AGENTPOISONStyleAttack` (backdoor trigger docs); both inject into ChromaDB
-- [ ] 1.6 `experiments/runner.py` -- Phase A: clean run (N PRs) -> Phase B: inject attack -> Phase C: poisoned run (N PRs) -> Phase D: compute stats
-- [ ] 1.7 `configs/experiments/signal_validation.yaml` -- seed, step counts, attack type, agent list, signal list, analysis params
-- [ ] 1.8 Analysis script -- per-signal time-series plots, Cohen's d, PELT changepoint detection, AWT estimation, decision matrix table
-- [ ] 1.9 Write decision document with pivot ruling
+- [x] 1.1 Minimal agent pair -- `SecurityReviewerAgent` + `SummarizerAgent` using LangChain + **MockBackend** (not Ollama — no GPU needed, deterministic), both with ChromaDB retrieval. MockBackend returns realistic but fixed responses to simulate real agent behavior.
+- [x] 1.2 `monitor/collector.py` -- `BehavioralCollector` with `StepSignals` dataclass (6 fields), `start_step`/`end_step`, `get_signal_matrix() -> (T, 6) ndarray`
+- [x] 1.3 `monitor/kl_divergence.py` -- Calibration run fits Gaussian on clean retrieval embeddings; per-step KL from baseline via `scipy.stats.entropy`
+- [x] 1.4 `monitor/entropy.py` -- Shannon entropy of top-k similarity score distribution per retrieval; normalized to [0,1]
+- [x] 1.5 `memory/poisoning.py` -- `MINJAStyleAttack` (query-optimized trigger embeddings) + `AGENTPOISONStyleAttack` (backdoor trigger docs); both inject into ChromaDB
+- [x] 1.6 `experiments/runner.py` -- Phase A: clean run (N PRs) -> Phase B: inject attack -> Phase C: poisoned run (N PRs) -> Phase D: compute stats
+- [x] 1.7 `configs/experiments/signal_validation.yaml` -- seed, step counts, attack type, agent list, signal list, analysis params
+- [x] 1.8 Analysis script -- per-signal time-series plots, Cohen's d, PELT changepoint detection, AWT estimation, decision matrix table
+- [x] 1.9 Write decision document with pivot ruling
 
 **Key Files:** `agents/security_reviewer.py`, `agents/summarizer.py`, `monitor/collector.py`, `monitor/kl_divergence.py`, `monitor/entropy.py`, `memory/poisoning.py`, `experiments/runner.py`
 
@@ -158,13 +158,13 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 ### Phase 1 Log
 | | |
 |--|--|
-| **Signal Results** | _fill in: Cohen's d per signal, AWT estimate_ |
-| **GO/NO-GO Decision** | _fill in: GO / PIVOT A / PIVOT B_ |
-| **Pivot Taken** | _fill in: none / Pivot A / Pivot B — and why_ |
-| **Findings** | _fill in_ |
-| **Challenges** | _fill in_ |
-| **Decisions** | _fill in_ |
-| **Completed** | _fill in: date_ |
+| **Signal Results** | KL-div: d=1.611 (MINJA), d=1.348 (AGENTPOISON). All other signals d<0.4. Entropy/retrieval_count/tool_calls are MockBackend constants (σ=0). AWT=0 (concurrent). |
+| **GO/NO-GO Decision** | Conditional GO with Pivot A. Strict criterion: NO-GO (1/6 signals). Adjusted: primary signal confirmed; MockBackend limits 3/6 signals. |
+| **Pivot Taken** | Pivot A — AWT=0; reframe to concurrent detection. No code changes. |
+| **Findings** | KL-divergence is the only backend-independent signal; works under both MINJA and AGENTPOISON (d>1.3). PELT detects changepoint at step 9/25. Entropy flat due to uniform MockBackend similarity scores. |
+| **Challenges** | MockBackend eliminates 3/6 signals as observable (σ=0). Token-count effect is a PR-seed confound, not attack signal. |
+| **Decisions** | KL-div promoted as anchor signal for Phase 2 monitor integration. Entropy/retrieval_count deferred to Phase 2+ with real LLM backend. Full doc: `docs/phase1_decision.md`. |
+| **Completed** | 2026-04-09 |
 
 ---
 
@@ -180,18 +180,18 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 - Full trace logging per agent
 
 **Tasks:**
-- [ ] 2.1 `agents/base.py` -- `BaseAgent` ABC: `execute(Task) -> TaskResult`, instrumented `_call_llm`, `_retrieve_memory`
-- [ ] 2.2 `agents/backends/` -- `LLMBackend` ABC (`generate`, `embed`), `TogetherAIBackend` (default), `MockBackend` (deterministic fixtures — primary for all tests/experiments), `OllamaBackend` (optional, skip if no GPU)
-- [ ] 2.3 `agents/planner.py` -- Decomposes PR diff into `list[ReviewSubtask]` with task_type + code_segment; queries memory for similar decompositions
-- [ ] 2.4 `agents/security_reviewer.py` -- Full impl: checks for vulns, outputs `SecurityFinding` (severity, desc, line ref); queries CWE patterns from memory
-- [ ] 2.5 `agents/style_reviewer.py` -- Checks quality/naming/complexity, outputs `StyleFinding`; queries style conventions from memory
-- [ ] 2.6 `agents/summarizer.py` -- Synthesizes all findings into `ReviewReport` (markdown); queries report templates
-- [ ] 2.7 `agents/registry.py` -- `AgentRegistry`: capability map, agent lookup by type
-- [ ] 2.8 `memory/store.py` -- ChromaDB wrapper: `add`, `query`, `delete`, `get_all_embeddings`
-- [ ] 2.9 Seed data script -- ~50 vuln patterns (CWE top 25), ~30 style docs, ~10 report templates, ~20 sample reviews
-- [ ] 2.10 `pipeline/graph.py` -- LangGraph `StateGraph`: plan -> (security_review || style_review) -> summarize -> END
-- [ ] 2.11 `api/routers/review.py` -- `POST /api/v1/review`, `GET /api/v1/review/{id}`
-- [ ] 2.12 `tests/integration/test_pipeline_e2e.py` -- MockBackend, submit diff, assert ReviewReport with findings, assert agent order
+- [x] 2.1 `agents/base.py` -- `BaseAgent` ABC: `execute(Task) -> TaskResult`, instrumented `_call_llm`, `_retrieve_memory`
+- [x] 2.2 `agents/backends/` -- `LLMBackend` ABC (`generate`, `embed`), `TogetherAIBackend` (default), `MockBackend` (deterministic fixtures — primary for all tests/experiments), `OllamaBackend` (optional, skip if no GPU)
+- [x] 2.3 `agents/planner.py` -- Decomposes PR diff into `list[ReviewSubtask]` with task_type + code_segment; queries memory for similar decompositions
+- [x] 2.4 `agents/security_reviewer.py` -- Full impl: checks for vulns, outputs `SecurityFinding` (severity, desc, line ref); queries CWE patterns from memory
+- [x] 2.5 `agents/style_reviewer.py` -- Checks quality/naming/complexity, outputs `StyleFinding`; queries style conventions from memory
+- [x] 2.6 `agents/summarizer.py` -- Synthesizes all findings into `ReviewReport` (markdown); queries report templates
+- [x] 2.7 `agents/registry.py` -- `AgentRegistry`: capability map, agent lookup by type
+- [x] 2.8 `memory/store.py` -- ChromaDB wrapper: `add`, `query`, `delete`, `get_all_embeddings`
+- [x] 2.9 Seed data script -- ~50 vuln patterns (CWE top 25), ~30 style docs, ~10 report templates, ~20 sample reviews
+- [x] 2.10 `pipeline/graph.py` -- LangGraph `StateGraph`: plan -> (security_review || style_review) -> summarize -> END
+- [x] 2.11 `api/routers/review.py` -- `POST /api/v1/review`, `GET /api/v1/review/{id}`
+- [x] 2.12 `tests/integration/test_pipeline_e2e.py` -- MockBackend, submit diff, assert ReviewReport with findings, assert agent order
 
 **Key Files:** `agents/*.py`, `agents/backends/*.py`, `memory/store.py`, `pipeline/graph.py`, `api/routers/review.py`
 
@@ -222,13 +222,13 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 - Unit tests for each signal computation (including property tests)
 
 **Tasks:**
-- [ ] 3.1 Expand `BehavioralCollector` -- add PostgreSQL persistence via SQLAlchemy, baseline calibration after N steps, rolling window stats
-- [ ] 3.2 Complete `kl_divergence.py` -- edge cases (zero variance, insufficient samples), unit tests with known distributions
-- [ ] 3.3 Complete `entropy.py` -- edge cases (single result, empty), normalize [0,1], unit tests (uniform=max, delta=0)
-- [ ] 3.4 `db/models.py` -- `AgentSignalRecord` table (agent_id, task_id, timestamp, 6 signal columns); Alembic migration
-- [ ] 3.5 `api/routers/signals.py` -- `GET /api/v1/agents/{agent_id}/signals?window=50`
-- [ ] 3.6 Unit tests: `test_signals.py`, `test_kl_divergence.py`, `test_entropy.py`
-- [ ] 3.7 Property test via Hypothesis: KL-div and entropy always non-negative for valid inputs
+- [x] 3.1 Expand `BehavioralCollector` -- add PostgreSQL persistence via SQLAlchemy, baseline calibration after N steps, rolling window stats
+- [x] 3.2 Complete `kl_divergence.py` -- edge cases (zero variance, insufficient samples), unit tests with known distributions
+- [x] 3.3 Complete `entropy.py` -- edge cases (single result, empty), normalize [0,1], unit tests (uniform=max, delta=0)
+- [x] 3.4 `db/models.py` -- `AgentSignalRecord` table (agent_id, task_id, timestamp, 6 signal columns); Alembic migration
+- [x] 3.5 `api/routers/signals.py` -- `GET /api/v1/agents/{agent_id}/signals?window=50`
+- [x] 3.6 Unit tests: `test_signals.py`, `test_kl_divergence.py`, `test_entropy.py`
+- [x] 3.7 Property test via Hypothesis: KL-div and entropy always non-negative for valid inputs
 
 **Key Files:** `monitor/collector.py`, `monitor/kl_divergence.py`, `monitor/entropy.py`, `db/models.py`
 
@@ -239,10 +239,10 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 ### Phase 3 Log
 | | |
 |--|--|
-| **Findings** | _fill in_ |
-| **Challenges** | _fill in_ |
-| **Decisions** | _fill in_ |
-| **Completed** | _fill in: date_ |
+| **Findings** | `BehavioralCollector.persist_step` stores signals via SQLAlchemy session; KLCalibrator analytic formula matches scipy grid to <2% for D≤3 |
+| **Challenges** | In-memory SQLite needs `StaticPool` for router tests; ruff B008 requires `Annotated[Session, Depends(...)]` instead of `= Depends(...)` |
+| **Decisions** | `BehavioralCollector` stays DI-agnostic — persistence via explicit `persist_step(session, ...)` call; `get_db` dependency in `api/deps.py` |
+| **Completed** | 2026-04-10 — 462 tests, 96.27% coverage |
 
 ---
 

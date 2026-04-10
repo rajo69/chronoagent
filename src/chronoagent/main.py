@@ -11,7 +11,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from chronoagent.config import Settings, load_settings
+from chronoagent.db.models import Base
+from chronoagent.db.session import make_engine, make_session_factory_from_engine
 from chronoagent.observability.logging import configure_logging, get_logger
+from chronoagent.pipeline.graph import ReviewPipeline
 
 logger = get_logger(__name__)
 
@@ -31,7 +34,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     logger.info("chronoagent starting", env=settings.env, backend=settings.llm_backend)
 
-    # Future phases will initialise DB / Redis / Chroma here.
+    # Database setup — create tables for SQLite (dev/test); use Alembic for prod.
+    engine = make_engine(settings)
+    Base.metadata.create_all(engine)
+    app.state.session_factory = make_session_factory_from_engine(engine)
+
+    app.state.pipeline = ReviewPipeline.create()
+    app.state.review_store = {}
+
     yield
 
     logger.info("chronoagent shutting down")
@@ -48,6 +58,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         Configured :class:`~fastapi.FastAPI` application.
     """
     from chronoagent.api.health import router as health_router
+    from chronoagent.api.routers.review import router as review_router
+    from chronoagent.api.routers.signals import router as signals_router
 
     resolved_settings = settings or load_settings()
 
@@ -59,6 +71,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = resolved_settings
     app.include_router(health_router)
+    app.include_router(review_router)
+    app.include_router(signals_router)
 
     return app
 

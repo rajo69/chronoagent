@@ -9,7 +9,7 @@ Commands:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
+from typing import Annotated, Any, Literal, cast
 
 import httpx
 import typer
@@ -24,10 +24,10 @@ app = typer.Typer(
 
 @app.command()
 def serve(
-    host: str = typer.Option("0.0.0.0", help="Bind host."),
-    port: int = typer.Option(8000, help="Bind port."),
-    reload: bool = typer.Option(True, help="Enable hot reload (dev only)."),
-    config: Optional[Path] = typer.Option(None, help="Path to YAML config overlay."),
+    host: Annotated[str, typer.Option(help="Bind host.")] = "0.0.0.0",
+    port: Annotated[int, typer.Option(help="Bind port.")] = 8000,
+    reload: Annotated[bool, typer.Option(help="Enable hot reload (dev only).")] = True,
+    config: Annotated[Path | None, typer.Option(help="Path to YAML config overlay.")] = None,
 ) -> None:
     """Start the FastAPI server.
 
@@ -52,19 +52,66 @@ def serve(
 
 @app.command("run-experiment")
 def run_experiment(
-    config: Path = typer.Option(..., help="Path to experiment YAML config."),
-    output: Path = typer.Option(Path("results/"), help="Directory for result artefacts."),
+    config: Annotated[Path, typer.Option(help="Path to experiment YAML config.")],
+    output: Annotated[Path, typer.Option(help="Directory for result artefacts.")] = Path(
+        "results/"
+    ),
 ) -> None:
     """Run a signal-validation experiment.
+
+    Reads the YAML config, executes the four-phase
+    :class:`~chronoagent.experiments.runner.SignalValidationRunner`, then
+    writes plots and a decision-matrix CSV via
+    :class:`~chronoagent.experiments.analysis.SignalAnalyzer`.
 
     Args:
         config: Path to the experiment YAML configuration file.
         output: Directory where result artefacts (plots, CSVs) are written.
     """
+    import yaml
+
+    from chronoagent.experiments.analysis import AnalysisConfig, SignalAnalyzer
+    from chronoagent.experiments.runner import SignalValidationRunner
+
     typer.echo(f"Running experiment: {config}")
     typer.echo(f"Output directory:   {output}")
-    typer.echo("Experiment runner not yet implemented (Phase 1).")
-    raise typer.Exit(code=0)
+
+    with open(config) as fh:
+        cfg = yaml.safe_load(fh)
+
+    runner_cfg: dict[str, Any] = cfg.get("runner", {})
+    analysis_cfg: dict[str, Any] = cfg.get("analysis", {})
+
+    attack_raw = str(runner_cfg.get("attack", "minja"))
+    if attack_raw not in ("minja", "agentpoison"):
+        typer.echo(f"ERROR: unknown attack type {attack_raw!r}", err=True)
+        raise typer.Exit(code=1)
+    attack_val = cast(Literal["minja", "agentpoison"], attack_raw)
+
+    runner = SignalValidationRunner.create(
+        attack=attack_val,
+        n_steps=int(runner_cfg.get("n_steps", 25)),
+        n_poison_docs=int(runner_cfg.get("n_poison_docs", 10)),
+        n_calibration=int(runner_cfg.get("n_calibration", 10)),
+        seed=int(runner_cfg.get("seed", 42)),
+        pr_seed=int(runner_cfg.get("pr_seed", 0)),
+    )
+
+    typer.echo("Phase A — clean run …")
+    typer.echo("Phase B — injecting attack …")
+    typer.echo("Phase C — poisoned run …")
+    typer.echo("Phase D — computing statistics …")
+    result = runner.run()
+
+    analysis_config = AnalysisConfig.from_yaml_section(analysis_cfg)
+    analyzer = SignalAnalyzer(result=result, config=analysis_config)
+
+    typer.echo(result.summary())
+    typer.echo("")
+    typer.echo(analyzer.decision_table())
+
+    analyzer.run(output)
+    typer.echo(f"\nArtefacts written to: {output}")
 
 
 @app.command("check-health")
@@ -83,4 +130,4 @@ def check_health(
         typer.echo(f"OK  status={data['status']}  version={data['version']}")
     except httpx.HTTPError as exc:
         typer.echo(f"ERROR: {exc}", err=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
