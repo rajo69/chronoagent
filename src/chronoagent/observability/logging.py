@@ -70,4 +70,5 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     Returns:
         A :class:`structlog.stdlib.BoundLogger` instance.
     """
-    return structlog.get_logger(name)  # type: ignore[return-value]
+    logger: structlog.stdlib.BoundLogger = structlog.get_logger(name)
+    return logger

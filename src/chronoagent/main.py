@@ -10,7 +10,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from chronoagent.agents.summarizer import ReviewReport
 from chronoagent.config import Settings, load_settings
 from chronoagent.db.models import Base
 from chronoagent.db.session import make_engine, make_session_factory_from_engine
@@ -42,8 +41,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     Base.metadata.create_all(engine)
     app.state.session_factory = make_session_factory_from_engine(engine)
 
-    app.state.pipeline: ReviewPipeline = ReviewPipeline.create()
-    app.state.review_store: dict[str, ReviewReport] = {}
+    app.state.pipeline = ReviewPipeline.create()
+    app.state.review_store = {}
 
     # Messaging bus + health scorer — use LocalBus in dev; swap for RedisBus in prod.
     bus = LocalBus()

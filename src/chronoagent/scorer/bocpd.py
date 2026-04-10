@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy.special import gammaln  # type: ignore[import-untyped]
+from scipy.special import gammaln
 
 
 class _StudentTPredictor:
@@ -61,7 +61,7 @@ class _StudentTPredictor:
             - 0.5 * np.log(nu * np.pi * sigma2)
             - ((nu + 1) / 2) * np.log1p(t**2 / nu)
         )
-        return np.exp(log_pdf)  # type: ignore[no-any-return]
+        return np.exp(log_pdf)
 
     def update(self, x: float) -> None:
         """Grow the sufficient-statistics arrays with a new observation.

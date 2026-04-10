@@ -9,7 +9,7 @@ Reference checkpoint: ``amazon/chronos-t5-small``
 
 from __future__ import annotations
 
-import importlib
+import importlib.util
 import logging
 from dataclasses import dataclass
 from typing import Any
@@ -115,7 +115,7 @@ class ChronosForecaster:
             return None
 
         try:
-            import torch  # type: ignore[import-untyped]
+            import torch
 
             context = torch.tensor(hist_arr).unsqueeze(0)  # (1, T)
             quantile_levels = [0.1, 0.5, 0.9]
@@ -179,8 +179,8 @@ class ChronosForecaster:
         if self._pipeline is not None:
             return self._pipeline
         try:
-            import torch  # type: ignore[import-untyped]
-            from chronos import ChronosPipeline  # type: ignore[import-untyped]
+            import torch
+            from chronos import ChronosPipeline
 
             self._pipeline = ChronosPipeline.from_pretrained(
                 self._model_id,
