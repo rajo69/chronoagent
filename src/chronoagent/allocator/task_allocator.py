@@ -40,6 +40,20 @@ Design notes
 * **Idempotent stop().**  ``stop`` unsubscribes the handler from the
   bus and is safe to call multiple times.  Downstream code (FastAPI
   lifespan, tests) can rely on this without tracking extra state.
+* **Round-robin fallback (task 5.6).**  ``allocate`` wraps the call to
+  ``run_contract_net`` in a try/except.  On *any* exception (timeout,
+  corrupt snapshot, programming error in negotiation, etc.) the
+  allocator logs a warning and returns a synthesized
+  :class:`NegotiationResult` whose ``assigned_agent`` is picked from
+  :data:`AGENT_IDS` in round-robin order.  The cursor advances under
+  the cache lock so concurrent callers get distinct picks.  The
+  synthesized result has ``escalated=False``, ``winning_bid=None`` and
+  an empty ``all_bids`` tuple; the rationale records the exception
+  type and message so the audit layer (task 5.5) can trace why the
+  fallback fired.  Pipeline routing already tolerates ``winning_bid``
+  being ``None`` and routes non-specialist picks through the
+  escalation-placeholder branch, which is the safe outcome on the
+  4-agent specialized topology.
 """
 
 from __future__ import annotations
@@ -101,6 +115,12 @@ class DecentralizedTaskAllocator:
         self._health_cache: dict[str, HealthUpdate] = {}
         self._lock = threading.Lock()
         self._stopped = False
+        # Round-robin cursor for the task 5.6 fallback path.  Advanced
+        # under ``self._lock`` so concurrent ``allocate`` calls that
+        # both fall back get distinct picks instead of racing on the
+        # same agent.  Shared across task types: simpler and still
+        # deterministic given the canonical ``AGENT_IDS`` order.
+        self._round_robin_cursor = 0
         bus.subscribe(HEALTH_CHANNEL, self._handle_health_update)
 
     # ------------------------------------------------------------------
@@ -152,6 +172,13 @@ class DecentralizedTaskAllocator:
         The lock is released before calling the negotiation function,
         which is pure and therefore safe to run without the lock held.
 
+        If the negotiation function raises *any* exception (timeout in
+        a future async backend, corrupt snapshot, programming bug,
+        etc.) the allocator catches it, logs a warning, and falls back
+        to round-robin assignment via :meth:`_round_robin_fallback`.
+        This is the Phase 5 task 5.6 graceful-degradation guarantee:
+        the pipeline never crashes because the allocator failed.
+
         Args:
             task_id: Opaque identifier recorded in the result.
             task_type: One of
@@ -159,17 +186,30 @@ class DecentralizedTaskAllocator:
 
         Returns:
             The :class:`NegotiationResult` from the negotiation round,
-            either with an assigned agent or escalated for human review.
+            with an assigned agent (either the contract-net winner or
+            a round-robin fallback pick) or with ``escalated=True`` for
+            human review.
         """
         snapshot = self.get_health_snapshot()
-        return run_contract_net(
-            task_id=task_id,
-            task_type=task_type,
-            health_snapshot=snapshot,
-            matrix=self._matrix,
-            threshold=self._threshold,
-            missing_health_default=self._missing_health_default,
-        )
+        try:
+            return run_contract_net(
+                task_id=task_id,
+                task_type=task_type,
+                health_snapshot=snapshot,
+                matrix=self._matrix,
+                threshold=self._threshold,
+                missing_health_default=self._missing_health_default,
+            )
+        except Exception as exc:
+            logger.warning(
+                "task_allocator: negotiation failed for task_id=%r task_type=%r "
+                "(%s: %s); falling back to round-robin",
+                task_id,
+                task_type,
+                type(exc).__name__,
+                exc,
+            )
+            return self._round_robin_fallback(task_id, task_type, exc)
 
     def stop(self) -> None:
         """Unsubscribe from the bus.  Idempotent; safe to call twice."""
@@ -177,6 +217,66 @@ class DecentralizedTaskAllocator:
             return
         self._bus.unsubscribe(HEALTH_CHANNEL, self._handle_health_update)
         self._stopped = True
+
+    # ------------------------------------------------------------------
+    # Fallback (Phase 5 task 5.6)
+    # ------------------------------------------------------------------
+
+    def _round_robin_fallback(
+        self,
+        task_id: str,
+        task_type: str,
+        exc: BaseException,
+    ) -> NegotiationResult:
+        """Pick the next agent in round-robin order and synthesize a result.
+
+        Used by :meth:`allocate` when ``run_contract_net`` raises.  The
+        cursor advances under ``self._lock`` so concurrent fallbacks
+        get distinct picks.  The returned :class:`NegotiationResult`
+        carries:
+
+        * ``assigned_agent``: the round-robin pick from
+          :data:`AGENT_IDS`.
+        * ``escalated``: ``False``.  The pipeline routes the
+          assignment based on whether the picked agent matches the
+          task's specialist; non-specialist picks fall through to the
+          existing escalation-placeholder branch in
+          :mod:`chronoagent.pipeline.graph`.
+        * ``winning_bid``: ``None`` and ``all_bids``: ``()`` because no
+          bid was actually computed.  Downstream consumers already
+          tolerate ``winning_bid is None`` (see graph.py logging).
+        * ``rationale``: human-readable string naming the exception
+          type, message, and the picked agent, so audit records (task
+          5.5) can trace why the fallback fired.
+
+        Args:
+            task_id: Opaque task identifier (echoed into the result).
+            task_type: Task type (echoed into the result; not used to
+                pick the agent).
+            exc: The exception that triggered the fallback; its type
+                name and message are recorded in ``rationale``.
+
+        Returns:
+            A synthesized :class:`NegotiationResult` representing the
+            round-robin assignment.
+        """
+        with self._lock:
+            agent_id = AGENT_IDS[self._round_robin_cursor % len(AGENT_IDS)]
+            self._round_robin_cursor += 1
+        rationale = (
+            f"round-robin fallback after negotiation error "
+            f"({type(exc).__name__}: {exc}): assigned to {agent_id!r}"
+        )
+        return NegotiationResult(
+            task_id=task_id,
+            task_type=task_type,
+            assigned_agent=agent_id,
+            escalated=False,
+            winning_bid=None,
+            all_bids=(),
+            rationale=rationale,
+            threshold=self._threshold,
+        )
 
     # ------------------------------------------------------------------
     # Internal
