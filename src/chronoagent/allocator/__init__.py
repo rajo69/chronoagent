@@ -15,6 +15,13 @@ Modules
     and a health snapshot, returns a :class:`NegotiationResult` with
     the winning agent (or an escalation decision) and the full bid
     ledger.
+``task_allocator``
+    Stateful shell around :func:`run_contract_net`:
+    :class:`DecentralizedTaskAllocator` subscribes to ``health_updates``
+    on a :class:`~chronoagent.messaging.bus.MessageBus`, caches the
+    latest :class:`~chronoagent.scorer.health_scorer.HealthUpdate` per
+    agent, and projects the cache into a snapshot for each call to
+    :meth:`DecentralizedTaskAllocator.allocate`.
 """
 
 from __future__ import annotations
@@ -36,6 +43,7 @@ from chronoagent.allocator.negotiation import (
     NegotiationResult,
     run_contract_net,
 )
+from chronoagent.allocator.task_allocator import DecentralizedTaskAllocator
 
 __all__ = [
     "AGENT_IDS",
@@ -45,6 +53,7 @@ __all__ = [
     "TASK_TYPES",
     "Bid",
     "CapabilityMatrix",
+    "DecentralizedTaskAllocator",
     "InvalidHealthError",
     "InvalidThresholdError",
     "NegotiationResult",
