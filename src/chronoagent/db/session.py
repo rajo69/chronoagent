@@ -62,3 +62,21 @@ def make_session_factory(settings: Settings | None = None) -> sessionmaker[Sessi
     """
     engine = make_engine(settings)
     return sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+def make_session_factory_from_engine(engine: Engine) -> sessionmaker[Session]:
+    """Return a :class:`~sqlalchemy.orm.sessionmaker` bound to an existing engine.
+
+    Use this when you already hold a reference to the engine (e.g. after calling
+    :func:`make_engine` + ``Base.metadata.create_all``) so that the session
+    factory shares the same connection pool.  This is especially important for
+    in-memory SQLite databases where each engine has its own isolated database.
+
+    Args:
+        engine: A pre-built :class:`~sqlalchemy.Engine`.
+
+    Returns:
+        :class:`~sqlalchemy.orm.sessionmaker` configured with
+        ``autocommit=False`` and ``autoflush=False``.
+    """
+    return sessionmaker(autocommit=False, autoflush=False, bind=engine)

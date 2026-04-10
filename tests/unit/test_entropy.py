@@ -180,3 +180,56 @@ class TestStepEntropy:
         e2 = retrieval_entropy(b2)
         expected = (1.0 + e2 + 1.0) / 3.0
         assert step_entropy([b1, b2, b3]) == pytest.approx(expected)
+
+
+# ---------------------------------------------------------------------------
+# Hypothesis property tests (task 3.7)
+# ---------------------------------------------------------------------------
+
+from hypothesis import given, settings
+from hypothesis import strategies as st
+from hypothesis.extra.numpy import arrays
+
+
+class TestEntropyPropertyTests:
+    @given(
+        scores=arrays(
+            dtype=np.float64,
+            shape=st.integers(0, 20),
+            elements=st.floats(
+                min_value=-10.0,
+                max_value=100.0,
+                allow_nan=False,
+                allow_infinity=False,
+            ),
+        )
+    )
+    @settings(max_examples=300)
+    def test_retrieval_entropy_always_in_unit_interval(self, scores: np.ndarray) -> None:
+        """retrieval_entropy must always return a value in [0, 1]."""
+        result = retrieval_entropy(scores)
+        assert 0.0 <= result <= 1.0, f"entropy {result} out of [0,1] for scores {scores}"
+        assert np.isfinite(result)
+
+    @given(
+        batches=st.lists(
+            arrays(
+                dtype=np.float64,
+                shape=st.integers(0, 15),
+                elements=st.floats(
+                    min_value=-10.0,
+                    max_value=100.0,
+                    allow_nan=False,
+                    allow_infinity=False,
+                ),
+            ),
+            min_size=0,
+            max_size=10,
+        )
+    )
+    @settings(max_examples=200)
+    def test_step_entropy_always_in_unit_interval(self, batches: list[np.ndarray]) -> None:
+        """step_entropy must always return a value in [0, 1]."""
+        result = step_entropy(batches)
+        assert 0.0 <= result <= 1.0, f"step_entropy {result} out of [0,1]"
+        assert np.isfinite(result)

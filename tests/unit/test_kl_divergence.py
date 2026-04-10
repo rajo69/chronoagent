@@ -1,9 +1,12 @@
-"""Unit tests for kl_divergence.py — edge cases and known distributions (task 3.2)."""
+"""Unit tests for kl_divergence.py — edge cases and known distributions (tasks 3.2, 3.7)."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
+from hypothesis.extra.numpy import arrays
 
 from chronoagent.monitor.kl_divergence import (
     KLCalibrator,
@@ -348,3 +351,79 @@ class TestKLCalibratorComputeKL:
         assert cal.is_calibrated
         kl = cal.compute_kl(np.array([[5.0, 6.0]], dtype=np.float64))
         assert kl >= 0.0
+
+
+# ---------------------------------------------------------------------------
+# Hypothesis property tests (task 3.7)
+# ---------------------------------------------------------------------------
+
+
+_positive_var = arrays(
+    dtype=np.float64,
+    shape=st.integers(1, 8),
+    elements=st.floats(min_value=1e-3, max_value=100.0, allow_nan=False, allow_infinity=False),
+)
+_mean = arrays(
+    dtype=np.float64,
+    shape=st.integers(1, 8),
+    elements=st.floats(min_value=-10.0, max_value=10.0, allow_nan=False, allow_infinity=False),
+)
+
+
+class TestKLDivergencePropertyTests:
+    @given(
+        mean_q=arrays(
+            np.float64,
+            st.integers(1, 6),
+            elements=st.floats(-5.0, 5.0, allow_nan=False, allow_infinity=False),
+        ),
+        log_var_q=arrays(
+            np.float64,
+            st.integers(1, 6),
+            elements=st.floats(-2.0, 2.0, allow_nan=False, allow_infinity=False),
+        ),
+        mean_p=arrays(
+            np.float64,
+            st.integers(1, 6),
+            elements=st.floats(-5.0, 5.0, allow_nan=False, allow_infinity=False),
+        ),
+        log_var_p=arrays(
+            np.float64,
+            st.integers(1, 6),
+            elements=st.floats(-2.0, 2.0, allow_nan=False, allow_infinity=False),
+        ),
+    )
+    @settings(max_examples=200)
+    def test_kl_always_non_negative(
+        self,
+        mean_q: np.ndarray,
+        log_var_q: np.ndarray,
+        mean_p: np.ndarray,
+        log_var_p: np.ndarray,
+    ) -> None:
+        """KL divergence must always be ≥ 0 for any valid inputs."""
+        d = min(mean_q.shape[0], log_var_q.shape[0], mean_p.shape[0], log_var_p.shape[0])
+        var_q = np.exp(log_var_q[:d]) + 1e-6  # ensure > 0
+        var_p = np.exp(log_var_p[:d]) + 1e-6
+        kl = _kl_diagonal_gaussians(mean_q[:d], var_q, mean_p[:d], var_p)
+        assert kl >= 0.0, f"KL was negative: {kl}"
+        assert np.isfinite(kl)
+
+    @given(
+        embeddings=arrays(
+            np.float64,
+            st.tuples(st.integers(1, 10), st.integers(1, 8)),
+            elements=st.floats(-5.0, 5.0, allow_nan=False, allow_infinity=False),
+        )
+    )
+    @settings(max_examples=100)
+    def test_calibrator_kl_non_negative(self, embeddings: np.ndarray) -> None:
+        """KLCalibrator.compute_kl always returns a non-negative finite value."""
+        cal = KLCalibrator(n_calibration=1)
+        d = embeddings.shape[1]
+        # Calibrate with clean data (identity-ish)
+        clean = np.eye(min(d, 3), d, dtype=np.float64) + 0.01
+        cal.update(clean)
+        kl = cal.compute_kl(embeddings)
+        assert kl >= 0.0
+        assert np.isfinite(kl)
