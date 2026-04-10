@@ -1,4 +1,4 @@
-# ChronoAgent — Session Context for Claude Code
+# ChronoAgent: Session Context for Claude Code
 
 > This file is auto-read at every session start. Keep it current. Full plan is in PLAN.md.
 
@@ -8,10 +8,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Current phase** | Phase 5 — Decentralized Task Allocator |
-| **Next task** | 5.1 — first task of Phase 5 (see PLAN.md) |
+| **Current phase** | Phase 5: Decentralized Task Allocator |
+| **Next task** | 5.1, first task of Phase 5 (see PLAN.md) |
 | **Blocked?** | No |
-| **Last session** | 2026-04-10 — Phase 4 complete [x] and **merged to main** (PR #1 phase3 → `471ef69`, PR #2 phase4 → `6c4a68c`). Tasks 4.1–4.7 done: `scorer/bocpd.py` (streaming BOCPD, fixed cp signal = H·P(x\|prior)/evidence), `scorer/chronos_forecaster.py` (lazy Chronos-2-Small + graceful fallback), `scorer/ensemble.py`, `scorer/health_scorer.py`, `messaging/{bus,local_bus,redis_bus}.py`, `api/routers/health_scores.py`. 503 tests, 92.57% coverage. **CI hygiene fixes (this session):** 76 ruff lint errors, 28 ruff-format files, 14 mypy strict errors (variable shadowing in summarizer, `StateGraph[PipelineState]` type param, removed illegal `app.state.foo: Type` annotations, stale `# type: ignore` cleanup, added torch/chronos to mypy `ignore_missing_imports`), CI workflow now installs `[dev,experiments]` so pandas is available for `run-experiment` test. All 4 CI checks (ruff lint, ruff format, mypy strict, pytest) green on main. |
+| **Last session** | 2026-04-10. Phase 4 complete [x] and **merged to main** (PR #1 phase3 at `471ef69`, PR #2 phase4 at `6c4a68c`). Tasks 4.1 to 4.7 done: `scorer/bocpd.py` (streaming BOCPD, fixed cp signal = H·P(x\|prior)/evidence), `scorer/chronos_forecaster.py` (lazy Chronos-2-Small + graceful fallback), `scorer/ensemble.py`, `scorer/health_scorer.py`, `messaging/{bus,local_bus,redis_bus}.py`, `api/routers/health_scores.py`. 503 tests, 92.57% coverage. **CI hygiene fixes (this session):** 76 ruff lint errors, 28 ruff-format files, 14 mypy strict errors (variable shadowing in summarizer, `StateGraph[PipelineState]` type param, removed illegal `app.state.foo: Type` annotations, stale `# type: ignore` cleanup, added torch/chronos to mypy `ignore_missing_imports`), CI workflow now installs `[dev,experiments]` so pandas is available for `run-experiment` test. All 4 CI checks (ruff lint, ruff format, mypy strict, pytest) green on main. README rewritten end-to-end. |
 
 > Update this table at the end of every session before closing.
 
@@ -20,7 +20,7 @@
 ## How to Start a Session
 
 ```
-1. Read this file (CLAUDE.md) — you now have full context
+1. Read this file (CLAUDE.md). You now have full context
 2. Read only the current phase section from PLAN.md
 3. Pick the next unchecked [ ] task
 4. Implement → write test → make test green → [x]
@@ -32,7 +32,7 @@
 ## Git Workflow
 
 ```
-main          protected — never commit directly
+main          protected, never commit directly
 feat/*        new features (one per phase task is fine)
 fix/*         bug fixes
 chore/*       config, CI, docs, refactor
@@ -59,7 +59,7 @@ test(allocator): add negotiation invariant tests
 ```
 
 **Never:**
-- `git add .` or `git add -A` — always add specific files
+- `git add .` or `git add -A`, always add specific files
 - Commit directly to `main`
 - Skip pre-commit hooks (`--no-verify`)
 - Commit `.env` files
@@ -80,7 +80,11 @@ test(allocator): add negotiation invariant tests
 
 **Test rule:** Write the test in the same session as the implementation, before moving to the next task. `make test` green = task done.
 
-**Phase 1 exception:** Research experiment — no unit tests. Gate = measured signal results + GO/NO-GO decision.
+**Phase 1 exception:** Research experiment, no unit tests. Gate = measured signal results plus GO/NO-GO decision.
+
+**Prose style rule (project-wide):** Never write em dashes (Unicode U+2014) in any file: README, docs, PLAN.md, CLAUDE.md additions, code comments, docstrings, commit messages. Use commas, colons, parentheses, semicolons, or two sentences instead. The hyphen `-` and en dash `–` are fine.
+
+**README update rule:** Update the "Project status" section of `README.md` at the close of every phase. Tick the phase, update the test count and coverage, and add a one-line "Currently:" note. The README, `CLAUDE.md`, and `PLAN.md` stay in sync at session end.
 
 ---
 
@@ -90,7 +94,7 @@ test(allocator): add negotiation invariant tests
 |-----------|--------|------|
 | LLM (real) | Together.ai | Default. Get key at api.together.ai |
 | LLM (tests/experiments) | MockBackend | Zero cost, deterministic |
-| LLM (optional) | Ollama | GPU only — skip |
+| LLM (optional) | Ollama | GPU only, skip |
 | Forecaster | Chronos-2-Small + BOCPD | CPU-safe. Async. |
 | Agents | LangGraph + LangChain | |
 | Memory | ChromaDB | |
@@ -117,13 +121,13 @@ chronoagent run-experiment --config configs/experiments/signal_validation.yaml -
 
 ---
 
-## Phase Tracker (mirror of PLAN.md — update both)
+## Phase Tracker (mirror of PLAN.md, update both)
 
 | # | Phase | Status |
 |---|-------|--------|
 | 0 | Bootstrap | `[x]` |
 | 1 | Signal Validation (GO/NO-GO) | `[x]` |
-| 2 | Core Agent Pipeline | `[ ]` |
+| 2 | Core Agent Pipeline | `[x]` |
 | 3 | Behavioral Monitor | `[x]` |
 | 4 | Temporal Health Scorer | `[x]` |
 | 5 | Decentralized Task Allocator | `[ ]` |
@@ -143,7 +147,7 @@ chronoagent run-experiment --config configs/experiments/signal_validation.yaml -
 |-------|-----------|--------------|
 | A (AWT=0) | **Yes** | Concurrent detection reframe. No code changes. |
 | B (no signal) | No | KL-div confirmed. 3/6 signals MockBackend constants. |
-| C (Chronos underperforms) | No | — |
+| C (Chronos underperforms) | No | n/a |
 
 ---
 
@@ -151,7 +155,7 @@ chronoagent run-experiment --config configs/experiments/signal_validation.yaml -
 
 | File | Purpose |
 |------|---------|
-| `CLAUDE.md` | This file — session context, git workflow, quick-ref |
-| `PLAN.md` | Full implementation plan — phases, tasks, logs, pivot protocol |
-| `chrono_agent_research.md` | Research dossier — role alignments, literature gaps (for applications) |
+| `CLAUDE.md` | This file: session context, git workflow, quick-ref |
+| `PLAN.md` | Full implementation plan: phases, tasks, logs, pivot protocol |
+| `chrono_agent_research.md` | Research dossier: role alignments, literature gaps (for applications) |
 | `docs/phase1_decision.md` | Phase 1 GO/NO-GO ruling, raw results, pivot analysis |
