@@ -46,6 +46,30 @@ class QueryResult:
     metadatas: list[dict[str, Any]] = field(default_factory=list)
 
 
+@dataclass
+class StoredDoc:
+    """A single document fetched by ID from a :class:`MemoryStore`.
+
+    Mirrors the columns ChromaDB stores per record so callers can move a
+    document between collections (the quarantine round-trip in
+    :class:`~chronoagent.memory.quarantine.QuarantineStore`) without losing
+    its embedding or metadata.
+
+    Attributes:
+        doc_id: ChromaDB document identifier.
+        text: Document content as stored.
+        embedding: Stored embedding vector.  Empty list if the collection
+            holds no embedding for the record (should not occur for stores
+            populated through :meth:`MemoryStore.add`).
+        metadata: Per-document metadata dict; empty dict if none was stored.
+    """
+
+    doc_id: str
+    text: str
+    embedding: list[float]
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
 # ---------------------------------------------------------------------------
 # MemoryStore
 # ---------------------------------------------------------------------------
@@ -184,6 +208,57 @@ class MemoryStore:
             ids=ids,
             metadatas=metas,
         )
+
+    def get_by_ids(self, ids: list[str]) -> list[StoredDoc]:
+        """Fetch full records (text + embedding + metadata) for *ids*.
+
+        IDs that do not exist in the collection are silently dropped, so the
+        returned list may be shorter than the input list.  Order follows
+        whatever ChromaDB reports, which is generally insertion order rather
+        than the input order; callers that need a specific ordering should
+        re-key by :attr:`StoredDoc.doc_id`.
+
+        Args:
+            ids: ChromaDB document IDs to look up.
+
+        Returns:
+            List of :class:`StoredDoc` records, one per ID actually found in
+            the collection.  Empty list if *ids* is empty.
+        """
+        if not ids:
+            return []
+
+        raw = self._collection.get(ids=ids, include=["documents", "embeddings", "metadatas"])
+        out_ids: list[str] = list(raw.get("ids") or [])
+        if not out_ids:
+            return []
+
+        # ChromaDB always returns the requested ``include`` fields when at
+        # least one ID matches, so we can rely on documents/embeddings being
+        # populated.  Per-row metadata may still be ``None`` (when the doc
+        # was inserted without a metadata dict), so that one stays guarded.
+        documents: list[str] = list(raw.get("documents") or [])
+        raw_embeddings = raw.get("embeddings")
+        raw_metadatas = raw.get("metadatas")
+        assert raw_embeddings is not None
+
+        results: list[StoredDoc] = []
+        for i, doc_id in enumerate(out_ids):
+            metadata: dict[str, Any]
+            if raw_metadatas is not None and raw_metadatas[i]:
+                metadata = dict(raw_metadatas[i])
+            else:
+                metadata = {}
+            results.append(
+                StoredDoc(
+                    doc_id=doc_id,
+                    text=documents[i],
+                    # ChromaDB may return numpy arrays; coerce to plain floats.
+                    embedding=[float(v) for v in raw_embeddings[i]],
+                    metadata=metadata,
+                )
+            )
+        return results
 
     def get_all_embeddings(self) -> list[list[float]]:
         """Return every embedding vector stored in the collection.
