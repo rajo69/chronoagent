@@ -116,7 +116,9 @@ def run_experiment(
 
 @app.command("check-health")
 def check_health(
-    url: str = typer.Option("http://localhost:8000", help="Base URL of the running service."),
+    url: Annotated[
+        str, typer.Option(help="Base URL of the running service.")
+    ] = "http://localhost:8000",
 ) -> None:
     """Ping the /health endpoint of a running ChronoAgent service.
 
