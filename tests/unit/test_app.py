@@ -11,7 +11,6 @@ from chronoagent.config import Settings
 from chronoagent.main import create_app
 from chronoagent.observability.logging import configure_logging, get_logger
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 

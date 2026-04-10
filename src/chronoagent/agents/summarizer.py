@@ -407,7 +407,8 @@ class SummarizerAgent(BaseAgent):
 
         Args:
             pr: The pull request being reviewed.
-            security_review: Output of :class:`~chronoagent.agents.security_reviewer.SecurityReviewerAgent`.
+            security_review: Output of
+                :class:`~chronoagent.agents.security_reviewer.SecurityReviewerAgent`.
             style_review: Output of :class:`~chronoagent.agents.style_reviewer.StyleReviewerAgent`.
 
         Returns:

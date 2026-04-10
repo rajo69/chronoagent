@@ -12,6 +12,7 @@ Usage::
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import threading
@@ -66,10 +67,8 @@ class RedisBus(MessageBus):
         """Remove ``handler`` from ``channel``.  Unsubscribes Redis if empty."""
         with self._lock:
             handlers = self._handlers.get(channel, [])
-            try:
+            with contextlib.suppress(ValueError):
                 handlers.remove(handler)
-            except ValueError:
-                pass
             if not handlers:
                 self._pubsub.unsubscribe(channel)
 

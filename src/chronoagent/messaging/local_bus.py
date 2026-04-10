@@ -5,6 +5,7 @@ Thread-safe via a ``threading.Lock``.
 """
 from __future__ import annotations
 
+import contextlib
 import threading
 from collections import defaultdict
 
@@ -38,7 +39,5 @@ class LocalBus(MessageBus):
         """Remove ``handler`` from ``channel``.  No-op if not registered."""
         with self._lock:
             handlers = self._handlers.get(channel, [])
-            try:
+            with contextlib.suppress(ValueError):
                 handlers.remove(handler)
-            except ValueError:
-                pass

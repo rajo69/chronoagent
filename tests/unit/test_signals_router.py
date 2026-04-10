@@ -17,7 +17,6 @@ from chronoagent.config import Settings
 from chronoagent.db.models import AgentSignalRecord, Base
 from chronoagent.main import create_app
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -42,7 +41,7 @@ def _make_record(
     **overrides: Any,
 ) -> AgentSignalRecord:
     """Build an AgentSignalRecord with sensible defaults."""
-    base_ts = datetime.datetime(2026, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
+    base_ts = datetime.datetime(2026, 1, 1, 0, 0, 0, tzinfo=datetime.UTC)
     return AgentSignalRecord(
         agent_id=agent_id,
         task_id=task_id,

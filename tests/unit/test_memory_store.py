@@ -10,7 +10,6 @@ import pytest
 from chronoagent.agents.backends.mock import MockBackend
 from chronoagent.memory.store import MemoryStore, QueryResult
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -223,5 +222,5 @@ class TestGetAllEmbeddings:
         vecs = store.get_all_embeddings()
         assert len(vecs) == 1
         # Values should be numerically close.
-        for a, b in zip(vecs[0], original[0]):
+        for a, b in zip(vecs[0], original[0], strict=False):
             assert abs(a - b) < 1e-5

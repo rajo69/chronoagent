@@ -98,7 +98,7 @@ class AgentRegistry:
         try:
             return _CAPABILITY_MAP[task_type]
         except KeyError:
-            raise UnknownTaskTypeError(task_type)
+            raise UnknownTaskTypeError(task_type) from None
 
     # ------------------------------------------------------------------
     # Introspection

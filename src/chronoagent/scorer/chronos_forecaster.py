@@ -178,8 +178,8 @@ class ChronosForecaster:
         if self._pipeline is not None:
             return self._pipeline
         try:
-            from chronos import ChronosPipeline  # type: ignore[import-untyped]
             import torch  # type: ignore[import-untyped]
+            from chronos import ChronosPipeline  # type: ignore[import-untyped]
 
             self._pipeline = ChronosPipeline.from_pretrained(
                 self._model_id,

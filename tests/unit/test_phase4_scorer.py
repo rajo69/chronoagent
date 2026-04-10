@@ -11,7 +11,6 @@ Coverage:
 from __future__ import annotations
 
 import threading
-import time
 
 import numpy as np
 import pytest
@@ -28,7 +27,6 @@ from chronoagent.scorer.health_scorer import (
     SignalPayload,
     TemporalHealthScorer,
 )
-
 
 # ===========================================================================
 # Task 4.1 — BOCPD
@@ -260,7 +258,7 @@ class TestTemporalHealthScorer:
                 received.append(HealthUpdate(**msg))
 
         bus.subscribe("health_updates", capture)
-        scorer = TemporalHealthScorer(bus=bus)
+        TemporalHealthScorer(bus=bus)
         bus.publish("signal_updates", {"agent_id": "planner", "task_id": "t", "value": 0.5})
 
         assert len(received) == 1
@@ -302,7 +300,7 @@ class TestTemporalHealthScorer:
 
     def test_malformed_message_ignored(self) -> None:
         bus = LocalBus()
-        scorer = TemporalHealthScorer(bus=bus)
+        TemporalHealthScorer(bus=bus)
         # Should not raise
         bus.publish("signal_updates", "not a dict")
         bus.publish("signal_updates", {"wrong": "keys"})
@@ -386,8 +384,8 @@ class TestHealthScoresRouter:
         assert resp.status_code == 404
 
     def test_get_agent_health_returns_score_after_signal(self) -> None:
-        from chronoagent.main import create_app
         from chronoagent.config import Settings
+        from chronoagent.main import create_app
 
         app = create_app(settings=Settings(database_url="sqlite:///:memory:"))
         client = TestClient(app)
@@ -417,8 +415,8 @@ class TestHealthScoresRouter:
         assert data["system_health"] == 1.0
 
     def test_get_system_health_with_agents(self) -> None:
-        from chronoagent.main import create_app
         from chronoagent.config import Settings
+        from chronoagent.main import create_app
 
         app = create_app(settings=Settings(database_url="sqlite:///:memory:"))
         client = TestClient(app)

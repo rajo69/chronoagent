@@ -16,7 +16,6 @@ from chronoagent.db.models import AgentSignalRecord, Base
 from chronoagent.db.session import make_engine, make_session_factory
 from chronoagent.monitor.collector import BehavioralCollector, StepSignals
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -31,8 +30,8 @@ def in_memory_session() -> Session:
     engine = make_engine(settings)
     Base.metadata.create_all(engine)
     # Reuse the SAME engine so the in-memory tables are visible to the session.
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    with SessionLocal() as session:
+    session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    with session_factory() as session:
         yield session
 
 
@@ -43,7 +42,7 @@ def in_memory_session() -> Session:
 
 class TestAgentSignalRecord:
     def test_repr_contains_agent_id(self) -> None:
-        now = datetime.datetime.now(datetime.timezone.utc)
+        now = datetime.datetime.now(datetime.UTC)
         record = AgentSignalRecord(
             agent_id="security_reviewer",
             task_id="pr-42",
@@ -59,7 +58,7 @@ class TestAgentSignalRecord:
         assert "pr-42" in repr(record)
 
     def test_nullable_task_id(self) -> None:
-        now = datetime.datetime.now(datetime.timezone.utc)
+        now = datetime.datetime.now(datetime.UTC)
         record = AgentSignalRecord(
             agent_id="planner",
             task_id=None,
@@ -122,12 +121,12 @@ class TestPersistStep:
 
     def test_persist_step_timestamp_is_utc(self, in_memory_session: Session) -> None:
         collector = BehavioralCollector()
-        before = datetime.datetime.now(datetime.timezone.utc)
+        before = datetime.datetime.now(datetime.UTC)
         collector.persist_step(
             in_memory_session, self._make_signals(), agent_id="planner"
         )
         in_memory_session.commit()
-        after = datetime.datetime.now(datetime.timezone.utc)
+        after = datetime.datetime.now(datetime.UTC)
 
         row = in_memory_session.execute(select(AgentSignalRecord)).scalars().first()
         assert row is not None
@@ -135,7 +134,7 @@ class TestPersistStep:
         ts = row.timestamp
         # Strip tzinfo for comparison if SQLite returns naive datetime
         if ts.tzinfo is None:
-            ts = ts.replace(tzinfo=datetime.timezone.utc)
+            ts = ts.replace(tzinfo=datetime.UTC)
         assert before <= ts <= after
 
     def test_persist_step_without_task_id(self, in_memory_session: Session) -> None:

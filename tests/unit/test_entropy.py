@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
+from hypothesis.extra.numpy import arrays
 
 from chronoagent.monitor.entropy import retrieval_entropy, step_entropy
-
 
 # ---------------------------------------------------------------------------
 # retrieval_entropy — edge cases
@@ -185,10 +187,6 @@ class TestStepEntropy:
 # ---------------------------------------------------------------------------
 # Hypothesis property tests (task 3.7)
 # ---------------------------------------------------------------------------
-
-from hypothesis import given, settings
-from hypothesis import strategies as st
-from hypothesis.extra.numpy import arrays
 
 
 class TestEntropyPropertyTests:

@@ -152,40 +152,40 @@ class BOCPD:
             plausible under the prior (i.e., the regime has shifted).
         """
         pred_probs: NDArray[np.float64] = self._predictor.pdf(obs)
-        R: NDArray[np.float64] = np.exp(self._log_R)
+        r_dist: NDArray[np.float64] = np.exp(self._log_R)
 
-        H = self._hazard
+        hazard = self._hazard
 
-        # Growth: existing run continues (multiply by 1 - H).
-        growth: NDArray[np.float64] = R * pred_probs * (1.0 - H)
+        # Growth: existing run continues (multiply by 1 - hazard).
+        growth: NDArray[np.float64] = r_dist * pred_probs * (1.0 - hazard)
         # Changepoint: any run resets (mass funnelled to r = 0).
-        cp_mass: float = float(np.sum(R * pred_probs * H))
+        cp_mass: float = float(np.sum(r_dist * pred_probs * hazard))
 
         # New distribution: [P(r=0), P(r=1), P(r=2), ...]
-        new_R: NDArray[np.float64] = np.concatenate([[cp_mass], growth])
+        new_r: NDArray[np.float64] = np.concatenate([[cp_mass], growth])
 
         # evidence = P(x_t | x_{1:t-1}) = total probability before normalisation.
-        evidence: float = float(new_R.sum())
+        evidence: float = float(new_r.sum())
         if evidence > 0.0:
-            new_R /= evidence
+            new_r /= evidence
         else:
             # Numerical underflow — fall back to uniform (rare).
-            new_R = np.ones_like(new_R) / len(new_R)
+            new_r = np.ones_like(new_r) / len(new_r)
 
-        self._log_R = np.log(np.maximum(new_R, 1e-300))
+        self._log_R = np.log(np.maximum(new_r, 1e-300))
 
         # Grow the predictor's sufficient statistics for the next step.
         self._predictor.update(obs)
 
-        # Changepoint signal: H * P(x | prior) / P(x | x_{1:t-1}).
+        # Changepoint signal: hazard * P(x | prior) / P(x | x_{1:t-1}).
         # After a regime shift the long-run models are all surprised (evidence
-        # is dominated by R[0] * pred_probs[0]) so this ratio → 1.  During
+        # is dominated by r_dist[0] * pred_probs[0]) so this ratio → 1.  During
         # stable operation pred_probs[long_run] >> pred_probs[0] so the ratio
-        # is well below H.  Bounded to [0, 1] by construction since
-        # evidence >= R[0] * pred_probs[0] = H * pred_probs[0].
+        # is well below hazard.  Bounded to [0, 1] by construction since
+        # evidence >= r_dist[0] * pred_probs[0] = hazard * pred_probs[0].
         prior_pred: float = float(pred_probs[0])
         if evidence > 0.0:
-            return float(min(1.0, H * prior_pred / evidence))
+            return float(min(1.0, hazard * prior_pred / evidence))
         return 1.0
 
     def reset(self) -> None:
