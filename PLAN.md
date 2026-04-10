@@ -302,7 +302,7 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 - Round-robin fallback on allocator failure
 
 **Tasks:**
-- [ ] 5.1 `allocator/capability_weights.py` -- Static capability matrix: 4 agents x 4 task types, proficiency in [0,1]
+- [x] 5.1 `allocator/capability_weights.py` -- Static capability matrix: 4 agents x 4 task types, proficiency in [0,1]
 - [ ] 5.2 `allocator/negotiation.py` -- Contract-net variant: broadcast task -> agents bid (capability * health) -> highest wins -> ties broken by agent_id. Min bid threshold -> escalate to human.
 - [ ] 5.3 `allocator/task_allocator.py` -- `DecentralizedTaskAllocator`: subscribes to health updates, maintains health snapshot, calls negotiation protocol
 - [ ] 5.4 Integrate into `pipeline/graph.py` -- LangGraph conditional edges: after Planner, each subtask routed via allocator at runtime
