@@ -15,6 +15,8 @@ from chronoagent.agents.backends.mock import MockBackend
 from chronoagent.config import Settings, load_settings
 from chronoagent.db.models import Base
 from chronoagent.db.session import make_engine, make_session_factory_from_engine
+from chronoagent.escalation.audit import AuditTrailLogger
+from chronoagent.escalation.escalation_manager import EscalationHandler
 from chronoagent.memory.integrity import MemoryIntegrityModule
 from chronoagent.memory.quarantine import QuarantineStore
 from chronoagent.memory.store import MemoryStore
@@ -68,8 +70,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.bus = bus
     app.state.health_scorer = TemporalHealthScorer(bus=bus)
 
+    # Human escalation layer (Phase 7).
+    app.state.audit_logger = AuditTrailLogger(app.state.session_factory)
+    escalation_handler = EscalationHandler(
+        bus=bus,
+        health_scorer=app.state.health_scorer,
+        quarantine_store=app.state.quarantine_store,
+        session_factory=app.state.session_factory,
+        audit_logger=app.state.audit_logger,
+    )
+    app.state.escalation_handler = escalation_handler
+    bus.subscribe("health_updates", escalation_handler.on_health_update)
+    bus.subscribe("memory.quarantine", escalation_handler.on_quarantine_event)
+
     yield
 
+    bus.unsubscribe("health_updates", escalation_handler.on_health_update)
+    bus.unsubscribe("memory.quarantine", escalation_handler.on_quarantine_event)
     app.state.health_scorer.stop()
     logger.info("chronoagent shutting down")
 
@@ -85,6 +102,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         Configured :class:`~fastapi.FastAPI` application.
     """
     from chronoagent.api.health import router as health_router
+    from chronoagent.api.routers.escalation import router as escalation_router
     from chronoagent.api.routers.health_scores import router as health_scores_router
     from chronoagent.api.routers.memory import router as memory_router
     from chronoagent.api.routers.review import router as review_router
@@ -100,6 +118,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = resolved_settings
     app.include_router(health_router)
+    app.include_router(escalation_router)
     app.include_router(health_scores_router)
     app.include_router(memory_router)
     app.include_router(review_router)

@@ -39,6 +39,7 @@ from pydantic import BaseModel
 from chronoagent.memory.integrity import MemoryIntegrityModule
 from chronoagent.memory.quarantine import QuarantineStore
 from chronoagent.memory.store import MemoryStore
+from chronoagent.messaging.bus import MessageBus
 
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
@@ -88,10 +89,15 @@ class QuarantineRequest(BaseModel):
         reason: Optional human-readable reason recorded as metadata on each
             quarantined document.  Forwarded verbatim to
             :meth:`~chronoagent.memory.quarantine.QuarantineStore.quarantine`.
+        agent_id: Optional agent identifier.  When provided a
+            ``"memory.quarantine"`` event is published on the message bus so
+            the :class:`~chronoagent.escalation.escalation_manager.EscalationHandler`
+            can auto-escalate on quarantine events.
     """
 
     ids: list[str]
     reason: str | None = None
+    agent_id: str | None = None
 
 
 class QuarantineResponse(BaseModel):
@@ -168,6 +174,22 @@ def _get_quarantine_store(request: Request) -> QuarantineStore:
     return store  # type: ignore[no-any-return]
 
 
+def _get_bus(request: Request) -> MessageBus | None:
+    """Inject the optional shared message bus.
+
+    Returns ``None`` when the bus has not been initialised rather than raising
+    so that callers can treat bus publishing as best-effort.
+
+    Args:
+        request: Incoming FastAPI request (injected automatically).
+
+    Returns:
+        The :class:`~chronoagent.messaging.bus.MessageBus` stored on
+        ``app.state.bus``, or ``None``.
+    """
+    return getattr(request.app.state, "bus", None)
+
+
 def _get_integrity_module(request: Request) -> MemoryIntegrityModule:
     """Inject the shared :class:`~chronoagent.memory.integrity.MemoryIntegrityModule`.
 
@@ -235,6 +257,7 @@ def quarantine_docs(
     body: QuarantineRequest,
     active_store: Annotated[MemoryStore, Depends(_get_active_store)],
     quarantine_store: Annotated[QuarantineStore, Depends(_get_quarantine_store)],
+    bus: Annotated[MessageBus | None, Depends(_get_bus)],
 ) -> QuarantineResponse:
     """Move documents from the active store into the quarantine collection.
 
@@ -247,12 +270,19 @@ def quarantine_docs(
     active store are silently skipped, so callers can replay the same
     ``flagged_ids`` list without side effects.
 
+    When ``body.agent_id`` is provided and ``moved`` is non-empty, a
+    ``"memory.quarantine"`` event is published on the message bus so that
+    :class:`~chronoagent.escalation.escalation_manager.EscalationHandler` can
+    auto-escalate on quarantine events.
+
     Args:
-        body: Request body with the IDs to quarantine and an optional reason.
+        body: Request body with the IDs to quarantine, an optional reason, and
+            an optional ``agent_id`` for bus publishing.
         active_store: Shared active :class:`~chronoagent.memory.store.MemoryStore`
             (injected).
         quarantine_store: Shared :class:`~chronoagent.memory.quarantine.QuarantineStore`
             (injected).
+        bus: Optional shared message bus (injected; ``None`` when not initialised).
 
     Returns:
         :class:`QuarantineResponse` listing the IDs actually moved into quarantine.
@@ -263,7 +293,13 @@ def quarantine_docs(
         requested=len(body.ids),
         quarantined=len(moved),
         reason=body.reason,
+        agent_id=body.agent_id,
     )
+    if moved and body.agent_id is not None and bus is not None:
+        bus.publish(
+            "memory.quarantine",
+            {"agent_id": body.agent_id, "ids": moved, "reason": body.reason},
+        )
     return QuarantineResponse(quarantined=moved)
 
 
