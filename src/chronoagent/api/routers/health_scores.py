@@ -28,6 +28,7 @@ Response shape (all agents)::
         ]
     }
 """
+
 from __future__ import annotations
 
 import structlog
@@ -108,9 +109,7 @@ def _update_to_response(update: HealthUpdate) -> AgentHealthResponse:
 
 def _get_scorer(request: Request) -> TemporalHealthScorer:
     """Extract the ``TemporalHealthScorer`` from ``app.state``."""
-    scorer: TemporalHealthScorer | None = getattr(
-        request.app.state, "health_scorer", None
-    )
+    scorer: TemporalHealthScorer | None = getattr(request.app.state, "health_scorer", None)
     if scorer is None:
         raise HTTPException(
             status_code=503,
@@ -185,9 +184,7 @@ def get_system_health(request: Request) -> SystemHealthResponse:
         [_update_to_response(u) for u in all_updates.values()],
         key=lambda r: r.health,
     )
-    system_health = (
-        sum(a.health for a in agents) / len(agents) if agents else 1.0
-    )
+    system_health = sum(a.health for a in agents) / len(agents) if agents else 1.0
 
     logger.debug("health_scores.system_queried", agent_count=len(agents))
     return SystemHealthResponse(

@@ -204,8 +204,7 @@ class SignalAnalyzer:
         n_large = self.result.n_large_effects
         lines += [
             sep,
-            f"Signals with large effect (d>{self.config.large_effect_threshold}): "
-            f"{n_large}/6",
+            f"Signals with large effect (d>{self.config.large_effect_threshold}): {n_large}/6",
             f"GO/NO-GO decision: {self.result.go_no_go}",
         ]
         return "\n".join(lines)
@@ -402,17 +401,28 @@ class SignalAnalyzer:
             ax.plot(steps, full, color="black", linewidth=1.2, label="Signal")
 
             # Ground-truth phase boundary
-            ax.axvline(n_clean, color="steelblue", linestyle="--", linewidth=1.0,
-                       label="Phase boundary")
+            ax.axvline(
+                n_clean, color="steelblue", linestyle="--", linewidth=1.0, label="Phase boundary"
+            )
 
             # PELT changepoint
             if sa.pelt_breakpoint >= 0:
-                ax.axvline(sa.pelt_breakpoint, color="darkorange", linestyle="-",
-                           linewidth=1.5, label=f"PELT CP={sa.pelt_breakpoint}")
+                ax.axvline(
+                    sa.pelt_breakpoint,
+                    color="darkorange",
+                    linestyle="-",
+                    linewidth=1.5,
+                    label=f"PELT CP={sa.pelt_breakpoint}",
+                )
 
             # Detection threshold
-            ax.axhline(sa.threshold, color="gray", linestyle=":", linewidth=1.0,
-                       label=f"Threshold={sa.threshold:.3f}")
+            ax.axhline(
+                sa.threshold,
+                color="gray",
+                linestyle=":",
+                linewidth=1.0,
+                label=f"Threshold={sa.threshold:.3f}",
+            )
 
             # First threshold crossing marker
             if sa.first_crossing >= 0:

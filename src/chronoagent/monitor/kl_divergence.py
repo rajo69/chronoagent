@@ -72,9 +72,7 @@ def _kl_diagonal_gaussians(
         Scalar KL divergence ≥ 0.
     """
     kl_terms: NDArray[np.float64] = 0.5 * (
-        np.log(var_p / var_q)
-        + (var_q + (mean_q - mean_p) ** 2) / var_p
-        - 1.0
+        np.log(var_p / var_q) + (var_q + (mean_q - mean_p) ** 2) / var_p - 1.0
     )
     # Clip individual terms to 0 to absorb floating-point rounding below zero.
     return float(np.sum(np.maximum(kl_terms, 0.0)))
@@ -225,9 +223,7 @@ class KLCalibrator:
 
         emb = np.asarray(embeddings, dtype=np.float64)
         if emb.ndim != 2 or emb.shape[0] == 0:
-            raise ValueError(
-                f"embeddings must be a non-empty 2-D array, got shape {emb.shape}"
-            )
+            raise ValueError(f"embeddings must be a non-empty 2-D array, got shape {emb.shape}")
 
         self._buffer.append(emb)
 
@@ -237,9 +233,7 @@ class KLCalibrator:
     def _fit_baseline(self) -> None:
         """Fit the baseline diagonal Gaussian from the calibration buffer."""
         all_embeddings: NDArray[np.float64] = np.concatenate(self._buffer, axis=0)
-        self._baseline_mean, self._baseline_var = _fit_diagonal_gaussian(
-            all_embeddings
-        )
+        self._baseline_mean, self._baseline_var = _fit_diagonal_gaussian(all_embeddings)
         # Ensure regularisation is applied with instance-level reg.
         self._baseline_var = self._baseline_var - _REG + self._reg
 

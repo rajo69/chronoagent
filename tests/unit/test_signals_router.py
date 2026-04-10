@@ -82,9 +82,7 @@ def client() -> Generator[tuple[TestClient, Session], None, None]:
 
 
 class TestGetSignalsEmpty:
-    def test_returns_200_for_unknown_agent(
-        self, client: tuple[TestClient, Session]
-    ) -> None:
+    def test_returns_200_for_unknown_agent(self, client: tuple[TestClient, Session]) -> None:
         """Agent with no rows returns HTTP 200, not 404."""
         tc, _ = client
         resp = tc.get("/api/v1/agents/nonexistent_agent/signals")
@@ -97,16 +95,12 @@ class TestGetSignalsEmpty:
         assert body["signals"] == []
         assert body["count"] == 0
 
-    def test_empty_response_has_correct_agent_id(
-        self, client: tuple[TestClient, Session]
-    ) -> None:
+    def test_empty_response_has_correct_agent_id(self, client: tuple[TestClient, Session]) -> None:
         tc, _ = client
         resp = tc.get("/api/v1/agents/ghost_agent/signals")
         assert resp.json()["agent_id"] == "ghost_agent"
 
-    def test_empty_response_window_matches_query(
-        self, client: tuple[TestClient, Session]
-    ) -> None:
+    def test_empty_response_window_matches_query(self, client: tuple[TestClient, Session]) -> None:
         tc, _ = client
         resp = tc.get("/api/v1/agents/ghost/signals?window=25")
         assert resp.json()["window"] == 25
@@ -118,9 +112,7 @@ class TestGetSignalsEmpty:
 
 
 class TestGetSignalsWithData:
-    def test_returns_inserted_signals(
-        self, client: tuple[TestClient, Session]
-    ) -> None:
+    def test_returns_inserted_signals(self, client: tuple[TestClient, Session]) -> None:
         tc, session = client
         for i in range(3):
             session.add(_make_record("reviewer", offset_seconds=i))
@@ -132,9 +124,7 @@ class TestGetSignalsWithData:
         assert body["count"] == 3
         assert len(body["signals"]) == 3
 
-    def test_signals_ordered_oldest_first(
-        self, client: tuple[TestClient, Session]
-    ) -> None:
+    def test_signals_ordered_oldest_first(self, client: tuple[TestClient, Session]) -> None:
         tc, session = client
         for i in range(5):
             session.add(_make_record("ordered_agent", offset_seconds=i * 10))
@@ -145,9 +135,7 @@ class TestGetSignalsWithData:
         timestamps = [s["timestamp"] for s in signals]
         assert timestamps == sorted(timestamps)
 
-    def test_window_limits_result_count(
-        self, client: tuple[TestClient, Session]
-    ) -> None:
+    def test_window_limits_result_count(self, client: tuple[TestClient, Session]) -> None:
         tc, session = client
         for i in range(20):
             session.add(_make_record("windowed_agent", offset_seconds=i))
@@ -157,9 +145,7 @@ class TestGetSignalsWithData:
         assert resp.json()["count"] == 5
         assert len(resp.json()["signals"]) == 5
 
-    def test_window_returns_most_recent(
-        self, client: tuple[TestClient, Session]
-    ) -> None:
+    def test_window_returns_most_recent(self, client: tuple[TestClient, Session]) -> None:
         """With window=3 and 10 rows, the 3 newest rows should be returned."""
         tc, session = client
         for i in range(10):
@@ -173,9 +159,7 @@ class TestGetSignalsWithData:
         # Oldest-first within the 3 most-recent: steps 7,8,9 → latency 70,80,90
         assert latencies == pytest.approx([70.0, 80.0, 90.0])
 
-    def test_signal_field_values_correct(
-        self, client: tuple[TestClient, Session]
-    ) -> None:
+    def test_signal_field_values_correct(self, client: tuple[TestClient, Session]) -> None:
         tc, session = client
         session.add(
             _make_record(
@@ -201,9 +185,7 @@ class TestGetSignalsWithData:
         assert sig["tool_calls"] == 3
         assert sig["memory_query_entropy"] == pytest.approx(0.65)
 
-    def test_null_task_id_preserved(
-        self, client: tuple[TestClient, Session]
-    ) -> None:
+    def test_null_task_id_preserved(self, client: tuple[TestClient, Session]) -> None:
         tc, session = client
         session.add(_make_record("null_task_agent", task_id=None))
         session.commit()
@@ -238,16 +220,12 @@ class TestGetSignalsValidation:
         resp = tc.get("/api/v1/agents/any/signals?window=0")
         assert resp.status_code == 422
 
-    def test_window_negative_returns_422(
-        self, client: tuple[TestClient, Session]
-    ) -> None:
+    def test_window_negative_returns_422(self, client: tuple[TestClient, Session]) -> None:
         tc, _ = client
         resp = tc.get("/api/v1/agents/any/signals?window=-1")
         assert resp.status_code == 422
 
-    def test_window_too_large_returns_422(
-        self, client: tuple[TestClient, Session]
-    ) -> None:
+    def test_window_too_large_returns_422(self, client: tuple[TestClient, Session]) -> None:
         tc, _ = client
         resp = tc.get("/api/v1/agents/any/signals?window=10001")
         assert resp.status_code == 422
@@ -262,9 +240,7 @@ class TestGetSignalsValidation:
         assert resp.json()["window"] == 50
         assert resp.json()["count"] == 50
 
-    def test_response_schema_has_required_fields(
-        self, client: tuple[TestClient, Session]
-    ) -> None:
+    def test_response_schema_has_required_fields(self, client: tuple[TestClient, Session]) -> None:
         tc, session = client
         session.add(_make_record("schema_agent"))
         session.commit()
@@ -275,9 +251,7 @@ class TestGetSignalsValidation:
         assert "count" in body
         assert "signals" in body
 
-    def test_signal_point_has_all_fields(
-        self, client: tuple[TestClient, Session]
-    ) -> None:
+    def test_signal_point_has_all_fields(self, client: tuple[TestClient, Session]) -> None:
         tc, session = client
         session.add(_make_record("fields_agent"))
         session.commit()

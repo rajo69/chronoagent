@@ -336,15 +336,11 @@ class SignalValidationRunner:
 
             # Collect retrieval embeddings for KL calibration / scoring.
             # We query the collection directly to get embeddings.
-            rev_embeddings = self._get_embeddings(
-                self._reviewer, f"{pr.title} {pr.description}"
-            )
+            rev_embeddings = self._get_embeddings(self._reviewer, f"{pr.title} {pr.description}")
 
             # --- Summarizer ---
             summary = self._summarizer.summarize(pr, review)
-            sum_embeddings = self._get_embeddings(
-                self._summarizer, f"{pr.title} {review.severity}"
-            )
+            sum_embeddings = self._get_embeddings(self._summarizer, f"{pr.title} {review.severity}")
 
             # --- Update KL calibrator ---
             all_embeddings = np.concatenate([rev_embeddings, sum_embeddings], axis=0)
@@ -354,12 +350,8 @@ class SignalValidationRunner:
 
             # --- Compute entropy ---
             # Convert distances to similarity scores (1 - distance for cosine).
-            rev_scores = np.array(
-                [1.0 - d for d in review.retrieval_distances], dtype=np.float64
-            )
-            sum_scores = np.array(
-                [1.0 - d for d in summary.retrieval_distances], dtype=np.float64
-            )
+            rev_scores = np.array([1.0 - d for d in review.retrieval_distances], dtype=np.float64)
+            sum_scores = np.array([1.0 - d for d in summary.retrieval_distances], dtype=np.float64)
             entropy = step_entropy([rev_scores, sum_scores])
 
             # --- Token count proxy: whitespace-split length of the prompts ---

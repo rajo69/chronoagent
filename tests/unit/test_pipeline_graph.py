@@ -88,16 +88,12 @@ class TestReviewPipelineRun:
         report = pipeline.run(sample_pr)
         assert isinstance(report, ReviewReport)
 
-    def test_report_pr_id_matches(
-        self, pipeline: ReviewPipeline, sample_pr: SyntheticPR
-    ) -> None:
+    def test_report_pr_id_matches(self, pipeline: ReviewPipeline, sample_pr: SyntheticPR) -> None:
         """The returned report's pr_id matches the input PR."""
         report = pipeline.run(sample_pr)
         assert report.pr_id == sample_pr.pr_id
 
-    def test_report_title_matches(
-        self, pipeline: ReviewPipeline, sample_pr: SyntheticPR
-    ) -> None:
+    def test_report_title_matches(self, pipeline: ReviewPipeline, sample_pr: SyntheticPR) -> None:
         """The report title matches the input PR title."""
         report = pipeline.run(sample_pr)
         assert report.title == sample_pr.title
@@ -159,9 +155,7 @@ class TestReviewPipelineRun:
         assert r1.security_findings == r2.security_findings
         assert r1.style_findings == r2.style_findings
 
-    def test_run_different_prs_may_differ(
-        self, pipeline: ReviewPipeline
-    ) -> None:
+    def test_run_different_prs_may_differ(self, pipeline: ReviewPipeline) -> None:
         """Running on two distinct PRs does not raise and returns two reports."""
         pr1 = SyntheticPR(
             pr_id="pr_a",

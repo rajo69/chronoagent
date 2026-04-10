@@ -165,7 +165,9 @@ def _parse_summary(
         elif "OVERALL RISK LEVEL: MEDIUM" in upper and risk_level not in ("critical", "high"):
             risk_level = "medium"
         elif "OVERALL RISK LEVEL: LOW" in upper and risk_level not in (
-            "critical", "high", "medium"
+            "critical",
+            "high",
+            "medium",
         ):
             risk_level = "low"
 
@@ -422,8 +424,7 @@ class SummarizerAgent(BaseAgent):
         retrieval = self._retrieve_memory(query)
 
         context_block = (
-            "\n".join(f"- {doc}" for doc in retrieval.documents)
-            or "No templates retrieved."
+            "\n".join(f"- {doc}" for doc in retrieval.documents) or "No templates retrieved."
         )
 
         sec_text = (
@@ -436,9 +437,7 @@ class SummarizerAgent(BaseAgent):
             or "No security findings."
         )
         style_text = (
-            "\n".join(
-                f"[{f.category}] {f.description}" for f in style_review.findings
-            )
+            "\n".join(f"[{f.category}] {f.description}" for f in style_review.findings)
             or "No style findings."
         )
 

@@ -53,9 +53,9 @@ def serve(
 @app.command("run-experiment")
 def run_experiment(
     config: Annotated[Path, typer.Option(help="Path to experiment YAML config.")],
-    output: Annotated[
-        Path, typer.Option(help="Directory for result artefacts.")
-    ] = Path("results/"),
+    output: Annotated[Path, typer.Option(help="Directory for result artefacts.")] = Path(
+        "results/"
+    ),
 ) -> None:
     """Run a signal-validation experiment.
 
@@ -116,7 +116,9 @@ def run_experiment(
 
 @app.command("check-health")
 def check_health(
-    url: Annotated[str, typer.Option(help="Base URL of the running service.")] = "http://localhost:8000",
+    url: Annotated[
+        str, typer.Option(help="Base URL of the running service.")
+    ] = "http://localhost:8000",
 ) -> None:
     """Ping the /health endpoint of a running ChronoAgent service.
 

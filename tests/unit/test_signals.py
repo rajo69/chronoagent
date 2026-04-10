@@ -122,9 +122,7 @@ class TestPersistStep:
     def test_persist_step_timestamp_is_utc(self, in_memory_session: Session) -> None:
         collector = BehavioralCollector()
         before = datetime.datetime.now(datetime.UTC)
-        collector.persist_step(
-            in_memory_session, self._make_signals(), agent_id="planner"
-        )
+        collector.persist_step(in_memory_session, self._make_signals(), agent_id="planner")
         in_memory_session.commit()
         after = datetime.datetime.now(datetime.UTC)
 
@@ -139,9 +137,7 @@ class TestPersistStep:
 
     def test_persist_step_without_task_id(self, in_memory_session: Session) -> None:
         collector = BehavioralCollector()
-        collector.persist_step(
-            in_memory_session, self._make_signals(), agent_id="summarizer"
-        )
+        collector.persist_step(in_memory_session, self._make_signals(), agent_id="summarizer")
         in_memory_session.commit()
 
         row = in_memory_session.execute(select(AgentSignalRecord)).scalars().first()
@@ -172,18 +168,14 @@ class TestPersistStep:
 
     def test_persist_returns_record_instance(self, in_memory_session: Session) -> None:
         collector = BehavioralCollector()
-        record = collector.persist_step(
-            in_memory_session, self._make_signals(), agent_id="planner"
-        )
+        record = collector.persist_step(in_memory_session, self._make_signals(), agent_id="planner")
         assert isinstance(record, AgentSignalRecord)
 
     def test_persist_different_agents(self, in_memory_session: Session) -> None:
         collector = BehavioralCollector()
         agents = ["security_reviewer", "style_reviewer", "summarizer"]
         for agent in agents:
-            collector.persist_step(
-                in_memory_session, self._make_signals(), agent_id=agent
-            )
+            collector.persist_step(in_memory_session, self._make_signals(), agent_id=agent)
         in_memory_session.commit()
 
         rows = in_memory_session.execute(select(AgentSignalRecord)).scalars().all()

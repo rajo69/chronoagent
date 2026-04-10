@@ -120,11 +120,11 @@ class TestBehavioralCollector:
         c.start_step()
         c.end_step(s)
         mat = c.get_signal_matrix()
-        assert mat[0, 1] == pytest.approx(7.0)   # retrieval_count
+        assert mat[0, 1] == pytest.approx(7.0)  # retrieval_count
         assert mat[0, 2] == pytest.approx(333.0)  # token_count
-        assert mat[0, 3] == pytest.approx(2.5)    # kl_divergence
-        assert mat[0, 4] == pytest.approx(4.0)    # tool_calls
-        assert mat[0, 5] == pytest.approx(0.77)   # memory_query_entropy
+        assert mat[0, 3] == pytest.approx(2.5)  # kl_divergence
+        assert mat[0, 4] == pytest.approx(4.0)  # tool_calls
+        assert mat[0, 5] == pytest.approx(0.77)  # memory_query_entropy
 
     def test_latency_filled_from_elapsed_when_zero(self) -> None:
         """If signals.total_latency_ms is 0, elapsed wall-clock time is used."""

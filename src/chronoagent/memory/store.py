@@ -108,8 +108,7 @@ class MemoryStore:
         """
         if len(documents) != len(ids):
             raise ValueError(
-                f"documents and ids must have equal length "
-                f"(got {len(documents)} vs {len(ids)})"
+                f"documents and ids must have equal length (got {len(documents)} vs {len(ids)})"
             )
         if embeddings is not None and len(embeddings) != len(documents):
             raise ValueError(
@@ -177,9 +176,7 @@ class MemoryStore:
         dists: list[float] = (raw.get("distances") or [[]])[0]
         ids: list[str] = (raw.get("ids") or [[]])[0]
         raw_meta = (raw.get("metadatas") or [[]])[0]
-        metas: list[dict[str, Any]] = [
-            dict(m) if m is not None else {} for m in raw_meta
-        ]
+        metas: list[dict[str, Any]] = [dict(m) if m is not None else {} for m in raw_meta]
 
         return QueryResult(
             documents=docs,

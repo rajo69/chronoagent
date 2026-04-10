@@ -3,6 +3,7 @@
 Handlers are called synchronously in the order they were registered.
 Thread-safe via a ``threading.Lock``.
 """
+
 from __future__ import annotations
 
 import contextlib

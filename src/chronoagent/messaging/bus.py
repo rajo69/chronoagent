@@ -4,6 +4,7 @@ Concrete implementations:
 - ``LocalBus``  — in-memory, sync, suitable for dev and tests
 - ``RedisBus``  — Redis pub/sub, suitable for production
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

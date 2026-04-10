@@ -10,6 +10,7 @@ Usage::
     bus.subscribe("health_updates", my_handler)
     bus.publish("health_updates", {"agent_id": "planner", "health": 0.92})
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -37,9 +38,7 @@ class RedisBus(MessageBus):
 
     def __init__(self, url: str = "redis://localhost:6379/0") -> None:
         self._client: redis.Redis[bytes] = redis.Redis.from_url(url)
-        self._pubsub: redis.client.PubSub = self._client.pubsub(
-            ignore_subscribe_messages=True
-        )
+        self._pubsub: redis.client.PubSub = self._client.pubsub(ignore_subscribe_messages=True)
         self._handlers: dict[str, list[MessageHandler]] = defaultdict(list)
         self._lock = threading.Lock()
         self._listener_thread: Any | None = None
@@ -79,9 +78,7 @@ class RedisBus(MessageBus):
     def _dispatch(self, raw: dict[str, Any]) -> None:
         """Deserialise a raw Redis message and fan out to local handlers."""
         channel_bytes = raw.get("channel", b"")
-        channel = (
-            channel_bytes.decode() if isinstance(channel_bytes, bytes) else channel_bytes
-        )
+        channel = channel_bytes.decode() if isinstance(channel_bytes, bytes) else channel_bytes
         data_bytes = raw.get("data", b"")
         try:
             data: Any = json.loads(
@@ -102,6 +99,4 @@ class RedisBus(MessageBus):
     def _ensure_listener(self) -> None:
         """Start the background listener thread if it is not running."""
         if self._listener_thread is None or not self._listener_thread.is_alive():
-            self._listener_thread = self._pubsub.run_in_thread(
-                sleep_time=0.01, daemon=True
-            )
+            self._listener_thread = self._pubsub.run_in_thread(sleep_time=0.01, daemon=True)

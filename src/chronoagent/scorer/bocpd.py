@@ -6,6 +6,7 @@ Reference: Adams, R. P. & MacKay, D. J. C. (2007). Bayesian Online Changepoint
 Implements streaming BOCPD using a Normal-Inverse-Chi-Squared conjugate prior.
 Each ``update`` call returns P(changepoint at t | x_{1:t}) in [0, 1].
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -52,9 +53,7 @@ class _StudentTPredictor:
             Array of shape (n_runs,) with pdf values (non-negative).
         """
         nu: NDArray[np.float64] = 2.0 * self._alpha
-        sigma2: NDArray[np.float64] = (
-            self._beta * (self._kappa + 1.0) / (self._alpha * self._kappa)
-        )
+        sigma2: NDArray[np.float64] = self._beta * (self._kappa + 1.0) / (self._alpha * self._kappa)
         t: NDArray[np.float64] = (x - self._mu) / np.sqrt(sigma2)
         log_pdf: NDArray[np.float64] = (
             gammaln((nu + 1) / 2)
@@ -73,9 +72,9 @@ class _StudentTPredictor:
         kappa_new: NDArray[np.float64] = self._kappa + 1.0
         mu_new: NDArray[np.float64] = (self._kappa * self._mu + x) / kappa_new
         alpha_new: NDArray[np.float64] = self._alpha + 0.5
-        beta_new: NDArray[np.float64] = self._beta + 0.5 * self._kappa * (
-            x - self._mu
-        ) ** 2 / kappa_new
+        beta_new: NDArray[np.float64] = (
+            self._beta + 0.5 * self._kappa * (x - self._mu) ** 2 / kappa_new
+        )
 
         # Prepend a fresh run using the prior.
         self._mu = np.concatenate([[self.mu0], mu_new])

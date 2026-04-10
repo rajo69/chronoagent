@@ -8,6 +8,7 @@ Coverage:
 - API: GET /api/v1/agents/{id}/health and GET /api/v1/agents/health
 - Hypothesis: health always in [0, 1]
 """
+
 from __future__ import annotations
 
 import threading
@@ -226,8 +227,12 @@ class TestTemporalHealthScorer:
     def test_health_cache_updates_after_signal(self) -> None:
         bus = LocalBus()
         scorer = TemporalHealthScorer(bus=bus)
-        bus.publish("signal_updates", SignalPayload("agent_a", "task-1", 0.0).__dict__  # type: ignore[arg-type]
-                    if False else vars(SignalPayload("agent_a", "task-1", 0.0)))
+        bus.publish(
+            "signal_updates",
+            SignalPayload("agent_a", "task-1", 0.0).__dict__  # type: ignore[arg-type]
+            if False
+            else vars(SignalPayload("agent_a", "task-1", 0.0)),
+        )
         update = scorer.get_health("agent_a")
         assert update is not None
         assert update.agent_id == "agent_a"

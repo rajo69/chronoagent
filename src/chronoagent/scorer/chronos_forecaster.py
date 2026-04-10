@@ -6,6 +6,7 @@ If the ``chronos-forecasting`` package is absent the forecaster returns
 
 Reference checkpoint: ``amazon/chronos-t5-small``
 """
+
 from __future__ import annotations
 
 import importlib
@@ -188,9 +189,7 @@ class ChronosForecaster:
             )
             logger.info("chronos_forecaster: loaded %s", self._model_id)
         except Exception:  # noqa: BLE001
-            logger.warning(
-                "chronos_forecaster: could not load %s, disabling", self._model_id
-            )
+            logger.warning("chronos_forecaster: could not load %s, disabling", self._model_id)
             self._available = False
             return None
         return self._pipeline

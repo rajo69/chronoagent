@@ -5,6 +5,7 @@ Formula: health = 1 - clip(w_bocpd * bocpd_score + w_chronos * chronos_score, 0,
 When one component is unavailable the remaining component's weight is
 promoted to 1.0 automatically (graceful degradation).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

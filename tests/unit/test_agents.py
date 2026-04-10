@@ -167,9 +167,7 @@ class TestSecurityReviewerAgent:
         review = agent.review(sample_pr)
         assert review.severity in ("none", "low", "medium", "high", "critical")
 
-    def test_review_deterministic_same_seed(
-        self, sample_pr: SyntheticPR
-    ) -> None:
+    def test_review_deterministic_same_seed(self, sample_pr: SyntheticPR) -> None:
         c1 = chromadb.EphemeralClient()
         c2 = chromadb.EphemeralClient()
         a1 = SecurityReviewerAgent.create(seed=42, chroma_client=c1)
@@ -185,18 +183,14 @@ class TestSecurityReviewerAgent:
         review = agent.review(sample_pr)
         assert review.raw_response.strip() != ""
 
-    def test_call_llm_returns_text_and_latency(
-        self, chroma_client: chromadb.ClientAPI
-    ) -> None:
+    def test_call_llm_returns_text_and_latency(self, chroma_client: chromadb.ClientAPI) -> None:
         agent = SecurityReviewerAgent.create(chroma_client=chroma_client)
         text, latency_ms = agent._call_llm("test prompt")
         assert isinstance(text, str)
         assert len(text) > 0
         assert latency_ms >= 0.0
 
-    def test_retrieve_memory_returns_result(
-        self, chroma_client: chromadb.ClientAPI
-    ) -> None:
+    def test_retrieve_memory_returns_result(self, chroma_client: chromadb.ClientAPI) -> None:
         agent = SecurityReviewerAgent.create(top_k=2, chroma_client=chroma_client)
         result = agent._retrieve_memory("SQL injection")
         assert len(result.documents) == 2
@@ -398,9 +392,7 @@ class TestPlannerAgent:
         result = agent.decompose(sample_pr)
         assert result.raw_response.strip() != ""
 
-    def test_decompose_deterministic_same_seed(
-        self, sample_pr: SyntheticPR
-    ) -> None:
+    def test_decompose_deterministic_same_seed(self, sample_pr: SyntheticPR) -> None:
         c1 = chromadb.EphemeralClient()
         c2 = chromadb.EphemeralClient()
         a1 = PlannerAgent.create(seed=42, chroma_client=c1)
@@ -537,7 +529,12 @@ class TestStyleReviewerAgent:
         agent = StyleReviewerAgent.create(chroma_client=chroma_client)
         review = agent.review(sample_pr)
         valid_categories = {
-            "complexity", "naming", "documentation", "formatting", "readability", "other"
+            "complexity",
+            "naming",
+            "documentation",
+            "formatting",
+            "readability",
+            "other",
         }
         for finding in review.findings:
             assert finding.category in valid_categories
@@ -623,10 +620,17 @@ class TestReviewReport:
         valid = {"none", "low", "medium", "high", "critical"}
         for risk in valid:
             r = ReviewReport(
-                pr_id="x", title="t", overall_risk=risk,
-                security_findings=[], style_findings=[], markdown="",
-                retrieved_docs=0, retrieval_distances=[], retrieval_latency_ms=0.0,
-                llm_latency_ms=0.0, raw_response="",
+                pr_id="x",
+                title="t",
+                overall_risk=risk,
+                security_findings=[],
+                style_findings=[],
+                markdown="",
+                retrieved_docs=0,
+                retrieval_distances=[],
+                retrieval_latency_ms=0.0,
+                llm_latency_ms=0.0,
+                raw_response="",
             )
             assert r.overall_risk == risk
 
@@ -791,9 +795,7 @@ class TestSummarizerAgentSynthesize:
             SyntheticPR(pr_id=f"pr_{i}", title=f"PR {i}", description="desc", diff="")
             for i in range(5)
         ]
-        reports = [
-            summarizer.synthesize(pr, sec.review(pr), style.review(pr)) for pr in prs
-        ]
+        reports = [summarizer.synthesize(pr, sec.review(pr), style.review(pr)) for pr in prs]
         assert len(reports) == 5
         assert all(isinstance(r, ReviewReport) for r in reports)
 

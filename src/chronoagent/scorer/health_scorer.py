@@ -9,6 +9,7 @@ Channel conventions
 - Inbound:  ``"signal_updates"``   payload: ``SignalPayload``
 - Outbound: ``"health_updates"``   payload: ``HealthUpdate``
 """
+
 from __future__ import annotations
 
 import logging
@@ -156,9 +157,7 @@ class TemporalHealthScorer:
                 state.buffer = state.buffer[-self._buffer_size :]
 
             bocpd_score = state.bocpd.update(payload.value)
-            chronos_score = self._chronos.compute_anomaly_score(
-                state.buffer[:-1], payload.value
-            )
+            chronos_score = self._chronos.compute_anomaly_score(state.buffer[:-1], payload.value)
 
         result: EnsembleResult = self._ensemble.score(bocpd_score, chronos_score)
         update = HealthUpdate(
