@@ -25,6 +25,12 @@ Coverage:
 - Round-robin fallback (task 5.6): negotiation timeout/error -> the
   allocator logs a warning and synthesizes a NegotiationResult whose
   ``assigned_agent`` cycles through ``AGENT_IDS`` deterministically.
+- Phase 5.7 integrated sweep: Hypothesis property tests at the
+  bus + cache + negotiation layer (parity with the pure negotiation
+  function on random valid snapshots; exactly-one-outcome invariant;
+  last-write-wins cache invariant under random publish streams) and a
+  deterministic mock-health "degradation walk" exercising the
+  full-health -> peer -> escalation transitions.
 """
 
 from __future__ import annotations
@@ -34,15 +40,19 @@ import threading
 from typing import Any
 
 import pytest
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
 from chronoagent.allocator import (
     AGENT_IDS,
     DEFAULT_BID_THRESHOLD,
     DEFAULT_CAPABILITY_MATRIX,
     DEFAULT_MISSING_HEALTH,
+    TASK_TYPES,
     CapabilityMatrix,
     DecentralizedTaskAllocator,
     NegotiationResult,
+    run_contract_net,
 )
 from chronoagent.messaging.local_bus import LocalBus
 from chronoagent.scorer.health_scorer import HEALTH_CHANNEL, HealthUpdate
@@ -633,3 +643,242 @@ def test_base_handler_never_raises_for_arbitrary_payloads() -> None:
     ]
     for payload in payloads:
         bus.publish(HEALTH_CHANNEL, payload)  # must not raise
+
+
+# ===========================================================================
+# Phase 5.7: integrated allocator sweep
+# ===========================================================================
+#
+# The Phase 5.7 deliverable is a *test sweep* rather than new product code.
+# What was already covered before this task:
+#
+# * ``tests/unit/test_negotiation.py`` exercises the pure
+#   :func:`run_contract_net` function with Hypothesis (highest-bid wins,
+#   exactly-one-outcome, deterministic tie-break, all-low-health
+#   escalation, snapshot edge cases, threshold validation).
+# * ``TestAllocate`` above covers the happy path, the degraded-specialist
+#   redistribution, and the all-low-health escalation at the allocator
+#   layer using deterministic snapshots published through the bus.
+# * ``TestRoundRobinFallback`` above covers the "timeout handling"
+#   item from the 5.7 spec via monkeypatched exceptions (RuntimeError,
+#   TimeoutError, InvalidHealthError).
+#
+# What 5.7 adds here is the missing slice: Hypothesis property tests at
+# the **integrated** layer (bus -> cache -> negotiation -> result).  The
+# pure-function properties already verify negotiation; these properties
+# verify that the bus + cache projection feeds it faithfully and that
+# allocator outputs match an independent recomputation against the
+# expected cache state.  Plus a deterministic "degradation walk" that
+# steps a single task type through the three regimes (full health ->
+# specialist; degraded specialist -> peer; everyone degraded -> escalate)
+# to give the spec's narrative a single readable test.
+
+# Strategy mirrors the one in test_negotiation.py: every canonical
+# agent_id maps to a finite float in [0, 1].  No NaN / out-of-range
+# values - those have their own targeted tests in test_negotiation.py.
+_healthy_float = st.floats(
+    min_value=0.0,
+    max_value=1.0,
+    allow_nan=False,
+    allow_infinity=False,
+)
+_full_snapshot_strategy = st.fixed_dictionaries(
+    {agent_id: _healthy_float for agent_id in AGENT_IDS}
+)
+_threshold_strategy = st.floats(
+    min_value=0.0,
+    max_value=1.0,
+    allow_nan=False,
+    allow_infinity=False,
+)
+_task_type_strategy = st.sampled_from(TASK_TYPES)
+
+
+def _publish_full_snapshot(bus: LocalBus, snapshot: dict[str, float]) -> None:
+    """Publish a full ``{agent_id: health}`` snapshot via the bus.
+
+    Uses the same dict shape the real ``TemporalHealthScorer`` publishes
+    (``vars(HealthUpdate)``) so the integrated tests cover the realistic
+    payload, not just the dataclass-instance shortcut.
+    """
+    for agent_id, health in snapshot.items():
+        _publish_dict(bus, agent_id, health)
+
+
+class TestPhase57IntegratedSweep:
+    """Hypothesis property tests at the bus + cache + negotiation layer.
+
+    The settings disable Hypothesis's ``function_scoped_fixture`` health
+    check because each example creates its own ``LocalBus`` and
+    ``DecentralizedTaskAllocator`` inside the test body, not via a
+    pytest fixture, so the warning would not apply.  ``deadline=None``
+    matches the convention used in test_negotiation.py.
+    """
+
+    @given(
+        snapshot=_full_snapshot_strategy,
+        task_type=_task_type_strategy,
+        threshold=_threshold_strategy,
+    )
+    @settings(
+        max_examples=200,
+        deadline=None,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+    )
+    def test_exactly_one_outcome_via_bus(
+        self,
+        snapshot: dict[str, float],
+        task_type: str,
+        threshold: float,
+    ) -> None:
+        """For any valid snapshot published over the bus, the allocator
+        produces exactly one of (assigned, escalated)."""
+        bus = LocalBus()
+        allocator = DecentralizedTaskAllocator(bus, threshold=threshold)
+        _publish_full_snapshot(bus, snapshot)
+        result = allocator.allocate("t", task_type)
+        if result.escalated:
+            assert result.assigned_agent is None
+            assert result.winning_bid is None
+        else:
+            assert result.assigned_agent is not None
+            assert result.winning_bid is not None
+            assert result.winning_bid.agent_id == result.assigned_agent
+            # Highest-bid invariant: no other bid in the ledger beats
+            # the winner's score (the implementation enforces strict
+            # >, so equal scores resolve to the AGENT_IDS-first agent).
+            for bid in result.all_bids:
+                assert bid.score <= result.winning_bid.score
+
+    @given(
+        snapshot=_full_snapshot_strategy,
+        task_type=_task_type_strategy,
+        threshold=_threshold_strategy,
+    )
+    @settings(
+        max_examples=200,
+        deadline=None,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+    )
+    def test_allocator_matches_pure_negotiation(
+        self,
+        snapshot: dict[str, float],
+        task_type: str,
+        threshold: float,
+    ) -> None:
+        """The integrated allocator's result is byte-equivalent (modulo
+        the task_id field) to a direct ``run_contract_net`` call against
+        the same snapshot.  This pins down the bus + cache + projection
+        layer: any drift between published-and-cached health and the
+        snapshot consumed by negotiation would surface here."""
+        bus = LocalBus()
+        allocator = DecentralizedTaskAllocator(bus, threshold=threshold)
+        _publish_full_snapshot(bus, snapshot)
+        actual = allocator.allocate("t", task_type)
+        expected = run_contract_net(
+            task_id="t",
+            task_type=task_type,
+            health_snapshot=snapshot,
+            threshold=threshold,
+        )
+        assert actual.assigned_agent == expected.assigned_agent
+        assert actual.escalated == expected.escalated
+        assert actual.task_type == expected.task_type
+        assert actual.threshold == expected.threshold
+        assert len(actual.all_bids) == len(expected.all_bids)
+        for actual_bid, expected_bid in zip(actual.all_bids, expected.all_bids, strict=True):
+            assert actual_bid.agent_id == expected_bid.agent_id
+            assert actual_bid.capability == pytest.approx(expected_bid.capability)
+            assert actual_bid.health == pytest.approx(expected_bid.health)
+            assert actual_bid.score == pytest.approx(expected_bid.score)
+        if expected.winning_bid is None:
+            assert actual.winning_bid is None
+        else:
+            assert actual.winning_bid is not None
+            assert actual.winning_bid.agent_id == expected.winning_bid.agent_id
+            assert actual.winning_bid.score == pytest.approx(expected.winning_bid.score)
+
+    @given(
+        # A non-empty sequence of (agent_id, health) publish events; the
+        # cache must reflect the *last* publish for each agent.
+        events=st.lists(
+            st.tuples(st.sampled_from(AGENT_IDS), _healthy_float),
+            min_size=1,
+            max_size=20,
+        ),
+    )
+    @settings(
+        max_examples=150,
+        deadline=None,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+    )
+    def test_last_write_wins_under_random_publish_stream(
+        self,
+        events: list[tuple[str, float]],
+    ) -> None:
+        """The cache projection equals the agent-wise last write of the
+        publish stream.  Guards the bus handler against ordering bugs or
+        accidental dict mutation."""
+        bus = LocalBus()
+        allocator = DecentralizedTaskAllocator(bus)
+        for agent_id, health in events:
+            _publish_dict(bus, agent_id, health)
+        expected: dict[str, float] = {}
+        for agent_id, health in events:
+            expected[agent_id] = health
+        assert allocator.get_health_snapshot() == expected
+
+
+class TestPhase57DegradationWalk:
+    """Deterministic three-step walk through the three allocation regimes
+    for one task type.
+
+    Documents the Phase 5.7 acceptance narrative as a single readable
+    test: a healthy specialist gets its own task; if the specialist
+    degrades the contract-net protocol redistributes to the highest-
+    capability peer; if every agent's health falls below the
+    capability-weighted threshold the round escalates.
+
+    Uses ``security_review`` because the default capability matrix has
+    a clear second-best (``style_reviewer`` at 0.55) for that task,
+    making the peer-redistribution step deterministic.
+    """
+
+    def test_full_health_to_peer_to_escalation(self) -> None:
+        bus = LocalBus()
+        allocator = DecentralizedTaskAllocator(bus)
+
+        # Step 1: full health -> specialist wins.
+        for agent_id in AGENT_IDS:
+            _publish_dict(bus, agent_id, 1.0)
+        step1 = allocator.allocate("walk-1", "security_review")
+        assert step1.escalated is False
+        assert step1.assigned_agent == "security_reviewer"
+        assert step1.winning_bid is not None
+        assert step1.winning_bid.score == pytest.approx(1.0)
+
+        # Step 2: degrade only the specialist -> highest-capability
+        # peer (style_reviewer @ 0.55) wins because its bid 1.0 * 0.55
+        # beats security_reviewer's 1.0 * 0.05.
+        _publish_dict(bus, "security_reviewer", 0.05)
+        step2 = allocator.allocate("walk-2", "security_review")
+        assert step2.escalated is False
+        assert step2.assigned_agent == "style_reviewer"
+        assert step2.winning_bid is not None
+        # style_reviewer's capability on security_review is 0.55 in the
+        # default matrix; with health 1.0 the bid is exactly 0.55.
+        assert step2.winning_bid.score == pytest.approx(0.55)
+
+        # Step 3: degrade everyone below the default 0.25 threshold
+        # divided by every off-diagonal weight; 0.05 across the board
+        # sends every bid below the threshold and the round escalates.
+        for agent_id in AGENT_IDS:
+            _publish_dict(bus, agent_id, 0.05)
+        step3 = allocator.allocate("walk-3", "security_review")
+        assert step3.escalated is True
+        assert step3.assigned_agent is None
+        assert step3.winning_bid is None
+        assert "below threshold" in step3.rationale
+        # The full bid ledger is still recorded so the audit layer can
+        # explain *why* every agent fell short.
+        assert len(step3.all_bids) == len(AGENT_IDS)

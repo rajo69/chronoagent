@@ -60,8 +60,8 @@ The project is built in numbered phases. Each phase has an exit criterion and a 
 | 2 | Core Agent Pipeline | ✅ Done |
 | 3 | Behavioral Monitor | ✅ Done |
 | 4 | Temporal Health Scorer | ✅ Done |
-| 5 | Decentralized Task Allocator | ⏳ Next |
-| 6 | Memory Integrity Module | ⬜ Planned |
+| 5 | Decentralized Task Allocator | ✅ Done |
+| 6 | Memory Integrity Module | ⏳ Next |
 | 7 | Human Escalation Layer | ⬜ Planned |
 | 8 | Observability Dashboard | ⬜ Planned |
 | 9 | Production Hardening | ⬜ Planned |
@@ -69,7 +69,7 @@ The project is built in numbered phases. Each phase has an exit criterion and a 
 | 11 | Paper Scaffold and Reproducibility | ⬜ Planned |
 | 12 | CI/CD and Release | ⬜ Planned |
 
-**Currently:** Phase 4 (Temporal Health Scorer) is complete. The streaming BOCPD implementation, the lazy-loaded Chronos-2 wrapper, the ensemble layer, the message bus, and the `/api/v1/agents/{id}/health` endpoint are all live and tested. 503 unit and integration tests pass with around 92% line coverage.
+**Currently:** Phase 5 (Decentralized Task Allocator) is complete. The contract-net negotiation protocol, the health-aware `DecentralizedTaskAllocator`, the LangGraph pipeline integration, the `AllocationAuditRecord` persistence model, and the round-robin fallback on negotiation failure are all live and tested. 650 unit and integration tests pass with around 93% line coverage.
 
 **An honest pivot worth recording:** Phase 1 was a hard signal-validation gate. Before building anything else, we measured whether the behavioral signals we wanted to forecast were actually distinguishable from noise. KL divergence from a clean baseline turned out to be a strong primary signal (Cohen's d ≈ 1.6 on the MINJA attack benchmark), while three of the six secondary signals were effectively constant under our test conditions. The original framing around "advance warning time" did not survive the data. The project was reframed around concurrent detection plus reliability-weighted allocation, which the data does support. The full ruling is in [`docs/phase1_decision.md`](./docs/phase1_decision.md).
 
