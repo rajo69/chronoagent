@@ -308,7 +308,7 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 - [x] 5.4 Integrate into `pipeline/graph.py` -- LangGraph conditional edges: after Planner, each subtask routed via allocator at runtime
 - [x] 5.5 `db/models.py` -- `AllocationAuditRecord` (task_id, assigned_agent, all_bids JSON, health_snapshot JSON, rationale, escalated)
 - [x] 5.6 Fallback: negotiation timeout/error -> round-robin with warning log
-- [ ] 5.7 Tests: mock health -> verify highest-bid wins; all-low-health -> escalation; timeout handling; Hypothesis: exactly one agent assigned or escalated
+- [x] 5.7 Tests: mock health -> verify highest-bid wins; all-low-health -> escalation; timeout handling; Hypothesis: exactly one agent assigned or escalated
 
 **Key Files:** `allocator/*.py`, `pipeline/graph.py`
 
@@ -323,12 +323,12 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 ### Phase 5 Log
 | | |
 |--|--|
-| **Allocation efficiency vs baseline** | _fill in: % improvement_ |
-| **Negotiation protocol issues** | _fill in: any edge cases hit_ |
-| **Findings** | _fill in_ |
-| **Challenges** | _fill in_ |
-| **Decisions** | _fill in_ |
-| **Completed** | _fill in: date_ |
+| **Allocation efficiency vs baseline** | Deferred to Phase 10 (research experiment suite). Phase 5 ships the routing primitives and the audit surface; the comparative metric requires the full attack benchmark. |
+| **Negotiation protocol issues** | None on the pure function. The integration layer surfaced two design choices that are now locked in: (1) the allocator's bus handler must swallow malformed payloads rather than raise (LocalBus does not trap handler exceptions, so a raise would tear down the publisher and break unrelated subscribers); (2) the round-robin fallback must catch `Exception` broadly rather than specific subclasses, because the spec includes "timeout" which is not a subclass of `InvalidHealthError`/`InvalidThresholdError`/`UnknownTaskTypeError`. |
+| **Findings** | Contract-net negotiation reduces to a pure function over `(task_type, snapshot, matrix, threshold)`; pulling that purity out of the stateful allocator made every layer above it cheap to test and reason about. The 4-agent specialized pipeline limits the practical benefit of redistribution because non-specialist reviewers cannot actually run a specialist's task; the allocator's real role is therefore a health gate plus an audit ledger plus a graceful-degradation hook, not dynamic dispatch. |
+| **Challenges** | Pipeline integration (5.4) had to reconcile the allocator's "non-specialist winner" outcome with the fact that the 4 reviewer agents have non-swappable interfaces. The resolution: `_route_security` and `_route_style` only fire the specialist branch when `assigned_agent == expected_specialist AND escalated is False`; everything else routes to the existing escalation-placeholder branch. The Alembic migration test for 5.5 also surfaced a pydantic-settings precedence gotcha (init kwargs outrank env vars), which is now documented in the project memory file. |
+| **Decisions** | (a) Negotiation function stays pure; allocator wrapper owns all state and bus wiring. (b) Round-robin cursor is shared across task types: simpler and still deterministic given the canonical `AGENT_IDS` order. (c) Audit-record persistence hook deferred from 5.5/5.6 to a later task; the model is in place but `task_allocator.py` does not yet write to it. (d) Phase 5 closes without allocation-efficiency benchmarking; that metric belongs in Phase 10 alongside the rest of the experiment harness. |
+| **Completed** | 2026-04-10 |
 
 ---
 
