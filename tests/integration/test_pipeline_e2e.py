@@ -12,8 +12,6 @@ Test groups
 
 from __future__ import annotations
 
-from typing import Any
-
 import chromadb
 import pytest
 
@@ -317,7 +315,7 @@ class TestE2EMultiplePRs:
         """Running three PRs produces three reports with matching pr_ids."""
         prs = [_SQL_INJECTION_PR, _PATH_TRAVERSAL_PR, _JWT_AUTH_PR]
         reports = [pipeline.run(pr) for pr in prs]
-        for pr, report in zip(prs, reports):
+        for pr, report in zip(prs, reports, strict=True):
             assert report.pr_id == pr.pr_id
 
     def test_reports_are_distinct_objects(self, pipeline: ReviewPipeline) -> None:
@@ -365,7 +363,7 @@ class TestE2EDeterminism:
         r1 = p1.run(_SQL_INJECTION_PR)
         r2 = p2.run(_SQL_INJECTION_PR)
         assert len(r1.security_findings) == len(r2.security_findings)
-        for f1, f2 in zip(r1.security_findings, r2.security_findings):
+        for f1, f2 in zip(r1.security_findings, r2.security_findings, strict=True):
             assert f1.severity == f2.severity
             assert f1.cwe_id == f2.cwe_id
 
@@ -376,7 +374,7 @@ class TestE2EDeterminism:
         r1 = p1.run(_SQL_INJECTION_PR)
         r2 = p2.run(_SQL_INJECTION_PR)
         assert len(r1.style_findings) == len(r2.style_findings)
-        for f1, f2 in zip(r1.style_findings, r2.style_findings):
+        for f1, f2 in zip(r1.style_findings, r2.style_findings, strict=True):
             assert f1.category == f2.category
 
     def test_same_seed_produces_identical_markdown(self) -> None:

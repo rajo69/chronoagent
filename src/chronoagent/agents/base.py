@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 import numpy as np
-
 from chromadb import Collection
 from chromadb.api import ClientAPI
 

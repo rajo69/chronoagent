@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 from typer.testing import CliRunner
 
 from chronoagent.cli import app
@@ -111,7 +110,6 @@ class TestServe:
         cfg = tmp_path / "custom.yaml"
         cfg.write_text("env: test\n")
         with patch("chronoagent.cli.uvicorn.run"):
-            import os
 
             runner.invoke(app, ["serve", "--config", str(cfg), "--no-reload"])
             # env var may be set; we just verify no crash

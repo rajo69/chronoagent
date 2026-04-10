@@ -1,12 +1,14 @@
-"""Tests for BaseAgent ABC, SecurityReviewerAgent, SummarizerAgent, StyleReviewerAgent, and AgentRegistry."""
+"""Tests for BaseAgent ABC, SecurityReviewerAgent, SummarizerAgent, StyleReviewerAgent,
+and AgentRegistry."""
 
 from __future__ import annotations
 
 import chromadb
 import pytest
 
-from chronoagent.agents.backends.mock import MockBackend
 from chronoagent.agents.base import BaseAgent, Task, TaskResult
+from chronoagent.agents.planner import DecompositionResult, PlannerAgent, ReviewSubtask
+from chronoagent.agents.registry import AgentRegistry, UnknownTaskTypeError
 from chronoagent.agents.security_reviewer import (
     SecurityFinding,
     SecurityReview,
@@ -14,15 +16,15 @@ from chronoagent.agents.security_reviewer import (
     SyntheticPR,
     _parse_finding,
 )
-from chronoagent.agents.planner import DecompositionResult, PlannerAgent, ReviewSubtask
 from chronoagent.agents.style_reviewer import (
     StyleFinding,
     StyleReview,
     StyleReviewerAgent,
+)
+from chronoagent.agents.style_reviewer import (
     _parse_finding as _parse_style_finding,
 )
 from chronoagent.agents.summarizer import ReviewReport, SummarizerAgent, Summary
-from chronoagent.agents.registry import AgentRegistry, UnknownTaskTypeError
 
 
 @pytest.fixture
@@ -78,7 +80,9 @@ class TestSyntheticPR:
 
 class TestSecurityFinding:
     def test_dataclass_fields(self) -> None:
-        f = SecurityFinding(severity="high", description="SQL injection", line_ref="line 42", cwe_id="CWE-89")
+        f = SecurityFinding(
+            severity="high", description="SQL injection", line_ref="line 42", cwe_id="CWE-89"
+        )
         assert f.severity == "high"
         assert f.description == "SQL injection"
         assert f.line_ref == "line 42"
@@ -532,7 +536,9 @@ class TestStyleReviewerAgent:
     ) -> None:
         agent = StyleReviewerAgent.create(chroma_client=chroma_client)
         review = agent.review(sample_pr)
-        valid_categories = {"complexity", "naming", "documentation", "formatting", "readability", "other"}
+        valid_categories = {
+            "complexity", "naming", "documentation", "formatting", "readability", "other"
+        }
         for finding in review.findings:
             assert finding.category in valid_categories
             assert isinstance(finding.description, str)
@@ -747,7 +753,7 @@ class TestSummarizerAgentSynthesize:
     def test_synthesize_empty_findings(
         self, chroma_client: chromadb.ClientAPI, sample_pr: SyntheticPR
     ) -> None:
-        from chronoagent.agents.security_reviewer import SecurityFinding, SecurityReview
+        from chronoagent.agents.security_reviewer import SecurityReview
         from chronoagent.agents.style_reviewer import StyleReview
 
         summarizer = SummarizerAgent.create(chroma_client=chroma_client)

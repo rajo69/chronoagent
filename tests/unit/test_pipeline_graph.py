@@ -6,11 +6,10 @@ import chromadb
 import pytest
 
 from chronoagent.agents.planner import PlannerAgent
-from chronoagent.agents.security_reviewer import SecurityReview, SecurityReviewerAgent, SyntheticPR
-from chronoagent.agents.style_reviewer import StyleReview, StyleReviewerAgent
+from chronoagent.agents.security_reviewer import SecurityReviewerAgent, SyntheticPR
+from chronoagent.agents.style_reviewer import StyleReviewerAgent
 from chronoagent.agents.summarizer import ReviewReport, SummarizerAgent
 from chronoagent.pipeline.graph import PipelineState, ReviewPipeline
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

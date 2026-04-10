@@ -9,7 +9,7 @@ Commands:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal, Optional, cast
+from typing import Annotated, Any, Literal, cast
 
 import httpx
 import typer
@@ -24,10 +24,10 @@ app = typer.Typer(
 
 @app.command()
 def serve(
-    host: str = typer.Option("0.0.0.0", help="Bind host."),
-    port: int = typer.Option(8000, help="Bind port."),
-    reload: bool = typer.Option(True, help="Enable hot reload (dev only)."),
-    config: Optional[Path] = typer.Option(None, help="Path to YAML config overlay."),
+    host: Annotated[str, typer.Option(help="Bind host.")] = "0.0.0.0",
+    port: Annotated[int, typer.Option(help="Bind port.")] = 8000,
+    reload: Annotated[bool, typer.Option(help="Enable hot reload (dev only).")] = True,
+    config: Annotated[Path | None, typer.Option(help="Path to YAML config overlay.")] = None,
 ) -> None:
     """Start the FastAPI server.
 
@@ -52,8 +52,10 @@ def serve(
 
 @app.command("run-experiment")
 def run_experiment(
-    config: Path = typer.Option(..., help="Path to experiment YAML config."),  # noqa: B008
-    output: Path = typer.Option(Path("results/"), help="Directory for result artefacts."),  # noqa: B008
+    config: Annotated[Path, typer.Option(help="Path to experiment YAML config.")],
+    output: Annotated[
+        Path, typer.Option(help="Directory for result artefacts.")
+    ] = Path("results/"),
 ) -> None:
     """Run a signal-validation experiment.
 
@@ -128,4 +130,4 @@ def check_health(
         typer.echo(f"OK  status={data['status']}  version={data['version']}")
     except httpx.HTTPError as exc:
         typer.echo(f"ERROR: {exc}", err=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None

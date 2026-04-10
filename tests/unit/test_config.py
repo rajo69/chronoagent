@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from chronoagent.config import Settings, load_settings, load_yaml_config
 
@@ -86,22 +86,22 @@ class TestSettingsValidation:
 
     def test_invalid_env(self) -> None:
         """Unknown env value raises ValidationError."""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Settings(env="staging")  # type: ignore[arg-type]
 
     def test_invalid_backend(self) -> None:
         """Unknown backend raises ValidationError."""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Settings(llm_backend="openai")  # type: ignore[arg-type]
 
     def test_weight_out_of_range(self) -> None:
         """Ensemble weight > 1 raises ValidationError."""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Settings(ensemble_weights_bocpd=1.5)
 
     def test_threshold_out_of_range(self) -> None:
         """Escalation threshold > 1 raises ValidationError."""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Settings(escalation_threshold=2.0)
 
 

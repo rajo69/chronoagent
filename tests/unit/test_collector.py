@@ -12,7 +12,6 @@ from chronoagent.monitor.collector import (
     StepSignals,
 )
 
-
 # ---------------------------------------------------------------------------
 # StepSignals
 # ---------------------------------------------------------------------------
@@ -44,7 +43,6 @@ class TestStepSignals:
         assert arr.dtype == np.float64
 
     def test_to_array_values(self) -> None:
-        import numpy as np
 
         s = StepSignals(
             total_latency_ms=5.0,
@@ -109,7 +107,6 @@ class TestBehavioralCollector:
         assert mat.shape == (n, NUM_SIGNALS)
 
     def test_matrix_values_match_signals(self) -> None:
-        import numpy as np
 
         c = BehavioralCollector()
         s = StepSignals(

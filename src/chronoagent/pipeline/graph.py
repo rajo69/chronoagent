@@ -31,14 +31,13 @@ Usage
 
 from __future__ import annotations
 
-import structlog
 from typing import Any
 
 import chromadb
+import structlog
 from chromadb.api import ClientAPI
-from typing_extensions import TypedDict
-
 from langgraph.graph import END, START, StateGraph
+from typing_extensions import TypedDict
 
 from chronoagent.agents.planner import DecompositionResult, PlannerAgent
 from chronoagent.agents.security_reviewer import (
@@ -117,7 +116,8 @@ def _make_security_review_node(
     """Return a LangGraph node function that runs the security reviewer.
 
     Args:
-        agent: A fully constructed :class:`~chronoagent.agents.security_reviewer.SecurityReviewerAgent`.
+        agent: A fully constructed
+            :class:`~chronoagent.agents.security_reviewer.SecurityReviewerAgent`.
 
     Returns:
         Callable ``(state) -> partial PipelineState``.
@@ -206,7 +206,8 @@ class ReviewPipeline:
 
     Args:
         planner: :class:`~chronoagent.agents.planner.PlannerAgent` instance.
-        security_reviewer: :class:`~chronoagent.agents.security_reviewer.SecurityReviewerAgent` instance.
+        security_reviewer:
+            :class:`~chronoagent.agents.security_reviewer.SecurityReviewerAgent` instance.
         style_reviewer: :class:`~chronoagent.agents.style_reviewer.StyleReviewerAgent` instance.
         summarizer: :class:`~chronoagent.agents.summarizer.SummarizerAgent` instance.
     """
@@ -280,7 +281,8 @@ class ReviewPipeline:
         seed: int = 42,
         chroma_client: ClientAPI | None = None,
     ) -> ReviewPipeline:
-        """Factory method that builds all 4 agents with :class:`~chronoagent.agents.backends.mock.MockBackend`.
+        """Factory method that builds all 4 agents with
+        :class:`~chronoagent.agents.backends.mock.MockBackend`.
 
         All agents share the same ephemeral ChromaDB client so their collections
         are isolated by name but backed by the same in-memory store.
