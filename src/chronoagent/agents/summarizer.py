@@ -317,10 +317,10 @@ def _build_markdown(
     ]
 
     if security_review.findings:
-        for i, f in enumerate(security_review.findings, 1):
-            cwe = f" [{f.cwe_id}]" if f.cwe_id else ""
-            ref = f" ({f.line_ref})" if f.line_ref else ""
-            lines.append(f"{i}.{cwe} **{f.severity.upper()}**{ref} — {f.description}")
+        for i, sf in enumerate(security_review.findings, 1):
+            cwe = f" [{sf.cwe_id}]" if sf.cwe_id else ""
+            ref = f" ({sf.line_ref})" if sf.line_ref else ""
+            lines.append(f"{i}.{cwe} **{sf.severity.upper()}**{ref} — {sf.description}")
     else:
         lines.append("No security findings.")
 
@@ -335,9 +335,9 @@ def _build_markdown(
     ]
 
     if style_review.findings:
-        for i, f in enumerate(style_review.findings, 1):
-            ref = f" ({f.line_ref})" if f.line_ref else ""
-            lines.append(f"{i}. **[{f.category}]**{ref} — {f.description}")
+        for i, tf in enumerate(style_review.findings, 1):
+            ref = f" ({tf.line_ref})" if tf.line_ref else ""
+            lines.append(f"{i}. **[{tf.category}]**{ref} — {tf.description}")
     else:
         lines.append("No style findings.")
 

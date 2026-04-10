@@ -235,7 +235,7 @@ class ReviewPipeline:
         Returns:
             Compiled LangGraph runnable.
         """
-        builder: StateGraph = StateGraph(PipelineState)
+        builder: StateGraph[PipelineState] = StateGraph(PipelineState)
 
         # Register nodes
         builder.add_node("plan", _make_plan_node(self._planner))
@@ -267,7 +267,7 @@ class ReviewPipeline:
             :class:`~chronoagent.agents.summarizer.ReviewReport` with security findings,
             style findings, overall risk, and a markdown report body.
         """
-        initial_state: PipelineState = {"pr": pr}  # type: ignore[typeddict-item]
+        initial_state: PipelineState = {"pr": pr}
         final_state: PipelineState = self._graph.invoke(initial_state)
         return final_state["report"]
 

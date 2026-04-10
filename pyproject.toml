@@ -76,7 +76,17 @@ mypy_path = "src"
 ignore_missing_imports = false
 
 [[tool.mypy.overrides]]
-module = ["scipy.*", "ruptures.*", "matplotlib.*", "pandas.*", "seaborn.*"]
+module = [
+    "scipy.*",
+    "ruptures.*",
+    "matplotlib.*",
+    "pandas.*",
+    "seaborn.*",
+    "torch",
+    "torch.*",
+    "chronos",
+    "chronos.*",
+]
 ignore_missing_imports = true
 disable_error_code = ["import-untyped"]
 
