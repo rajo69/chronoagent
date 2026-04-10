@@ -9,9 +9,9 @@
 | Field | Value |
 |-------|-------|
 | **Current phase** | Phase 5: Decentralized Task Allocator |
-| **Next task** | 5.1, first task of Phase 5 (see PLAN.md) |
+| **Next task** | 5.2, `allocator/negotiation.py` (contract-net protocol) |
 | **Blocked?** | No |
-| **Last session** | 2026-04-10. Phase 4 complete [x] and **merged to main** (PR #1 phase3 at `471ef69`, PR #2 phase4 at `6c4a68c`). Tasks 4.1 to 4.7 done: `scorer/bocpd.py` (streaming BOCPD, fixed cp signal = H·P(x\|prior)/evidence), `scorer/chronos_forecaster.py` (lazy Chronos-2-Small + graceful fallback), `scorer/ensemble.py`, `scorer/health_scorer.py`, `messaging/{bus,local_bus,redis_bus}.py`, `api/routers/health_scores.py`. 503 tests, 92.57% coverage. **CI hygiene fixes (this session):** 76 ruff lint errors, 28 ruff-format files, 14 mypy strict errors (variable shadowing in summarizer, `StateGraph[PipelineState]` type param, removed illegal `app.state.foo: Type` annotations, stale `# type: ignore` cleanup, added torch/chronos to mypy `ignore_missing_imports`), CI workflow now installs `[dev,experiments]` so pandas is available for `run-experiment` test. All 4 CI checks (ruff lint, ruff format, mypy strict, pytest) green on main. README rewritten end-to-end. |
+| **Last session** | 2026-04-10. Phase 5 task 5.1 done [x], not yet committed. New `src/chronoagent/allocator/{__init__.py,capability_weights.py}` exposes `CapabilityMatrix` (frozen dataclass, MappingProxyType-wrapped 4x4 weights), `DEFAULT_CAPABILITY_MATRIX` singleton, plus `proficiency`/`row`/`column`/`primary_agent`/`as_dict` lookup helpers and typed `UnknownAgentError`/`UnknownTaskTypeError`. Diagonal specialists = 1.0; off-diagonals strictly in (0,1) so the contract-net protocol can always shed work (Phase 5 exit criterion). Tie-breaking by `AGENT_IDS` order. Tests in `tests/unit/test_capability_weights.py` (37 tests, including a Hypothesis property): constants match registry, validation rejects missing/extra rows, NaN, out-of-range, non-numeric, snapshot is deep copy, security/style cross-weights > plan/summarize cross-weights. Total 540 tests pass (503 + 37). All four CI checks (ruff lint, ruff format, mypy strict, pytest) green locally. Allocator module 100% covered. |
 
 > Update this table at the end of every session before closing.
 
