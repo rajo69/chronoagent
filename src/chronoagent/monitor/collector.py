@@ -11,15 +11,40 @@ Signal ordering (column index):
     3 — kl_divergence
     4 — tool_calls
     5 — memory_query_entropy
+
+Baseline calibration
+--------------------
+The first *n_calibration* steps are treated as a clean baseline.  Once that
+many steps have accumulated, :attr:`BehavioralCollector.is_calibrated` becomes
+``True`` and :attr:`BehavioralCollector.baseline_stats` exposes the per-signal
+mean and standard deviation of the calibration window.
+
+Rolling window statistics
+-------------------------
+:meth:`BehavioralCollector.rolling_stats` returns mean / std / count for the
+last *window* steps regardless of calibration state.
+
+Persistence
+-----------
+:meth:`BehavioralCollector.persist_step` writes one :class:`StepSignals`
+record to the database via an open SQLAlchemy :class:`~sqlalchemy.orm.Session`.
+The caller is responsible for committing the session.
 """
 
 from __future__ import annotations
 
+import datetime
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from chronoagent.db.models import AgentSignalRecord
 
 
 # ---------------------------------------------------------------------------
@@ -38,6 +63,9 @@ SIGNAL_LABELS: list[str] = [
     "tool_calls",
     "memory_query_entropy",
 ]
+
+#: Small regularisation constant added to std during calibration.
+_STD_REG: float = 1e-8
 
 
 @dataclass
@@ -91,6 +119,31 @@ class StepSignals:
 
 
 # ---------------------------------------------------------------------------
+# Rolling / baseline stats helper
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class SignalStats:
+    """Per-signal descriptive statistics over a window of steps.
+
+    Attributes:
+        mean: Per-signal mean; shape ``(NUM_SIGNALS,)``.
+        std: Per-signal standard deviation (regularised); shape ``(NUM_SIGNALS,)``.
+        count: Number of steps included in the window.
+    """
+
+    mean: NDArray[np.float64]
+    std: NDArray[np.float64]
+    count: int
+
+    def __post_init__(self) -> None:
+        assert self.mean.shape == (NUM_SIGNALS,)
+        assert self.std.shape == (NUM_SIGNALS,)
+        assert self.count > 0
+
+
+# ---------------------------------------------------------------------------
 # Collector
 # ---------------------------------------------------------------------------
 
@@ -98,9 +151,19 @@ class StepSignals:
 class BehavioralCollector:
     """Collects :class:`StepSignals` across an experiment run.
 
+    In addition to in-memory storage, the collector supports:
+
+    * **Baseline calibration** — after the first *n_calibration* steps,
+      :attr:`is_calibrated` becomes ``True`` and :attr:`baseline_stats`
+      exposes per-signal mean/std.
+    * **Rolling window statistics** — :meth:`rolling_stats` computes mean/std
+      over the last *window* steps on demand.
+    * **Database persistence** — :meth:`persist_step` writes a single
+      :class:`StepSignals` to the DB via a caller-managed SQLAlchemy session.
+
     Usage::
 
-        collector = BehavioralCollector()
+        collector = BehavioralCollector(n_calibration=20)
         for pr in prs:
             collector.start_step()
             review = reviewer.review(pr)
@@ -109,15 +172,49 @@ class BehavioralCollector:
             collector.end_step(signals)
 
         matrix = collector.get_signal_matrix()  # shape (T, 6)
+        stats  = collector.rolling_stats(window=10)
 
     Attributes:
+        n_calibration: Number of clean steps used to build the baseline.
         steps: Ordered list of completed :class:`StepSignals` records.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, n_calibration: int = 50) -> None:
+        """Initialise the collector.
+
+        Args:
+            n_calibration: Number of steps to collect before locking the
+                baseline.  Must be ≥ 1.  Defaults to 50.
+
+        Raises:
+            ValueError: If *n_calibration* < 1.
+        """
+        if n_calibration < 1:
+            raise ValueError(f"n_calibration must be ≥ 1, got {n_calibration}")
+
+        self.n_calibration: int = n_calibration
         self.steps: list[StepSignals] = []
         self._step_start: float | None = None
         self._current: StepSignals | None = None
+        self._baseline: SignalStats | None = None
+
+    # ------------------------------------------------------------------
+    # Properties
+    # ------------------------------------------------------------------
+
+    @property
+    def is_calibrated(self) -> bool:
+        """``True`` once the baseline has been fitted from *n_calibration* steps."""
+        return self._baseline is not None
+
+    @property
+    def baseline_stats(self) -> SignalStats | None:
+        """Per-signal mean/std of the calibration window, or ``None`` if not yet calibrated."""
+        return self._baseline
+
+    # ------------------------------------------------------------------
+    # Step lifecycle
+    # ------------------------------------------------------------------
 
     def start_step(self) -> None:
         """Mark the beginning of a new pipeline step.
@@ -133,6 +230,9 @@ class BehavioralCollector:
 
         If ``signals.total_latency_ms`` is zero (the default), the elapsed
         time since :meth:`start_step` is used instead.
+
+        Triggers baseline calibration once *n_calibration* steps have been
+        collected.
 
         Args:
             signals: Populated :class:`StepSignals` for this step.
@@ -151,6 +251,28 @@ class BehavioralCollector:
         self._step_start = None
         self._current = None
 
+        self._try_calibrate()
+
+    # ------------------------------------------------------------------
+    # Baseline calibration
+    # ------------------------------------------------------------------
+
+    def _try_calibrate(self) -> None:
+        """Fit baseline stats once *n_calibration* steps have been accumulated."""
+        if self.is_calibrated or len(self.steps) < self.n_calibration:
+            return
+
+        calib = np.stack([s.to_array() for s in self.steps[: self.n_calibration]], axis=0)
+        self._baseline = SignalStats(
+            mean=calib.mean(axis=0),
+            std=calib.std(axis=0) + _STD_REG,
+            count=self.n_calibration,
+        )
+
+    # ------------------------------------------------------------------
+    # Statistics
+    # ------------------------------------------------------------------
+
     def get_signal_matrix(self) -> NDArray[np.float64]:
         """Return all recorded steps as a ``(T, 6)`` float64 matrix.
 
@@ -164,11 +286,84 @@ class BehavioralCollector:
             return np.empty((0, NUM_SIGNALS), dtype=np.float64)
         return np.stack([s.to_array() for s in self.steps], axis=0)
 
+    def rolling_stats(self, window: int = 50) -> SignalStats | None:
+        """Compute mean / std / count over the last *window* steps.
+
+        Args:
+            window: Number of most-recent steps to include.  Must be ≥ 1.
+
+        Returns:
+            :class:`SignalStats` for the window, or ``None`` if no steps have
+            been recorded.
+
+        Raises:
+            ValueError: If *window* < 1.
+        """
+        if window < 1:
+            raise ValueError(f"window must be ≥ 1, got {window}")
+        if not self.steps:
+            return None
+        recent = self.steps[-window:]
+        mat = np.stack([s.to_array() for s in recent], axis=0)
+        return SignalStats(
+            mean=mat.mean(axis=0),
+            std=mat.std(axis=0) + _STD_REG,
+            count=len(recent),
+        )
+
+    # ------------------------------------------------------------------
+    # Persistence
+    # ------------------------------------------------------------------
+
+    def persist_step(
+        self,
+        session: Session,
+        signals: StepSignals,
+        *,
+        agent_id: str,
+        task_id: str | None = None,
+    ) -> AgentSignalRecord:
+        """Persist one :class:`StepSignals` record to the database.
+
+        Creates an :class:`~chronoagent.db.models.AgentSignalRecord`, adds it
+        to *session*, and returns it.  The caller is responsible for calling
+        ``session.commit()`` (or using a context manager that auto-commits).
+
+        Args:
+            session: An open SQLAlchemy :class:`~sqlalchemy.orm.Session`.
+            signals: The step signals to persist.
+            agent_id: Identifier for the agent (e.g. ``"security_reviewer"``).
+            task_id: Optional work-unit identifier (e.g. PR id).
+
+        Returns:
+            The freshly created (unsaved) :class:`~chronoagent.db.models.AgentSignalRecord`.
+        """
+        from chronoagent.db.models import AgentSignalRecord  # lazy — avoids circular dep
+
+        record = AgentSignalRecord(
+            agent_id=agent_id,
+            task_id=task_id,
+            timestamp=datetime.datetime.now(datetime.UTC),
+            total_latency_ms=signals.total_latency_ms,
+            retrieval_count=signals.retrieval_count,
+            token_count=signals.token_count,
+            kl_divergence=signals.kl_divergence,
+            tool_calls=signals.tool_calls,
+            memory_query_entropy=signals.memory_query_entropy,
+        )
+        session.add(record)
+        return record
+
+    # ------------------------------------------------------------------
+    # Utility
+    # ------------------------------------------------------------------
+
     def reset(self) -> None:
-        """Clear all recorded steps and any in-progress step state."""
+        """Clear all recorded steps, calibration state, and any in-progress step."""
         self.steps = []
         self._step_start = None
         self._current = None
+        self._baseline = None
 
     def __len__(self) -> int:
         """Return the number of completed steps recorded so far."""

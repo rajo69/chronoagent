@@ -1,4 +1,4 @@
-"""Unit tests for BehavioralCollector and StepSignals (task 1.2)."""
+"""Unit tests for BehavioralCollector and StepSignals (tasks 1.2, 3.1)."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from chronoagent.monitor.collector import (
     NUM_SIGNALS,
     SIGNAL_LABELS,
     BehavioralCollector,
+    SignalStats,
     StepSignals,
 )
 
@@ -178,3 +179,199 @@ class TestBehavioralCollector:
         mat = c.get_signal_matrix()
         expected_row = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
         assert mat[0] == pytest.approx(expected_row)
+
+    def test_n_calibration_invalid_raises(self) -> None:
+        with pytest.raises(ValueError, match="n_calibration"):
+            BehavioralCollector(n_calibration=0)
+
+    def test_reset_clears_calibration(self) -> None:
+        c = BehavioralCollector(n_calibration=2)
+        for i in range(3):
+            c.start_step()
+            c.end_step(self._make_signals(i))
+        assert c.is_calibrated
+        c.reset()
+        assert not c.is_calibrated
+        assert c.baseline_stats is None
+
+
+# ---------------------------------------------------------------------------
+# Baseline calibration
+# ---------------------------------------------------------------------------
+
+
+class TestBaselineCalibration:
+    def _fill_steps(self, collector: BehavioralCollector, n: int) -> None:
+        for i in range(n):
+            collector.start_step()
+            collector.end_step(
+                StepSignals(
+                    total_latency_ms=float(10 + i),
+                    retrieval_count=i + 1,
+                    token_count=100 + i,
+                    kl_divergence=0.1 * i,
+                    tool_calls=i + 1,
+                    memory_query_entropy=0.5,
+                )
+            )
+
+    def test_not_calibrated_before_threshold(self) -> None:
+        c = BehavioralCollector(n_calibration=5)
+        self._fill_steps(c, 4)
+        assert not c.is_calibrated
+        assert c.baseline_stats is None
+
+    def test_calibrated_after_threshold(self) -> None:
+        c = BehavioralCollector(n_calibration=5)
+        self._fill_steps(c, 5)
+        assert c.is_calibrated
+        assert c.baseline_stats is not None
+
+    def test_calibrated_after_more_than_threshold(self) -> None:
+        c = BehavioralCollector(n_calibration=3)
+        self._fill_steps(c, 10)
+        assert c.is_calibrated
+
+    def test_baseline_stats_shape(self) -> None:
+        c = BehavioralCollector(n_calibration=5)
+        self._fill_steps(c, 5)
+        stats = c.baseline_stats
+        assert stats is not None
+        assert stats.mean.shape == (NUM_SIGNALS,)
+        assert stats.std.shape == (NUM_SIGNALS,)
+        assert stats.count == 5
+
+    def test_baseline_mean_is_correct(self) -> None:
+        """Baseline mean should match numpy mean of the first n_calibration steps."""
+        import numpy as np
+
+        n = 4
+        c = BehavioralCollector(n_calibration=n)
+        signals = [
+            StepSignals(
+                total_latency_ms=float(v),
+                retrieval_count=v,
+                token_count=v * 10,
+                kl_divergence=float(v) * 0.1,
+                tool_calls=v,
+                memory_query_entropy=float(v) * 0.01,
+            )
+            for v in range(1, n + 1)
+        ]
+        for s in signals:
+            c.start_step()
+            c.end_step(s)
+
+        mat = np.stack([s.to_array() for s in signals], axis=0)
+        expected_mean = mat.mean(axis=0)
+
+        stats = c.baseline_stats
+        assert stats is not None
+        assert stats.mean == pytest.approx(expected_mean)
+
+    def test_baseline_locked_after_calibration(self) -> None:
+        """Adding more steps should not change the baseline."""
+        c = BehavioralCollector(n_calibration=3)
+        self._fill_steps(c, 3)
+        baseline_before = c.baseline_stats
+        assert baseline_before is not None
+        mean_before = baseline_before.mean.copy()
+
+        # Add more steps with very different values
+        for _ in range(5):
+            c.start_step()
+            c.end_step(StepSignals(total_latency_ms=99999.0))
+
+        assert c.baseline_stats is not None
+        assert c.baseline_stats.mean == pytest.approx(mean_before)
+
+    def test_baseline_std_is_regularised(self) -> None:
+        """Std must be > 0 even for constant signals."""
+        c = BehavioralCollector(n_calibration=3)
+        for _ in range(3):
+            c.start_step()
+            c.end_step(StepSignals(total_latency_ms=5.0))  # constant
+        stats = c.baseline_stats
+        assert stats is not None
+        assert (stats.std > 0).all()
+
+
+# ---------------------------------------------------------------------------
+# Rolling window statistics
+# ---------------------------------------------------------------------------
+
+
+class TestRollingStats:
+    def _fill(self, collector: BehavioralCollector, n: int) -> None:
+        for i in range(n):
+            collector.start_step()
+            collector.end_step(
+                StepSignals(
+                    total_latency_ms=float(i),
+                    retrieval_count=i,
+                    token_count=i,
+                    kl_divergence=float(i),
+                    tool_calls=i,
+                    memory_query_entropy=float(i),
+                )
+            )
+
+    def test_rolling_stats_none_when_empty(self) -> None:
+        c = BehavioralCollector()
+        assert c.rolling_stats(window=10) is None
+
+    def test_rolling_stats_window_invalid_raises(self) -> None:
+        c = BehavioralCollector()
+        with pytest.raises(ValueError, match="window"):
+            c.rolling_stats(window=0)
+
+    def test_rolling_stats_shape(self) -> None:
+        c = BehavioralCollector()
+        self._fill(c, 5)
+        stats = c.rolling_stats(window=3)
+        assert stats is not None
+        assert stats.mean.shape == (NUM_SIGNALS,)
+        assert stats.std.shape == (NUM_SIGNALS,)
+
+    def test_rolling_stats_count_capped_by_available(self) -> None:
+        c = BehavioralCollector()
+        self._fill(c, 3)
+        stats = c.rolling_stats(window=10)
+        assert stats is not None
+        assert stats.count == 3
+
+    def test_rolling_stats_count_respects_window(self) -> None:
+        c = BehavioralCollector()
+        self._fill(c, 10)
+        stats = c.rolling_stats(window=4)
+        assert stats is not None
+        assert stats.count == 4
+
+    def test_rolling_stats_mean_uses_last_n(self) -> None:
+        """Mean should be computed from the last window steps only."""
+        import numpy as np
+
+        c = BehavioralCollector()
+        self._fill(c, 6)  # steps 0..5
+
+        stats = c.rolling_stats(window=3)
+        assert stats is not None
+
+        # Last 3 steps: i=3,4,5 → latency values 3.0, 4.0, 5.0
+        expected_latency_mean = np.mean([3.0, 4.0, 5.0])
+        assert stats.mean[0] == pytest.approx(expected_latency_mean)
+
+    def test_rolling_stats_std_is_regularised(self) -> None:
+        """Std must be > 0 even for a single-step window (constant)."""
+        c = BehavioralCollector()
+        c.start_step()
+        c.end_step(StepSignals(total_latency_ms=1.0))
+        stats = c.rolling_stats(window=1)
+        assert stats is not None
+        assert (stats.std > 0).all()
+
+    def test_rolling_stats_returns_signal_stats_instance(self) -> None:
+        c = BehavioralCollector()
+        self._fill(c, 2)
+        result = c.rolling_stats(window=2)
+        assert isinstance(result, SignalStats)
