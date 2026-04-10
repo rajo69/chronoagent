@@ -8,11 +8,16 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+import chromadb
 from fastapi import FastAPI
 
+from chronoagent.agents.backends.mock import MockBackend
 from chronoagent.config import Settings, load_settings
 from chronoagent.db.models import Base
 from chronoagent.db.session import make_engine, make_session_factory_from_engine
+from chronoagent.memory.integrity import MemoryIntegrityModule
+from chronoagent.memory.quarantine import QuarantineStore
+from chronoagent.memory.store import MemoryStore
 from chronoagent.messaging.local_bus import LocalBus
 from chronoagent.observability.logging import configure_logging, get_logger
 from chronoagent.pipeline.graph import ReviewPipeline
@@ -44,6 +49,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.pipeline = ReviewPipeline.create()
     app.state.review_store = {}
 
+    # Memory integrity subsystem: active store, quarantine store, integrity module.
+    # Uses EphemeralClient (in-memory) and MockBackend for all environments; swap
+    # for PersistentClient + real backend when moving to production.
+    memory_backend = MockBackend()
+    chroma_client = chromadb.EphemeralClient()
+    app.state.active_store = MemoryStore(
+        chroma_client.get_or_create_collection("memory_active"),
+        memory_backend,
+    )
+    app.state.quarantine_store = QuarantineStore(
+        chroma_client.get_or_create_collection("memory_quarantine"),
+    )
+    app.state.integrity_module = MemoryIntegrityModule(memory_backend)
+
     # Messaging bus + health scorer — use LocalBus in dev; swap for RedisBus in prod.
     bus = LocalBus()
     app.state.bus = bus
@@ -67,6 +86,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """
     from chronoagent.api.health import router as health_router
     from chronoagent.api.routers.health_scores import router as health_scores_router
+    from chronoagent.api.routers.memory import router as memory_router
     from chronoagent.api.routers.review import router as review_router
     from chronoagent.api.routers.signals import router as signals_router
 
@@ -81,6 +101,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = resolved_settings
     app.include_router(health_router)
     app.include_router(health_scores_router)
+    app.include_router(memory_router)
     app.include_router(review_router)
     app.include_router(signals_router)
 
