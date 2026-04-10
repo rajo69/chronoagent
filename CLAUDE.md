@@ -8,10 +8,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Current phase** | Phase 4 — Temporal Health Scorer |
-| **Next task** | 4.1 — first task of Phase 4 (see PLAN.md) |
+| **Current phase** | Phase 5 — Decentralized Task Allocator |
+| **Next task** | 5.1 — first task of Phase 5 (see PLAN.md) |
 | **Blocked?** | No |
-| **Last session** | 2026-04-10 — Phase 3 complete [x]. Tasks 3.1–3.7 done: `db/models.py` (AgentSignalRecord + Alembic migration 001), `db/session.py` (engine + session factory), expanded `BehavioralCollector` (calibration, rolling_stats, persist_step), `api/routers/signals.py` (GET /api/v1/agents/{id}/signals?window=50), `api/deps.py` (get_db DI), Hypothesis property tests for KL-div and entropy. 462 tests, 96.27% coverage. |
+| **Last session** | 2026-04-10 — Phase 4 complete [x]. Tasks 4.1–4.7 done: `scorer/bocpd.py` (streaming BOCPD, Adams & MacKay 2007, fixed cp signal = H·P(x\|prior)/P(x\|x_{1:t-1})), `scorer/chronos_forecaster.py` (lazy-loaded Chronos-2-Small, graceful fallback), `scorer/ensemble.py` (BOCPD+Chronos blend, single-component fallback), `scorer/health_scorer.py` (TemporalHealthScorer, subscribes to signal_updates, publishes health_updates), `messaging/bus.py`+`local_bus.py`+`redis_bus.py` (MessageBus ABC + impls), `api/routers/health_scores.py` (GET /api/v1/agents/{id}/health, GET /api/v1/agents/health). 503 tests, 92.48% coverage. |
 
 > Update this table at the end of every session before closing.
 
@@ -125,7 +125,7 @@ chronoagent run-experiment --config configs/experiments/signal_validation.yaml -
 | 1 | Signal Validation (GO/NO-GO) | `[x]` |
 | 2 | Core Agent Pipeline | `[ ]` |
 | 3 | Behavioral Monitor | `[x]` |
-| 4 | Temporal Health Scorer | `[ ]` |
+| 4 | Temporal Health Scorer | `[x]` |
 | 5 | Decentralized Task Allocator | `[ ]` |
 | 6 | Memory Integrity Module | `[ ]` |
 | 7 | Human Escalation Layer | `[ ]` |
