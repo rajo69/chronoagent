@@ -343,7 +343,7 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 - Detection AUROC > 0.8 on synthetic attacks
 
 **Tasks:**
-- [ ] 6.1 `memory/integrity.py` -- `MemoryIntegrityModule`: 4 detection signals (embedding outlier score, freshness anomaly, retrieval frequency spike, content-embedding mismatch). `check_retrieval(query, docs) -> IntegrityResult`
+- [x] 6.1 `memory/integrity.py` -- `MemoryIntegrityModule`: 4 detection signals (embedding outlier score, freshness anomaly, retrieval frequency spike, content-embedding mismatch). `check_retrieval(query, docs) -> IntegrityResult`
 - [ ] 6.2 Isolation forest (sklearn) fitted on clean embeddings for outlier detection; periodic refit every N new docs
 - [ ] 6.3 `memory/quarantine.py` -- Separate ChromaDB collection for quarantined docs. Move on flag, restore on approve. Retrieval only queries active collection.
 - [ ] 6.4 `api/routers/memory.py` -- `GET /api/v1/memory/integrity`, `POST /api/v1/memory/quarantine`, `POST /api/v1/memory/approve`
