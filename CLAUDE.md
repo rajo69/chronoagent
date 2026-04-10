@@ -8,10 +8,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Current phase** | Phase 3 — Behavioral Monitor |
-| **Next task** | 3.1 — first task of Phase 3 (see PLAN.md) |
+| **Current phase** | Phase 4 — Temporal Health Scorer |
+| **Next task** | 4.1 — first task of Phase 4 (see PLAN.md) |
 | **Blocked?** | No |
-| **Last session** | 2026-04-10 — Task 2.12 complete. `tests/integration/test_pipeline_e2e.py`: 31 e2e tests across 4 groups (ReviewReport structure, agent order via call-log wrapping, multi-PR independence, MockBackend determinism). All 31 pass. Full suite: 349 passing, 94.29% coverage. Phase 2 fully done [x]. |
+| **Last session** | 2026-04-10 — Phase 3 complete [x]. Tasks 3.1–3.7 done: `db/models.py` (AgentSignalRecord + Alembic migration 001), `db/session.py` (engine + session factory), expanded `BehavioralCollector` (calibration, rolling_stats, persist_step), `api/routers/signals.py` (GET /api/v1/agents/{id}/signals?window=50), `api/deps.py` (get_db DI), Hypothesis property tests for KL-div and entropy. 462 tests, 96.27% coverage. |
 
 > Update this table at the end of every session before closing.
 
@@ -124,7 +124,7 @@ chronoagent run-experiment --config configs/experiments/signal_validation.yaml -
 | 0 | Bootstrap | `[x]` |
 | 1 | Signal Validation (GO/NO-GO) | `[x]` |
 | 2 | Core Agent Pipeline | `[ ]` |
-| 3 | Behavioral Monitor | `[ ]` |
+| 3 | Behavioral Monitor | `[x]` |
 | 4 | Temporal Health Scorer | `[ ]` |
 | 5 | Decentralized Task Allocator | `[ ]` |
 | 6 | Memory Integrity Module | `[ ]` |

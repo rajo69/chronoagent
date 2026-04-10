@@ -46,7 +46,7 @@ The checkboxes + Log sections tell the full story — no other context needed.
 | 0 | Bootstrap | Low | `[x]` | -- |
 | 1 | Signal Validation (GO/NO-GO) | **High** | `[x]` | 0 |
 | 2 | Core Agent Pipeline | Medium | `[ ]` | 0, 1 (collector) |
-| 3 | Behavioral Monitor | Medium | `[ ]` | 2 |
+| 3 | Behavioral Monitor | Medium | `[x]` | 2 |
 | 4 | Temporal Health Scorer | **High** | `[ ]` | 3 |
 | 5 | Decentralized Task Allocator | **High** | `[ ]` | 4 |
 | 6 | Memory Integrity Module | Medium | `[ ]` | 2, 3 |
@@ -222,13 +222,13 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 - Unit tests for each signal computation (including property tests)
 
 **Tasks:**
-- [ ] 3.1 Expand `BehavioralCollector` -- add PostgreSQL persistence via SQLAlchemy, baseline calibration after N steps, rolling window stats
-- [ ] 3.2 Complete `kl_divergence.py` -- edge cases (zero variance, insufficient samples), unit tests with known distributions
-- [ ] 3.3 Complete `entropy.py` -- edge cases (single result, empty), normalize [0,1], unit tests (uniform=max, delta=0)
-- [ ] 3.4 `db/models.py` -- `AgentSignalRecord` table (agent_id, task_id, timestamp, 6 signal columns); Alembic migration
-- [ ] 3.5 `api/routers/signals.py` -- `GET /api/v1/agents/{agent_id}/signals?window=50`
-- [ ] 3.6 Unit tests: `test_signals.py`, `test_kl_divergence.py`, `test_entropy.py`
-- [ ] 3.7 Property test via Hypothesis: KL-div and entropy always non-negative for valid inputs
+- [x] 3.1 Expand `BehavioralCollector` -- add PostgreSQL persistence via SQLAlchemy, baseline calibration after N steps, rolling window stats
+- [x] 3.2 Complete `kl_divergence.py` -- edge cases (zero variance, insufficient samples), unit tests with known distributions
+- [x] 3.3 Complete `entropy.py` -- edge cases (single result, empty), normalize [0,1], unit tests (uniform=max, delta=0)
+- [x] 3.4 `db/models.py` -- `AgentSignalRecord` table (agent_id, task_id, timestamp, 6 signal columns); Alembic migration
+- [x] 3.5 `api/routers/signals.py` -- `GET /api/v1/agents/{agent_id}/signals?window=50`
+- [x] 3.6 Unit tests: `test_signals.py`, `test_kl_divergence.py`, `test_entropy.py`
+- [x] 3.7 Property test via Hypothesis: KL-div and entropy always non-negative for valid inputs
 
 **Key Files:** `monitor/collector.py`, `monitor/kl_divergence.py`, `monitor/entropy.py`, `db/models.py`
 
@@ -239,10 +239,10 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 ### Phase 3 Log
 | | |
 |--|--|
-| **Findings** | _fill in_ |
-| **Challenges** | _fill in_ |
-| **Decisions** | _fill in_ |
-| **Completed** | _fill in: date_ |
+| **Findings** | `BehavioralCollector.persist_step` stores signals via SQLAlchemy session; KLCalibrator analytic formula matches scipy grid to <2% for D≤3 |
+| **Challenges** | In-memory SQLite needs `StaticPool` for router tests; ruff B008 requires `Annotated[Session, Depends(...)]` instead of `= Depends(...)` |
+| **Decisions** | `BehavioralCollector` stays DI-agnostic — persistence via explicit `persist_step(session, ...)` call; `get_db` dependency in `api/deps.py` |
+| **Completed** | 2026-04-10 — 462 tests, 96.27% coverage |
 
 ---
 
