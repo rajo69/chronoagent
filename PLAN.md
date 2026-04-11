@@ -444,7 +444,7 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 - `pip install chronoagent` works from built wheel
 
 **Tasks:**
-- [ ] 9.1 `api/middleware.py` -- Rate limiting (slowapi or custom): POST 10/min, GET 60/min, WS 5 concurrent
+- [x] 9.1 `api/middleware.py` -- Rate limiting (slowapi or custom): POST 10/min, GET 60/min, WS 5 concurrent
 - [ ] 9.2 Retry wrappers (tenacity): 3 attempts, exponential backoff, all external calls
 - [ ] 9.3 Graceful degradation in `create_app()` -- try/except for each component, fallback to local alternatives
 - [ ] 9.4 Comprehensive `/api/v1/health` -- per-component status (api, redis, postgres, chromadb, together_ai, forecaster), degraded/healthy/unhealthy. Ollama component omitted unless configured.
@@ -453,15 +453,15 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 
 **Key Files:** `api/middleware.py`, `main.py`, `pyproject.toml`
 
-**README contribution:** Production deployment section — Docker, environment variables, health checks, rate limits.
+**README contribution:** Production deployment section, Docker, environment variables, health checks, rate limits.
 
 ### Phase 9 Log
 | | |
 |--|--|
-| **Findings** | _fill in_ |
-| **Challenges** | _fill in_ |
-| **Decisions** | _fill in_ |
-| **Completed** | _fill in: date_ |
+| **Findings** | **9.1:** Custom pure-ASGI middleware is a better fit than slowapi because (a) WebSocket concurrency caps are not a first-class slowapi concept, (b) we want one middleware handling both HTTP and WebSocket scopes in a single pass, (c) a fixed-window counter keyed by `(client_ip, method, minute_bucket)` maps directly onto the PLAN's "N per minute" wording with no token-bucket refill semantics to get wrong, and (d) zero new dependencies. The middleware reads the client IP from `scope["client"]` and falls back to `"unknown"` (shared bucket) when the entry is missing or malformed: a conservative default that refuses to hand every anonymous caller its own budget. `/health` and `/metrics` are on a default exempt list so ops probes and Prometheus scrapers cannot be starved by a flood of traffic. |
+| **Challenges** | **9.1:** Three gotchas locked in. (1) Starlette's `TestClient` spawns a fresh event loop per concurrent WebSocket portal, so an `asyncio.Lock` created lazily on one loop cannot be awaited from another. Switched to `threading.Lock`; the critical sections are counter-increment only (no I/O), so it is fast enough for both production single-loop deployments and the multi-loop test harness. (2) Non-reserved routes need a custom `send` wrapper to inject `X-RateLimit-*` headers onto the first `http.response.start` message; the allowed-request path therefore holds no lock while the downstream app runs. (3) WebSocket rejection has to drain the initial `websocket.connect` message before emitting `websocket.close` code 1008, otherwise Starlette's ASGI server treats the close as a protocol violation and the TestClient hangs. |
+| **Decisions** | **9.1:** (a) Per-client POST/GET budgets, global WS cap, which matches the PLAN's "WS 5 concurrent" wording (total connections, not per-IP). (b) Fixed-window rollover via `int(now // 60)` rather than a sliding window, because the PLAN wording is "per minute" and fixed windows give trivially deterministic tests under an injected clock. (c) Previous + current bucket always survive the prune so requests straddling a minute boundary are neither double-counted nor lost. (d) `create_app(rate_limit_config=..., rate_limit_clock=...)` takes both the config and the clock as optional kwargs, so tests can inject a mutable clock without monkey-patching module state. (e) Non-(GET\|POST) methods pass through untouched; PUT/DELETE/PATCH/OPTIONS are out of scope for 9.1. |
+| **Completed** | 9.1: 2026-04-11 |
 
 ---
 

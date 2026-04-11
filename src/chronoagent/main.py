@@ -5,13 +5,14 @@ Lifespan initialises DB / Redis / Chroma connections and tears them down cleanly
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 
 import chromadb
 from fastapi import FastAPI
 
 from chronoagent.agents.backends.mock import MockBackend
+from chronoagent.api.middleware import RateLimitConfig, RateLimitMiddleware
 from chronoagent.config import Settings, load_settings
 from chronoagent.db.models import Base
 from chronoagent.db.session import make_engine, make_session_factory_from_engine
@@ -103,12 +104,24 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("chronoagent shutting down")
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    *,
+    rate_limit_config: RateLimitConfig | None = None,
+    rate_limit_clock: Callable[[], float] | None = None,
+) -> FastAPI:
     """Create and configure the FastAPI application.
 
     Args:
         settings: Optional pre-built :class:`Settings` instance.
                   Defaults to :func:`~chronoagent.config.load_settings`.
+        rate_limit_config: Optional :class:`RateLimitConfig` controlling
+            the HTTP + WebSocket rate limiter installed as middleware.
+            Defaults to the PLAN's policy (POST 10/min, GET 60/min,
+            WS 5 concurrent) when ``None``.
+        rate_limit_clock: Optional monotonic clock callable used by the
+            rate limiter for bucket rollover.  Tests inject a mutable
+            clock to drive the sliding window deterministically.
 
     Returns:
         Configured :class:`~fastapi.FastAPI` application.
@@ -131,6 +144,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.settings = resolved_settings
+
+    # Production hardening (Phase 9 task 9.1): install the rate-limit
+    # middleware before any router so 429 responses never touch handler
+    # code.  ``add_middleware`` stores the class + kwargs and Starlette
+    # instantiates it when the ASGI stack is built.
+    app.add_middleware(
+        RateLimitMiddleware,
+        config=rate_limit_config or RateLimitConfig(),
+        clock=rate_limit_clock,
+    )
+
     app.include_router(health_router)
     app.include_router(dashboard_router)
     app.include_router(escalation_router)
