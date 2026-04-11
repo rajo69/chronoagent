@@ -15,6 +15,7 @@ import os
 import httpx
 
 from chronoagent.agents.backends.base import LLMBackend
+from chronoagent.retry import llm_retry
 
 _TOGETHER_BASE_URL = "https://api.together.xyz/v1"
 _DEFAULT_GEN_MODEL = "mistralai/Mixtral-8x7B-Instruct-v0.1"
@@ -69,6 +70,7 @@ class TogetherAIBackend(LLMBackend):
             timeout=timeout,
         )
 
+    @llm_retry
     def generate(self, prompt: str) -> str:
         """Generate a response from the Together.ai chat completions endpoint.
 
@@ -93,6 +95,7 @@ class TogetherAIBackend(LLMBackend):
         data = response.json()
         return str(data["choices"][0]["message"]["content"])
 
+    @llm_retry
     def embed(self, texts: list[str]) -> list[list[float]]:
         """Produce embeddings via the Together.ai embeddings endpoint.
 

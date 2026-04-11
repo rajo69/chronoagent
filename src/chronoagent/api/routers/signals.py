@@ -33,7 +33,7 @@ Response shape::
 from __future__ import annotations
 
 import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -43,6 +43,7 @@ from sqlalchemy.orm import Session
 
 from chronoagent.api.deps import get_db
 from chronoagent.db.models import AgentSignalRecord
+from chronoagent.retry import db_retry
 
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
@@ -98,6 +99,16 @@ class SignalsResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Retry-wrapped DB helper
+# ---------------------------------------------------------------------------
+
+
+@db_retry
+def _fetch_signal_rows(session: Session, stmt: Any) -> list[AgentSignalRecord]:
+    return list(session.execute(stmt).scalars().all())
+
+
+# ---------------------------------------------------------------------------
 # Route
 # ---------------------------------------------------------------------------
 
@@ -142,7 +153,7 @@ def get_agent_signals(
         .order_by(AgentSignalRecord.timestamp.desc())
         .limit(window)
     )
-    rows = list(session.execute(stmt).scalars().all())
+    rows = _fetch_signal_rows(session, stmt)
     # Reverse to return oldest-first
     rows.reverse()
 

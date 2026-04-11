@@ -64,6 +64,7 @@ from chronoagent.dashboard import INDEX_HTML
 from chronoagent.db.models import AgentSignalRecord, AllocationAuditRecord, EscalationRecord
 from chronoagent.memory.integrity import MemoryIntegrityModule
 from chronoagent.memory.quarantine import QuarantineStore
+from chronoagent.retry import db_retry
 from chronoagent.scorer.health_scorer import HealthUpdate, TemporalHealthScorer
 
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
@@ -367,6 +368,70 @@ def _get_quarantine_store(request: Request) -> QuarantineStore:
 
 
 # ---------------------------------------------------------------------------
+# Retry-wrapped DB helpers
+# ---------------------------------------------------------------------------
+#
+# Each helper opens its own session and is wrapped by ``db_retry`` so only
+# the database round-trip retries on transient ``OperationalError``
+# failures.  The endpoint functions stay pure orchestration.
+
+
+@db_retry
+def _fetch_last_signal_rows(
+    session_factory: sessionmaker[Session],
+) -> list[Any]:
+    with session_factory() as session:
+        return list(
+            session.execute(
+                select(
+                    AgentSignalRecord.agent_id,
+                    func.max(AgentSignalRecord.timestamp).label("last_at"),
+                ).group_by(AgentSignalRecord.agent_id)
+            ).all()
+        )
+
+
+@db_retry
+def _fetch_timeline_rows(
+    session_factory: sessionmaker[Session],
+    stmt: Any,
+) -> list[AgentSignalRecord]:
+    with session_factory() as session:
+        return list(session.execute(stmt).scalars().all())
+
+
+@db_retry
+def _fetch_allocation_rows(
+    session_factory: sessionmaker[Session],
+    stmt: Any,
+) -> list[AllocationAuditRecord]:
+    with session_factory() as session:
+        return list(session.execute(stmt).scalars().all())
+
+
+@db_retry
+def _fetch_escalation_rows(
+    session_factory: sessionmaker[Session],
+    stmt: Any,
+) -> list[EscalationRecord]:
+    with session_factory() as session:
+        return list(session.execute(stmt).scalars().all())
+
+
+@db_retry
+def _fetch_pending_escalation_count(
+    session_factory: sessionmaker[Session],
+) -> int:
+    with session_factory() as session:
+        count: int = session.execute(
+            select(func.count())
+            .select_from(EscalationRecord)
+            .where(EscalationRecord.status == "pending")
+        ).scalar_one()
+        return count
+
+
+# ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
 
@@ -428,14 +493,7 @@ def list_agents(
     health_map: dict[str, HealthUpdate] = scorer.get_all_health()
 
     # Fetch distinct agent IDs from DB and their most-recent signal timestamp.
-    with session_factory() as session:
-        last_seen_rows = session.execute(
-            select(
-                AgentSignalRecord.agent_id,
-                func.max(AgentSignalRecord.timestamp).label("last_at"),
-            ).group_by(AgentSignalRecord.agent_id)
-        ).all()
-
+    last_seen_rows = _fetch_last_signal_rows(session_factory)
     last_seen: dict[str, datetime.datetime] = {row.agent_id: row.last_at for row in last_seen_rows}
 
     all_ids = set(health_map) | set(last_seen)
@@ -506,8 +564,7 @@ def get_agent_timeline(
         stmt = stmt.where(AgentSignalRecord.timestamp >= since)
     stmt = stmt.order_by(AgentSignalRecord.timestamp.desc()).limit(limit)
 
-    with session_factory() as session:
-        rows = list(session.execute(stmt).scalars().all())
+    rows = _fetch_timeline_rows(session_factory, stmt)
 
     # Reverse so the response is chronological (oldest first).
     rows.reverse()
@@ -539,9 +596,7 @@ def list_allocations(
     stmt = (
         select(AllocationAuditRecord).order_by(AllocationAuditRecord.timestamp.desc()).limit(limit)
     )
-    with session_factory() as session:
-        rows = list(session.execute(stmt).scalars().all())
-
+    rows = _fetch_allocation_rows(session_factory, stmt)
     allocations = [AllocationEntry.model_validate(r) for r in rows]
     logger.debug("dashboard.allocations.listed", count=len(allocations))
     return AllocationListResponse(allocations=allocations, count=len(allocations))
@@ -611,31 +666,30 @@ def get_escalation_queue(
     pending: list[EscalationEntry] = []
     recent_resolved: list[EscalationEntry] = []
 
-    with session_factory() as session:
-        if status is None or status == "pending":
-            pending_stmt = (
-                select(EscalationRecord)
-                .where(EscalationRecord.status == "pending")
-                .order_by(EscalationRecord.created_at.desc())
-                .limit(limit)
-            )
-            pending_rows = list(session.execute(pending_stmt).scalars().all())
-            pending = [EscalationEntry.model_validate(r) for r in pending_rows]
+    if status is None or status == "pending":
+        pending_stmt = (
+            select(EscalationRecord)
+            .where(EscalationRecord.status == "pending")
+            .order_by(EscalationRecord.created_at.desc())
+            .limit(limit)
+        )
+        pending_rows = _fetch_escalation_rows(session_factory, pending_stmt)
+        pending = [EscalationEntry.model_validate(r) for r in pending_rows]
 
-        if status is None or status != "pending":
-            resolved_filter = (
-                EscalationRecord.status == status
-                if status is not None
-                else EscalationRecord.status != "pending"
-            )
-            resolved_stmt = (
-                select(EscalationRecord)
-                .where(resolved_filter)
-                .order_by(EscalationRecord.resolved_at.desc())
-                .limit(limit)
-            )
-            resolved_rows = list(session.execute(resolved_stmt).scalars().all())
-            recent_resolved = [EscalationEntry.model_validate(r) for r in resolved_rows]
+    if status is None or status != "pending":
+        resolved_filter = (
+            EscalationRecord.status == status
+            if status is not None
+            else EscalationRecord.status != "pending"
+        )
+        resolved_stmt = (
+            select(EscalationRecord)
+            .where(resolved_filter)
+            .order_by(EscalationRecord.resolved_at.desc())
+            .limit(limit)
+        )
+        resolved_rows = _fetch_escalation_rows(session_factory, resolved_stmt)
+        recent_resolved = [EscalationEntry.model_validate(r) for r in resolved_rows]
 
     logger.debug(
         "dashboard.escalations.queried",
@@ -696,12 +750,7 @@ def _build_live_update(state: Any) -> LiveUpdate | None:
         sum(s.health for s in scored if s.health is not None) / len(scored) if scored else 1.0
     )
 
-    with session_factory() as session:
-        pending_count: int = session.execute(
-            select(func.count())
-            .select_from(EscalationRecord)
-            .where(EscalationRecord.status == "pending")
-        ).scalar_one()
+    pending_count = _fetch_pending_escalation_count(session_factory)
 
     return LiveUpdate(
         timestamp=datetime.datetime.now(datetime.UTC),

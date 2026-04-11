@@ -13,6 +13,7 @@ from __future__ import annotations
 import httpx
 
 from chronoagent.agents.backends.base import LLMBackend
+from chronoagent.retry import llm_retry
 
 _DEFAULT_BASE_URL = "http://localhost:11434"
 _DEFAULT_GEN_MODEL = "phi3:mini"
@@ -50,6 +51,7 @@ class OllamaBackend(LLMBackend):
             timeout=timeout,
         )
 
+    @llm_retry
     def generate(self, prompt: str) -> str:
         """Generate a response using Ollama's ``/api/generate`` endpoint.
 
@@ -70,6 +72,7 @@ class OllamaBackend(LLMBackend):
         response.raise_for_status()
         return str(response.json()["response"])
 
+    @llm_retry
     def embed(self, texts: list[str]) -> list[list[float]]:
         """Produce embeddings via Ollama's ``/api/embed`` endpoint.
 

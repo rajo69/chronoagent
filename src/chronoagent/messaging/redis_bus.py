@@ -23,6 +23,7 @@ from typing import Any
 import redis
 
 from chronoagent.messaging.bus import MessageBus, MessageHandler
+from chronoagent.retry import redis_retry
 
 logger = logging.getLogger(__name__)
 
@@ -50,26 +51,58 @@ class RedisBus(MessageBus):
     def publish(self, channel: str, message: object) -> None:
         """Serialise ``message`` as JSON and publish to ``channel``."""
         payload = json.dumps(message)
-        self._client.publish(channel, payload)
+        self._publish_raw(channel, payload)
 
     def subscribe(self, channel: str, handler: MessageHandler) -> None:
-        """Register ``handler`` and ensure the Redis subscription is active."""
+        """Register ``handler`` and ensure the Redis subscription is active.
+
+        Local bookkeeping (``_handlers``) mutates *before* the Redis call so
+        a rare retry inside ``_pubsub_subscribe`` cannot double-append the
+        handler, and so a later ``unsubscribe`` always sees the registration
+        even if Redis flaked on the first attempt.
+        """
         with self._lock:
             first = channel not in self._handlers or not self._handlers[channel]
             self._handlers[channel].append(handler)
 
         if first:
-            self._pubsub.subscribe(**{channel: self._dispatch})
+            self._pubsub_subscribe(channel)
             self._ensure_listener()
 
     def unsubscribe(self, channel: str, handler: MessageHandler) -> None:
         """Remove ``handler`` from ``channel``.  Unsubscribes Redis if empty."""
+        unsubscribe_channel = False
         with self._lock:
             handlers = self._handlers.get(channel, [])
             with contextlib.suppress(ValueError):
                 handlers.remove(handler)
             if not handlers:
-                self._pubsub.unsubscribe(channel)
+                unsubscribe_channel = True
+        if unsubscribe_channel:
+            self._pubsub_unsubscribe(channel)
+
+    # ------------------------------------------------------------------
+    # Retry-wrapped Redis primitives
+    # ------------------------------------------------------------------
+    #
+    # These helpers are the only places that actually reach out to the
+    # Redis server.  Each one is decorated with the central ``redis_retry``
+    # policy (3 attempts, exponential backoff, ``redis.RedisError`` only).
+    # Keeping the retries on the network primitives (not on the outer
+    # ``subscribe``/``unsubscribe`` methods) protects the in-memory
+    # ``_handlers`` bookkeeping from being re-mutated on every attempt.
+
+    @redis_retry
+    def _publish_raw(self, channel: str, payload: str) -> None:
+        self._client.publish(channel, payload)
+
+    @redis_retry
+    def _pubsub_subscribe(self, channel: str) -> None:
+        self._pubsub.subscribe(**{channel: self._dispatch})
+
+    @redis_retry
+    def _pubsub_unsubscribe(self, channel: str) -> None:
+        self._pubsub.unsubscribe(channel)
 
     # ------------------------------------------------------------------
     # Private helpers
