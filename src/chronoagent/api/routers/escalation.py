@@ -23,7 +23,6 @@ from __future__ import annotations
 import datetime
 from typing import Annotated, Any, Literal
 
-import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
@@ -33,9 +32,10 @@ from chronoagent.db.models import EscalationRecord
 from chronoagent.escalation.audit import AuditTrailLogger
 from chronoagent.escalation.escalation_manager import RESOLVED_CHANNEL
 from chronoagent.messaging.bus import MessageBus
+from chronoagent.observability.logging import get_logger
 from chronoagent.retry import db_retry
 
-logger: structlog.BoundLogger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["escalations"])
 

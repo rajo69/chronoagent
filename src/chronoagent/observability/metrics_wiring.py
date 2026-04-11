@@ -27,16 +27,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-import structlog
-
 from chronoagent.messaging.bus import MessageBus, MessageHandler
+from chronoagent.observability.logging import get_logger
 from chronoagent.observability.metrics import ChronoAgentMetrics
 from chronoagent.scorer.health_scorer import (
     HEALTH_CHANNEL,
     HealthUpdate,
 )
 
-logger: structlog.BoundLogger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ESCALATION_CHANNEL = "escalations"
 QUARANTINE_CHANNEL = "memory.quarantine"

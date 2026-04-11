@@ -45,7 +45,6 @@ import asyncio
 import datetime
 from typing import Annotated, Any
 
-import structlog
 from fastapi import (
     APIRouter,
     Depends,
@@ -64,10 +63,11 @@ from chronoagent.dashboard import INDEX_HTML
 from chronoagent.db.models import AgentSignalRecord, AllocationAuditRecord, EscalationRecord
 from chronoagent.memory.integrity import MemoryIntegrityModule
 from chronoagent.memory.quarantine import QuarantineStore
+from chronoagent.observability.logging import get_logger
 from chronoagent.retry import db_retry
 from chronoagent.scorer.health_scorer import HealthUpdate, TemporalHealthScorer
 
-logger: structlog.BoundLogger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 

@@ -35,7 +35,6 @@ from __future__ import annotations
 import datetime
 from typing import Annotated, Any
 
-import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -43,9 +42,10 @@ from sqlalchemy.orm import Session
 
 from chronoagent.api.deps import get_db
 from chronoagent.db.models import AgentSignalRecord
+from chronoagent.observability.logging import get_logger
 from chronoagent.retry import db_retry
 
-logger: structlog.BoundLogger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["signals"])
 

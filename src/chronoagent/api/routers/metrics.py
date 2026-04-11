@@ -18,7 +18,6 @@ not JSON; tools like Prometheus discover it by scraping a fixed URL.
 
 from __future__ import annotations
 
-import structlog
 from fastapi import APIRouter, HTTPException, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
@@ -26,11 +25,12 @@ from sqlalchemy.orm import Session, sessionmaker
 from chronoagent.db.models import EscalationRecord
 from chronoagent.memory.integrity import MemoryIntegrityModule
 from chronoagent.memory.quarantine import QuarantineStore
+from chronoagent.observability.logging import get_logger
 from chronoagent.observability.metrics import CONTENT_TYPE_LATEST, ChronoAgentMetrics
 from chronoagent.retry import db_retry
 from chronoagent.scorer.health_scorer import HealthUpdate, TemporalHealthScorer
 
-logger: structlog.BoundLogger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["metrics"])
 

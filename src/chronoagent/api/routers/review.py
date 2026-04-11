@@ -17,15 +17,15 @@ from __future__ import annotations
 
 from typing import Annotated
 
-import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from chronoagent.agents.security_reviewer import SyntheticPR
 from chronoagent.agents.summarizer import ReviewReport
+from chronoagent.observability.logging import get_logger
 from chronoagent.pipeline.graph import ReviewPipeline
 
-logger: structlog.BoundLogger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["review"])
 

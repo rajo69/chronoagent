@@ -19,13 +19,13 @@ from __future__ import annotations
 import datetime
 from typing import Any
 
-import structlog
 from sqlalchemy.orm import Session, sessionmaker
 
 from chronoagent.db.models import AuditEvent
+from chronoagent.observability.logging import get_logger
 from chronoagent.retry import db_retry
 
-logger: structlog.BoundLogger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ALLOWED_EVENT_TYPES: frozenset[str] = frozenset(
     {"allocation", "health_update", "escalation", "quarantine", "approval"}

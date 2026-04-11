@@ -10,14 +10,15 @@ Reference checkpoint: ``amazon/chronos-t5-small``
 from __future__ import annotations
 
 import importlib.util
-import logging
 from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
 
-logger = logging.getLogger(__name__)
+from chronoagent.observability.logging import get_logger
+
+logger = get_logger(__name__)
 
 # Minimum history length before forecasting is meaningful.
 _MIN_HISTORY = 10
@@ -101,9 +102,9 @@ class ChronosForecaster:
         hist_arr = np.asarray(history, dtype=np.float32)
         if len(hist_arr) < _MIN_HISTORY:
             logger.debug(
-                "chronos_forecaster: history length %d < minimum %d, skipping",
-                len(hist_arr),
-                _MIN_HISTORY,
+                "chronos_forecaster_history_too_short",
+                history_length=len(hist_arr),
+                minimum=_MIN_HISTORY,
             )
             return None
 
@@ -130,7 +131,7 @@ class ChronosForecaster:
             high: NDArray[np.float64] = forecast_obj[0, 2].numpy().astype(np.float64)
             return ForecastResult(mean=mean, low=low, high=high, horizon=horizon)
         except Exception:  # noqa: BLE001
-            logger.exception("chronos_forecaster: forecast failed")
+            logger.exception("chronos_forecaster_forecast_failed")
             self._available = False
             return None
 
@@ -187,9 +188,12 @@ class ChronosForecaster:
                 device_map=self._device,
                 torch_dtype=torch.float32,
             )
-            logger.info("chronos_forecaster: loaded %s", self._model_id)
+            logger.info("chronos_forecaster_loaded", model_id=self._model_id)
         except Exception:  # noqa: BLE001
-            logger.warning("chronos_forecaster: could not load %s, disabling", self._model_id)
+            logger.warning(
+                "chronos_forecaster_load_failed",
+                model_id=self._model_id,
+            )
             self._available = False
             return None
         return self._pipeline

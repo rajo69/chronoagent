@@ -56,7 +56,6 @@ from __future__ import annotations
 from typing import Any
 
 import chromadb
-import structlog
 from chromadb.api import ClientAPI
 from langgraph.graph import END, START, StateGraph
 from typing_extensions import TypedDict
@@ -72,8 +71,9 @@ from chronoagent.agents.summarizer import ReviewReport, SummarizerAgent
 from chronoagent.allocator.negotiation import NegotiationResult
 from chronoagent.allocator.task_allocator import DecentralizedTaskAllocator
 from chronoagent.messaging.local_bus import LocalBus
+from chronoagent.observability.logging import get_logger
 
-logger: structlog.BoundLogger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 # ---------------------------------------------------------------------------
