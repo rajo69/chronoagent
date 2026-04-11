@@ -190,6 +190,38 @@ def _seed_escalation(
 
 
 # ---------------------------------------------------------------------------
+# GET /dashboard/  (single-page HTML index)
+# ---------------------------------------------------------------------------
+
+
+class TestDashboardIndex:
+    def test_index_returns_html(self, client_app: tuple[TestClient, FastAPI]) -> None:
+        tc, _ = client_app
+        resp = tc.get("/dashboard/")
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("text/html")
+        body = resp.text
+        # Landmark strings from the bundled index.html. If any of these
+        # drop out the frontend has almost certainly been broken.
+        assert "<title>ChronoAgent Dashboard</title>" in body
+        assert "/dashboard/ws/live" in body
+        assert "/dashboard/api/agents" in body
+        assert "chart.js" in body.lower()
+
+    def test_index_file_is_bundled(self) -> None:
+        """The static HTML must ship inside the package directory.
+
+        Guards against a refactor that moves the file but forgets to update
+        the :mod:`chronoagent.dashboard` constants.
+        """
+        from chronoagent.dashboard import INDEX_HTML, STATIC_DIR
+
+        assert STATIC_DIR.is_dir()
+        assert INDEX_HTML.is_file()
+        assert INDEX_HTML.parent == STATIC_DIR
+
+
+# ---------------------------------------------------------------------------
 # GET /dashboard/api/agents
 # ---------------------------------------------------------------------------
 
