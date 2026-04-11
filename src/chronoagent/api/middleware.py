@@ -80,13 +80,17 @@ class RateLimitConfig:
         exempt_paths: Tuple of path prefixes that bypass all limits.  A
             request matches when its path equals one of these or is a
             subpath (``path.startswith(prefix + "/")``).  Defaults to
-            ``("/health", "/metrics")`` so ops cannot be starved.
+            ``("/health", "/api/v1/health", "/metrics")`` so ops probes
+            and the Prometheus scraper cannot be starved.  The
+            comprehensive ``/api/v1/health`` endpoint (Phase 9 task 9.4)
+            is included alongside the legacy ``/health`` liveness probe
+            so component-level polling stays cheap.
     """
 
     post_per_minute: int = 10
     get_per_minute: int = 60
     ws_max_concurrent: int = 5
-    exempt_paths: tuple[str, ...] = ("/health", "/metrics")
+    exempt_paths: tuple[str, ...] = ("/health", "/api/v1/health", "/metrics")
 
 
 class RateLimitMiddleware:
