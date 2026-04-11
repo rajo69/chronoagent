@@ -1,0 +1,44 @@
+# Reactive baseline: Sentinel (Phase 10 task 10.5)
+#
+# Purpose: comparison row in the paper's main results table. MINJA attack
+# against the reactive Sentinel baseline implemented in
+# src/chronoagent/experiments/baselines/sentinel.py, which does z-score
+# thresholding on the signal matrix with no forecasting, no changepoint
+# detection, no health scoring, and no memory integrity quarantine.
+#
+# Every ablation flag is set to false to signal "full ChronoAgent stack
+# off, run the reactive baseline instead". The runner (task 10.6) takes
+# the additional hint from name == "baseline_sentinel" to dispatch
+# SentinelBaseline rather than the normal pipeline. This keeps the
+# "baseline-as-config" contract honest: the YAML by itself describes a
+# valid ExperimentConfig, and the runner maps the name + all-false
+# ablation pattern onto the right comparator.
+#
+# Validated by ExperimentConfig.from_yaml (see src/chronoagent/experiments/
+# config_schema.py). Ablation block is NOT a one-knob delta vs
+# main_experiment; see tests/unit/test_experiment_configs.py for the
+# assertion that all four flags are false here.
+
+name: baseline_sentinel
+seed: 42
+num_runs: 5
+num_prs: 25
+
+attack:
+  type: minja
+  target: both
+  injection_step: 10
+  n_poison_docs: 10
+  strategy: default
+
+ablation:
+  forecaster: false
+  bocpd: false
+  health: false
+  integrity: false
+
+system:
+  llm_backend: mock
+  bocpd_hazard_lambda: 50.0
+  health_threshold: 0.3
+  integrity_threshold: 0.6

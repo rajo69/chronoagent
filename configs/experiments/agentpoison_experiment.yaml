@@ -1,0 +1,34 @@
+# Generalisation experiment (Phase 10 task 10.5)
+#
+# Purpose: show the full ChronoAgent stack generalises from the MINJA-style
+# attack (main_experiment.yaml) to the structurally different AgentPoison
+# trigger-phrase attack. Same full system, same 5-run aggregation, only
+# attack.type changes so the paper's generalisation section can cite a
+# clean one-knob delta against the main result.
+#
+# Validated by ExperimentConfig.from_yaml (see src/chronoagent/experiments/
+# config_schema.py).
+
+name: agentpoison_experiment
+seed: 42
+num_runs: 5
+num_prs: 25
+
+attack:
+  type: agentpoison
+  target: both
+  injection_step: 10
+  n_poison_docs: 10
+  strategy: default
+
+ablation:
+  forecaster: true
+  bocpd: true
+  health: true
+  integrity: true
+
+system:
+  llm_backend: mock
+  bocpd_hazard_lambda: 50.0
+  health_threshold: 0.3
+  integrity_threshold: 0.6
