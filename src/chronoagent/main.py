@@ -102,6 +102,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         Configured :class:`~fastapi.FastAPI` application.
     """
     from chronoagent.api.health import router as health_router
+    from chronoagent.api.routers.dashboard import router as dashboard_router
     from chronoagent.api.routers.escalation import router as escalation_router
     from chronoagent.api.routers.health_scores import router as health_scores_router
     from chronoagent.api.routers.memory import router as memory_router
@@ -118,6 +119,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = resolved_settings
     app.include_router(health_router)
+    app.include_router(dashboard_router)
     app.include_router(escalation_router)
     app.include_router(health_scores_router)
     app.include_router(memory_router)
