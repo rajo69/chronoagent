@@ -247,6 +247,41 @@ def default_signal_matrix_factory(
 
 
 @dataclass(frozen=True)
+class RawRunRecord:
+    """Per-run raw signal matrix and decision stream.
+
+    Captured by the runner only when ``collect_raw=True`` was passed to
+    :class:`ExperimentRunner`. The Phase 10 plotting layer (task 10.7)
+    consumes these records to draw signal-drift, allocation-efficiency,
+    health-score, and ROC figures that need per-step data the
+    :class:`AggregateResult` summary alone does not carry.
+
+    Attributes:
+        run_index: Zero-indexed run number, matching the corresponding
+            :class:`RunResult` so callers can join on it.
+        seed: Per-run seed used to produce this record. Mirrors
+            :attr:`RunResult.seed` for the same reason.
+        signal_matrix: ``(num_prs, NUM_SIGNALS)`` float64 matrix the
+            runner fed to the detector for this run. Stored as-is so
+            the plot layer can re-key signal columns by
+            :data:`~chronoagent.monitor.collector.SIGNAL_LABELS`.
+        decisions: One dict per row, projected from the detector's
+            decision stream by :func:`_project_decision_for_raw` so
+            every detector flavour (Sentinel, NoMonitoring, FullSystem)
+            ends up with the same JSON-friendly schema. Every dict
+            carries at least ``step_index``, ``score``, ``flagged``,
+            ``success``, ``agent_id``; sub-score fields like
+            ``bocpd_score`` are present only when the source decision
+            had them set.
+    """
+
+    run_index: int
+    seed: int
+    signal_matrix: NDArray[np.float64]
+    decisions: list[dict[str, Any]]
+
+
+@dataclass(frozen=True)
 class RunResult:
     """Per-run metrics and provenance.
 
@@ -491,12 +526,20 @@ class ExperimentRunner:
         signal_matrix_factory: Optional pluggable factory. Defaults to
             :func:`default_signal_matrix_factory` which wraps the real
             Phase 1 runner. Tests inject a deterministic fake.
+        collect_raw: When ``True``, populate :attr:`raw_runs` during
+            :meth:`run` with the per-run signal matrix + projected
+            decision stream so the Phase 10 plot layer (task 10.7) can
+            persist and visualise the raw signals. Defaults to
+            ``False`` to keep the inner-loop test path lean: storing
+            the matrix is cheap but storing decisions on long
+            experiments adds noticeable memory pressure.
     """
 
     def __init__(
         self,
         cfg: ExperimentConfig,
         signal_matrix_factory: SignalMatrixFactory | None = None,
+        collect_raw: bool = False,
     ) -> None:
         self._cfg: ExperimentConfig = cfg
         self._factory: SignalMatrixFactory = (
@@ -504,6 +547,17 @@ class ExperimentRunner:
             if signal_matrix_factory is not None
             else default_signal_matrix_factory
         )
+        self._collect_raw: bool = collect_raw
+        self._raw_runs: list[RawRunRecord] = []
+
+    @property
+    def raw_runs(self) -> list[RawRunRecord]:
+        """Per-run raw records collected during :meth:`run`.
+
+        Empty unless the runner was constructed with ``collect_raw=True``.
+        Returns the live list so callers should not mutate it.
+        """
+        return self._raw_runs
 
     # ------------------------------------------------------------------
     # Public API
@@ -513,6 +567,8 @@ class ExperimentRunner:
         """Execute every run and return the aggregate."""
         runs: list[RunResult] = []
         detector_label: str | None = None
+        if self._collect_raw:
+            self._raw_runs = []
         for run_index in range(self._cfg.num_runs):
             run_result, label = self._run_single(run_index)
             runs.append(run_result)
@@ -563,6 +619,16 @@ class ExperimentRunner:
             injection_step=self._cfg.attack.injection_step,
             num_prs=self._cfg.num_prs,
         )
+        if self._collect_raw:
+            projected = [_project_decision_for_raw(d) for d in decisions]
+            self._raw_runs.append(
+                RawRunRecord(
+                    run_index=run_index,
+                    seed=seed,
+                    signal_matrix=signal_matrix,
+                    decisions=projected,
+                )
+            )
         return run_result, detector_label
 
     def _build_provenance(self) -> dict[str, Any]:
@@ -604,15 +670,58 @@ class ExperimentRunner:
 # ---------------------------------------------------------------------------
 
 
+def _project_decision_for_raw(decision: Any) -> dict[str, Any]:
+    """Turn a detector decision into a JSON-friendly dict.
+
+    Every Phase 10 detector flavour (Sentinel, NoMonitoring,
+    FullSystem) carries the core ``step_index``, ``success``, ``agent_id``
+    attributes. ``score`` and ``flagged`` are present on the scored
+    detectors but missing from NoMonitoring; the projection defaults
+    them to ``0.0`` and ``False`` so the persisted JSON has a uniform
+    schema regardless of which comparator produced the row.
+
+    Sub-score fields (``bocpd_score``, ``forecaster_score``,
+    ``integrity_score``) are only present on
+    :class:`~chronoagent.experiments.full_system_detector.FullSystemDecision`
+    and are written through verbatim when set so the plot layer can
+    inspect per-channel contributions.
+    """
+    base: dict[str, Any] = {
+        "step_index": int(decision.step_index),
+        "success": bool(decision.success),
+        "agent_id": str(decision.agent_id),
+        "score": float(getattr(decision, "score", 0.0)),
+        "flagged": bool(getattr(decision, "flagged", False)),
+    }
+    for optional_field in ("bocpd_score", "forecaster_score", "integrity_score"):
+        value = getattr(decision, optional_field, None)
+        if value is not None:
+            base[optional_field] = float(value)
+    return base
+
+
 def write_experiment_results(
     aggregate: AggregateResult,
     output_dir: Path | str,
+    raw_runs: Sequence[RawRunRecord] | None = None,
 ) -> tuple[Path, Path]:
     """Write ``runs.csv`` and ``aggregate.json`` under ``output_dir/<name>/``.
 
+    Args:
+        aggregate: The :class:`AggregateResult` to persist.
+        output_dir: Filesystem root under which the per-experiment
+            directory is created.
+        raw_runs: Optional sequence of :class:`RawRunRecord` instances
+            (typically ``runner.raw_runs`` after ``runner.run()``).
+            When supplied, the runner also writes
+            ``raw/run_<i>_signals.npy`` and ``raw/run_<i>_decisions.json``
+            per run so the Phase 10 plot layer can read per-step data
+            without re-executing the experiment.
+
     Returns:
         ``(runs_csv_path, aggregate_json_path)`` so callers (and tests)
-        can read the files back for verification.
+        can read the files back for verification. Raw files (when
+        written) live under ``output_dir/<name>/raw/``.
     """
     base = Path(output_dir) / aggregate.name
     base.mkdir(parents=True, exist_ok=True)
@@ -658,6 +767,21 @@ def write_experiment_results(
     cleaned = _nan_to_none(agg_payload)
     with json_path.open("w", encoding="utf-8") as fh:
         json.dump(cleaned, fh, indent=2, allow_nan=False)
+
+    if raw_runs:
+        raw_dir = base / "raw"
+        raw_dir.mkdir(parents=True, exist_ok=True)
+        for record in raw_runs:
+            sig_path = raw_dir / f"run_{record.run_index:03d}_signals.npy"
+            dec_path = raw_dir / f"run_{record.run_index:03d}_decisions.json"
+            np.save(sig_path, record.signal_matrix)
+            decisions_payload = {
+                "run_index": record.run_index,
+                "seed": record.seed,
+                "decisions": record.decisions,
+            }
+            with dec_path.open("w", encoding="utf-8") as fh:
+                json.dump(_nan_to_none(decisions_payload), fh, indent=2, allow_nan=False)
 
     return runs_path, json_path
 
