@@ -23,6 +23,7 @@ import numpy as np
 from chromadb import Collection
 
 from chronoagent.agents.backends.base import LLMBackend
+from chronoagent.retry import chroma_retry
 
 # ---------------------------------------------------------------------------
 # Result type
@@ -100,6 +101,10 @@ class MemoryStore:
         Returns:
             Document count as reported by ChromaDB.
         """
+        return self._count_raw()
+
+    @chroma_retry
+    def _count_raw(self) -> int:
         return int(self._collection.count())
 
     # ------------------------------------------------------------------
@@ -152,6 +157,10 @@ class MemoryStore:
         if metadatas is not None:
             kwargs["metadatas"] = metadatas
 
+        self._upsert_raw(kwargs)
+
+    @chroma_retry
+    def _upsert_raw(self, kwargs: dict[str, Any]) -> None:
         self._collection.upsert(**kwargs)
 
     # ------------------------------------------------------------------
@@ -190,11 +199,7 @@ class MemoryStore:
         query_vec: list[float] = self._backend.embed([query_text])[0]
         query_arr = np.array([query_vec], dtype=np.float32)
 
-        raw = self._collection.query(
-            query_embeddings=query_arr,
-            n_results=actual_n,
-            include=include,  # type: ignore[arg-type]
-        )
+        raw = self._query_raw(query_arr, actual_n, include)
 
         docs: list[str] = (raw.get("documents") or [[]])[0]
         dists: list[float] = (raw.get("distances") or [[]])[0]
@@ -208,6 +213,20 @@ class MemoryStore:
             ids=ids,
             metadatas=metas,
         )
+
+    @chroma_retry
+    def _query_raw(
+        self,
+        query_arr: np.ndarray[Any, Any],
+        actual_n: int,
+        include: list[str],
+    ) -> dict[str, Any]:
+        raw: dict[str, Any] = self._collection.query(  # type: ignore[assignment]
+            query_embeddings=query_arr,
+            n_results=actual_n,
+            include=include,  # type: ignore[arg-type]
+        )
+        return raw
 
     def get_by_ids(self, ids: list[str]) -> list[StoredDoc]:
         """Fetch full records (text + embedding + metadata) for *ids*.
@@ -228,7 +247,7 @@ class MemoryStore:
         if not ids:
             return []
 
-        raw = self._collection.get(ids=ids, include=["documents", "embeddings", "metadatas"])
+        raw = self._get_by_ids_raw(ids)
         out_ids: list[str] = list(raw.get("ids") or [])
         if not out_ids:
             return []
@@ -260,6 +279,14 @@ class MemoryStore:
             )
         return results
 
+    @chroma_retry
+    def _get_by_ids_raw(self, ids: list[str]) -> dict[str, Any]:
+        raw: dict[str, Any] = self._collection.get(  # type: ignore[assignment]
+            ids=ids,
+            include=["documents", "embeddings", "metadatas"],
+        )
+        return raw
+
     def get_all_embeddings(self) -> list[list[float]]:
         """Return every embedding vector stored in the collection.
 
@@ -274,12 +301,17 @@ class MemoryStore:
         if self.count == 0:
             return []
 
-        raw = self._collection.get(include=["embeddings"])
+        raw = self._get_all_raw()
         stored = raw.get("embeddings")
         if stored is None or len(stored) == 0:
             return []
         # ChromaDB may return numpy arrays — normalise to plain Python lists.
         return [list(map(float, vec)) for vec in stored]
+
+    @chroma_retry
+    def _get_all_raw(self) -> dict[str, Any]:
+        raw: dict[str, Any] = self._collection.get(include=["embeddings"])  # type: ignore[assignment]
+        return raw
 
     # ------------------------------------------------------------------
     # Delete operations
@@ -299,5 +331,9 @@ class MemoryStore:
         """
         if not ids:
             return 0
-        self._collection.delete(ids=ids)
+        self._delete_raw(ids)
         return len(ids)
+
+    @chroma_retry
+    def _delete_raw(self, ids: list[str]) -> None:
+        self._collection.delete(ids=ids)

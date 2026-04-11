@@ -27,6 +27,7 @@ from chronoagent.db.models import EscalationRecord
 from chronoagent.memory.integrity import MemoryIntegrityModule
 from chronoagent.memory.quarantine import QuarantineStore
 from chronoagent.observability.metrics import CONTENT_TYPE_LATEST, ChronoAgentMetrics
+from chronoagent.retry import db_retry
 from chronoagent.scorer.health_scorer import HealthUpdate, TemporalHealthScorer
 
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
@@ -71,13 +72,19 @@ def _refresh_poll_gauges(request: Request, metrics: ChronoAgentMetrics) -> None:
 
     session_factory: sessionmaker[Session] | None = getattr(state, "session_factory", None)
     if session_factory is not None:
-        with session_factory() as session:
-            pending: int = session.execute(
-                select(func.count())
-                .select_from(EscalationRecord)
-                .where(EscalationRecord.status == "pending")
-            ).scalar_one()
+        pending = _fetch_pending_count(session_factory)
         metrics.set_pending_escalations(pending)
+
+
+@db_retry
+def _fetch_pending_count(session_factory: sessionmaker[Session]) -> int:
+    with session_factory() as session:
+        pending: int = session.execute(
+            select(func.count())
+            .select_from(EscalationRecord)
+            .where(EscalationRecord.status == "pending")
+        ).scalar_one()
+        return pending
 
 
 @router.get(

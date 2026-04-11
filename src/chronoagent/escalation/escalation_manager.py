@@ -40,6 +40,7 @@ from chronoagent.db.models import EscalationRecord as EscalationRecordORM
 from chronoagent.escalation.audit import AuditTrailLogger
 from chronoagent.memory.quarantine import QuarantineStore
 from chronoagent.messaging.bus import MessageBus
+from chronoagent.retry import db_retry
 from chronoagent.scorer.health_scorer import HealthUpdate, TemporalHealthScorer
 
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
@@ -278,9 +279,7 @@ class EscalationHandler:
             created_at=created_at,
             resolved_at=None,
         )
-        with self._session_factory() as session:
-            session.add(orm_row)
-            session.commit()
+        self._persist_escalation(orm_row)
 
         # --- Audit log ---
         self._audit_logger.log_event(
@@ -370,6 +369,19 @@ class EscalationHandler:
             ctx.update(extra)
         return ctx
 
+    @db_retry
+    def _persist_escalation(self, orm_row: EscalationRecordORM) -> None:
+        """Insert an :class:`EscalationRecordORM` row in its own transaction.
+
+        Isolated so the :func:`db_retry` policy re-runs only the database
+        write on transient ``OperationalError``, not the surrounding bus
+        publish or cooldown bookkeeping in :meth:`maybe_escalate`.
+        """
+        with self._session_factory() as session:
+            session.add(orm_row)
+            session.commit()
+
+    @db_retry
     def _recent_allocation_task_ids(self, agent_id: str) -> list[str]:
         """Return up to ``allocation_history_limit`` recent task IDs for agent.
 

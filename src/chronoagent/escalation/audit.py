@@ -23,6 +23,7 @@ import structlog
 from sqlalchemy.orm import Session, sessionmaker
 
 from chronoagent.db.models import AuditEvent
+from chronoagent.retry import db_retry
 
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
@@ -45,6 +46,7 @@ class AuditTrailLogger:
     def __init__(self, session_factory: sessionmaker[Session]) -> None:
         self._session_factory = session_factory
 
+    @db_retry
     def log_event(
         self,
         event_type: str,

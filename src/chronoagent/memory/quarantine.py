@@ -38,6 +38,7 @@ from typing import Any
 from chromadb import Collection
 
 from chronoagent.memory.store import MemoryStore, StoredDoc
+from chronoagent.retry import chroma_retry
 
 # ---------------------------------------------------------------------------
 # Metadata keys
@@ -87,6 +88,10 @@ class QuarantineStore:
     @property
     def count(self) -> int:
         """Number of documents currently held in quarantine."""
+        return self._count_raw()
+
+    @chroma_retry
+    def _count_raw(self) -> int:
         return int(self._collection.count())
 
     def list_ids(self) -> list[str]:
@@ -98,8 +103,13 @@ class QuarantineStore:
         """
         if self.count == 0:
             return []
-        raw = self._collection.get(include=[])
+        raw = self._get_ids_raw()
         return list(raw.get("ids") or [])
+
+    @chroma_retry
+    def _get_ids_raw(self) -> dict[str, Any]:
+        raw: dict[str, Any] = self._collection.get(include=[])  # type: ignore[assignment]
+        return raw
 
     def get_doc(self, doc_id: str) -> StoredDoc | None:
         """Fetch a single quarantined document by ID for human review.
@@ -113,10 +123,7 @@ class QuarantineStore:
             ``quarantined_at`` (and optional ``quarantine_reason``) metadata
             keys, which an approval flow can surface to the reviewer.
         """
-        raw = self._collection.get(
-            ids=[doc_id],
-            include=["documents", "embeddings", "metadatas"],
-        )
+        raw = self._get_full_raw([doc_id])
         out_ids: list[str] = list(raw.get("ids") or [])
         if not out_ids:
             return None
@@ -135,6 +142,14 @@ class QuarantineStore:
             embedding=[float(v) for v in embeddings_field[0]],
             metadata=dict(metadatas_field[0]),
         )
+
+    @chroma_retry
+    def _get_full_raw(self, ids: list[str]) -> dict[str, Any]:
+        raw: dict[str, Any] = self._collection.get(  # type: ignore[assignment]
+            ids=ids,
+            include=["documents", "embeddings", "metadatas"],
+        )
+        return raw
 
     # ------------------------------------------------------------------
     # State-changing moves
@@ -219,9 +234,13 @@ class QuarantineStore:
             "embeddings": moved_embeddings,
             "metadatas": moved_metadatas,
         }
-        self._collection.upsert(**upsert_kwargs)
+        self._upsert_raw(upsert_kwargs)
         active_store.delete(moved_ids)
         return moved_ids
+
+    @chroma_retry
+    def _upsert_raw(self, kwargs: dict[str, Any]) -> None:
+        self._collection.upsert(**kwargs)
 
     def approve(
         self,
@@ -257,10 +276,7 @@ class QuarantineStore:
             seen.add(doc_id)
             unique_ids.append(doc_id)
 
-        raw = self._collection.get(
-            ids=unique_ids,
-            include=["documents", "embeddings", "metadatas"],
-        )
+        raw = self._get_full_raw(unique_ids)
         found_ids: list[str] = list(raw.get("ids") or [])
         if not found_ids:
             return []
@@ -310,8 +326,12 @@ class QuarantineStore:
             )
 
         restored_ids: list[str] = [r.doc_id for r in ordered]
-        self._collection.delete(ids=restored_ids)
+        self._delete_raw(restored_ids)
         return restored_ids
+
+    @chroma_retry
+    def _delete_raw(self, ids: list[str]) -> None:
+        self._collection.delete(ids=ids)
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -325,5 +345,10 @@ class QuarantineStore:
         non-empty list (the only call site is :meth:`quarantine`, which
         gates on emptiness up front).
         """
-        raw = self._collection.get(ids=ids, include=[])
+        raw = self._existing_ids_raw(ids)
         return list(raw.get("ids") or [])
+
+    @chroma_retry
+    def _existing_ids_raw(self, ids: list[str]) -> dict[str, Any]:
+        raw: dict[str, Any] = self._collection.get(ids=ids, include=[])  # type: ignore[assignment]
+        return raw

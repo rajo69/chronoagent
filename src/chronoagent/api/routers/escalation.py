@@ -21,7 +21,7 @@ these before the first request arrives.
 from __future__ import annotations
 
 import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -33,6 +33,7 @@ from chronoagent.db.models import EscalationRecord
 from chronoagent.escalation.audit import AuditTrailLogger
 from chronoagent.escalation.escalation_manager import RESOLVED_CHANNEL
 from chronoagent.messaging.bus import MessageBus
+from chronoagent.retry import db_retry
 
 logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
@@ -167,6 +168,56 @@ _RESOLUTION_TO_STATUS: dict[str, str] = {
 }
 
 # ---------------------------------------------------------------------------
+# Retry-wrapped DB helpers
+# ---------------------------------------------------------------------------
+#
+# Each helper opens its own session and is decorated with ``db_retry`` so
+# only the database transaction retries on transient ``OperationalError``
+# failures -- never the surrounding bus publish or audit log side effects.
+
+
+@db_retry
+def _list_escalations_db(
+    session_factory: sessionmaker[Session],
+    stmt: Any,
+) -> list[EscalationRecord]:
+    with session_factory() as session:
+        return list(session.execute(stmt).scalars().all())
+
+
+@db_retry
+def _apply_resolution(
+    session_factory: sessionmaker[Session],
+    *,
+    escalation_id: str,
+    new_status: str,
+    notes: str | None,
+    resolved_at: datetime.datetime,
+) -> tuple[EscalationResponse, str]:
+    with session_factory() as session:
+        row = session.get(EscalationRecord, escalation_id)
+        if row is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Escalation {escalation_id!r} not found",
+            )
+        if row.status != "pending":
+            raise HTTPException(
+                status_code=409,
+                detail=f"Escalation {escalation_id!r} is already resolved (status={row.status!r})",
+            )
+
+        row.status = new_status
+        row.resolution_notes = notes
+        row.resolved_at = resolved_at
+        session.commit()
+
+        resolved_row = EscalationResponse.model_validate(row)
+        agent_id = row.agent_id
+    return resolved_row, agent_id
+
+
+# ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
@@ -194,9 +245,7 @@ def list_escalations(
     if status and status != "all":
         stmt = stmt.where(EscalationRecord.status == status)
 
-    with session_factory() as session:
-        rows = list(session.execute(stmt).scalars().all())
-
+    rows = _list_escalations_db(session_factory, stmt)
     escalations = [EscalationResponse.model_validate(r) for r in rows]
     logger.debug("escalations.list", status_filter=status, count=len(escalations))
     return EscalationListResponse(escalations=escalations, count=len(escalations))
@@ -234,28 +283,15 @@ def resolve_escalation(
         :class:`~fastapi.HTTPException` 404 if ``escalation_id`` is not found.
         :class:`~fastapi.HTTPException` 409 if the escalation is already resolved.
     """
-    with session_factory() as session:
-        row = session.get(EscalationRecord, escalation_id)
-        if row is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Escalation {escalation_id!r} not found",
-            )
-        if row.status != "pending":
-            raise HTTPException(
-                status_code=409,
-                detail=f"Escalation {escalation_id!r} is already resolved (status={row.status!r})",
-            )
-
-        new_status = _RESOLUTION_TO_STATUS[body.resolution]
-        row.status = new_status
-        row.resolution_notes = body.notes
-        row.resolved_at = datetime.datetime.now(datetime.UTC)
-        session.commit()
-
-        # Snapshot fields before session closes
-        resolved_row = EscalationResponse.model_validate(row)
-        agent_id = row.agent_id
+    new_status = _RESOLUTION_TO_STATUS[body.resolution]
+    resolved_at = datetime.datetime.now(datetime.UTC)
+    resolved_row, agent_id = _apply_resolution(
+        session_factory,
+        escalation_id=escalation_id,
+        new_status=new_status,
+        notes=body.notes,
+        resolved_at=resolved_at,
+    )
 
     # Audit log (outside the session so the session is already committed)
     audit_logger.log_event(
