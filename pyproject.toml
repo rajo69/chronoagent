@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.26.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -62,6 +62,42 @@ chronoagent = "chronoagent.cli:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/chronoagent"]
+
+# Phase 9 task 9.6: explicit sdist include list keeps the distribution lean.
+# Hatchling's default is to ship every file not matched by ``.gitignore``,
+# which on this repo picks up `.claude/`, `.hypothesis/`, research notes, and
+# other local-only artefacts.  The PyPI-facing sdist should carry only the
+# source tree, tests, docs, config, and top-level project files.
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/docs",
+    "/configs",
+    "/alembic",
+    "/alembic.ini",
+    "/pyproject.toml",
+    "/README.md",
+    "/Makefile",
+    "/Dockerfile",
+    "/docker-compose.yml",
+    "/requirements.lock",
+    "/.env.example",
+    "/.pre-commit-config.yaml",
+]
+exclude = [
+    "**/__pycache__",
+    "**/*.py[cod]",
+    "**/.pytest_cache",
+    "**/.mypy_cache",
+    "**/.ruff_cache",
+    "**/.hypothesis",
+    "**/htmlcov",
+    "**/.coverage",
+    "**/dist",
+    "**/build",
+    "**/*.egg-info",
+]
 
 [tool.ruff]
 line-length = 100
