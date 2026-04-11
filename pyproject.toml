@@ -133,6 +133,9 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 pythonpath = ["."]
 addopts = "--cov=chronoagent --cov-report=term-missing --cov-fail-under=80"
+markers = [
+    "slow: marks tests as slow (opt out with -m 'not slow')",
+]
 
 [tool.coverage.run]
 source = ["src/chronoagent"]
