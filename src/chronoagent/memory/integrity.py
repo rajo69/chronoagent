@@ -51,7 +51,7 @@ from typing import Any, Literal
 
 import numpy as np
 from numpy.typing import NDArray
-from sklearn.ensemble import IsolationForest  # type: ignore[import-untyped]
+from sklearn.ensemble import IsolationForest
 
 from chronoagent.agents.backends.base import LLMBackend
 
