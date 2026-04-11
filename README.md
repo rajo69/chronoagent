@@ -4,8 +4,8 @@
 
 [![CI](https://github.com/rajo69/chronoagent/actions/workflows/ci.yml/badge.svg)](https://github.com/rajo69/chronoagent/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
-![tests](https://img.shields.io/badge/tests-503%20passing-brightgreen)
-![coverage](https://img.shields.io/badge/coverage-92%25-brightgreen)
+![tests](https://img.shields.io/badge/tests-927%20passing-brightgreen)
+![coverage](https://img.shields.io/badge/coverage-94%25-brightgreen)
 ![license](https://img.shields.io/badge/license-Apache%202.0-blue)
 
 ---
@@ -63,13 +63,13 @@ The project is built in numbered phases. Each phase has an exit criterion and a 
 | 5 | Decentralized Task Allocator | ✅ Done |
 | 6 | Memory Integrity Module | ✅ Done |
 | 7 | Human Escalation Layer | ✅ Done |
-| 8 | Observability Dashboard | ⏳ Next |
-| 9 | Production Hardening | ⬜ Planned |
+| 8 | Observability Dashboard | ✅ Done |
+| 9 | Production Hardening | ⏳ Next |
 | 10 | Research Experiment Suite | ⬜ Planned |
 | 11 | Paper Scaffold and Reproducibility | ⬜ Planned |
 | 12 | CI/CD and Release | ⬜ Planned |
 
-**Currently:** Phase 8 is in progress. Tasks 8.1 (backend: 5 REST endpoints plus a live WebSocket feed) and 8.2 (frontend: single self-contained HTML + Chart.js, no build step) are in; task 8.3 (Prometheus metrics and Grafana dashboard JSON) is the last item before closing the phase. The dashboard is reachable at `http://localhost:8000/dashboard/` once the server is running, and shows per-agent health bars, a signal explorer chart, the allocation log, memory integrity state, and the escalation queue in one view. 889 tests pass with 94.58% line coverage.
+**Currently:** Phase 8 is closed. The observability stack now has two fronts: the human-facing dashboard at `http://localhost:8000/dashboard/` (per-agent health bars, signal explorer, allocation log, memory inspector, escalation queue, single self-contained HTML with Chart.js, no build step) and a Prometheus scrape target at `http://localhost:8000/metrics` (per-agent health gauges, allocation and escalation counters, bid-score and review-duration histograms, plus poll-driven gauges for system health and queue sizes). A ready-to-import Grafana dashboard covering every metric lives at [`docs/grafana/chronoagent_dashboard.json`](./docs/grafana/chronoagent_dashboard.json). 927 tests pass with 94.81% line coverage. Next up is Phase 9 (production hardening: rate limiting, retries, graceful degradation, component health checks, package build).
 
 **An honest pivot worth recording:** Phase 1 was a hard signal-validation gate. Before building anything else, we measured whether the behavioral signals we wanted to forecast were actually distinguishable from noise. KL divergence from a clean baseline turned out to be a strong primary signal (Cohen's d ≈ 1.6 on the MINJA attack benchmark), while three of the six secondary signals were effectively constant under our test conditions. The original framing around "advance warning time" did not survive the data. The project was reframed around concurrent detection plus reliability-weighted allocation, which the data does support. The full ruling is in [`docs/phase1_decision.md`](./docs/phase1_decision.md).
 

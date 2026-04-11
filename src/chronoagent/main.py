@@ -22,6 +22,11 @@ from chronoagent.memory.quarantine import QuarantineStore
 from chronoagent.memory.store import MemoryStore
 from chronoagent.messaging.local_bus import LocalBus
 from chronoagent.observability.logging import configure_logging, get_logger
+from chronoagent.observability.metrics import ChronoAgentMetrics
+from chronoagent.observability.metrics_wiring import (
+    subscribe_metrics_to_bus,
+    unsubscribe_metrics_from_bus,
+)
 from chronoagent.pipeline.graph import ReviewPipeline
 from chronoagent.scorer.health_scorer import TemporalHealthScorer
 
@@ -83,8 +88,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     bus.subscribe("health_updates", escalation_handler.on_health_update)
     bus.subscribe("memory.quarantine", escalation_handler.on_quarantine_event)
 
+    # Prometheus metrics sink (Phase 8 task 8.3).  Isolated registry, wired
+    # to the bus via closures in ``observability.metrics_wiring`` so the
+    # sink remains passive and testable in isolation.
+    app.state.metrics = ChronoAgentMetrics()
+    app.state.metrics_subscribers = subscribe_metrics_to_bus(bus, app.state.metrics)
+
     yield
 
+    unsubscribe_metrics_from_bus(bus, app.state.metrics_subscribers)
     bus.unsubscribe("health_updates", escalation_handler.on_health_update)
     bus.unsubscribe("memory.quarantine", escalation_handler.on_quarantine_event)
     app.state.health_scorer.stop()
@@ -106,6 +118,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from chronoagent.api.routers.escalation import router as escalation_router
     from chronoagent.api.routers.health_scores import router as health_scores_router
     from chronoagent.api.routers.memory import router as memory_router
+    from chronoagent.api.routers.metrics import router as metrics_router
     from chronoagent.api.routers.review import router as review_router
     from chronoagent.api.routers.signals import router as signals_router
 
@@ -123,6 +136,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(escalation_router)
     app.include_router(health_scores_router)
     app.include_router(memory_router)
+    app.include_router(metrics_router)
     app.include_router(review_router)
     app.include_router(signals_router)
 
