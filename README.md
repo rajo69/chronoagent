@@ -4,8 +4,8 @@
 
 [![CI](https://github.com/rajo69/chronoagent/actions/workflows/ci.yml/badge.svg)](https://github.com/rajo69/chronoagent/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
-![tests](https://img.shields.io/badge/tests-927%20passing-brightgreen)
-![coverage](https://img.shields.io/badge/coverage-94%25-brightgreen)
+![tests](https://img.shields.io/badge/tests-1500%20passing-brightgreen)
+![coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)
 ![license](https://img.shields.io/badge/license-Apache%202.0-blue)
 
 ---
@@ -65,11 +65,11 @@ The project is built in numbered phases. Each phase has an exit criterion and a 
 | 7 | Human Escalation Layer | ✅ Done |
 | 8 | Observability Dashboard | ✅ Done |
 | 9 | Production Hardening | ✅ Done |
-| 10 | Research Experiment Suite | ⏳ Next |
-| 11 | Paper Scaffold and Reproducibility | ⬜ Planned |
+| 10 | Research Experiment Suite | ✅ Done |
+| 11 | Paper Scaffold and Reproducibility | ⏳ Next |
 | 12 | CI/CD and Release | ⬜ Planned |
 
-**Currently:** Phase 9 is closed. The service is now production-deployable: a per-client + global rate limiter sits in front of every HTTP and WebSocket route (POST 10/min, GET 60/min, WS 5 concurrent), every external call (LLM, Redis, Chroma, Postgres) is wrapped in a tenacity retry policy, and `create_app()` degrades gracefully with `Redis -> LocalBus`, `Postgres -> in-memory SQLite`, and `Chronos -> BOCPD-only` fallbacks recorded on `app.state.component_status`. The new `GET /api/v1/health` endpoint rolls every component into a `healthy` / `degraded` / `unhealthy` label backed by HTTP 200 / 200 / 503, alongside the legacy `GET /health` liveness probe. A repo-wide structured-logging audit routes every module through one `chronoagent.observability.logging.get_logger` entry point. `py -m build` produces a clean wheel + sdist via hatchling; the wheel installs into a fresh venv, the `chronoagent` console-script entry point launches all three CLI commands (`serve`, `run-experiment`, `check-health`), and the bundled dashboard HTML resolves at runtime. 1065 tests pass with 95.57% line coverage. Next up is Phase 10 (research experiment suite: config schemas, baselines, ablations, and the six experiment YAMLs that drive the paper figures).
+**Currently:** Phase 10 is closed end-to-end. The research experiment harness now ships every component the paper needs: a pydantic `ExperimentConfig` schema (10.1), four headline metrics (advance warning time, allocation efficiency, detection AUROC, detection F1) with NaN-safe aggregation (10.2), a reactive Sentinel baseline and a dumb round-robin no-monitoring baseline for the ablation table (10.3, 10.4), six experiment YAMLs under `configs/experiments/` that pin every shared reproducibility knob and isolate one ablation flag per row (10.5), an `ExperimentRunner` that persists `runs.csv` + `aggregate.json` + optional raw signals / decisions (10.6), a `FullSystemDetector` that runs the real BOCPD implementation offline over the KL-divergence column with an honest EMA-residual placeholder for the Chronos forecaster channel (10.6), six paper figures plus a `generate_all_plots` entry point (10.7), three LaTeX table generators plus a `generate_all_tables` entry point (10.8), and a Typer-subcommand CLI: `chronoagent run-experiment phase1 / phase10` for single-experiment runs plus `chronoagent compare-experiments` for the multi-experiment figure and table aggregation step (10.9). 1500 tests pass with 95.98% line coverage. Next up is Phase 11 (paper scaffold: LaTeX skeleton under `paper/`, reproducibility checklist, and figure / table hookup to the 10.7 / 10.8 output files).
 
 **An honest pivot worth recording:** Phase 1 was a hard signal-validation gate. Before building anything else, we measured whether the behavioral signals we wanted to forecast were actually distinguishable from noise. KL divergence from a clean baseline turned out to be a strong primary signal (Cohen's d ≈ 1.6 on the MINJA attack benchmark), while three of the six secondary signals were effectively constant under our test conditions. The original framing around "advance warning time" did not survive the data. The project was reframed around concurrent detection plus reliability-weighted allocation, which the data does support. The full ruling is in [`docs/phase1_decision.md`](./docs/phase1_decision.md).
 
