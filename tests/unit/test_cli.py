@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -18,6 +19,17 @@ from chronoagent.experiments.experiment_runner import (
 )
 
 runner = CliRunner()
+
+# Typer renders its help screen through Rich, which wraps flag names in ANSI
+# colour codes ("-\x1b[0m\x1b[1;36m-plots\x1b[0m") and may soft-wrap long lines
+# to the terminal width. Tests that assert a flag name appears in the help
+# output strip ANSI first so the assertion is terminal-width independent.
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _plain(text: str) -> str:
+    """Strip ANSI escape sequences from ``text``."""
+    return _ANSI_RE.sub("", text)
 
 
 # ---------------------------------------------------------------------------
@@ -146,8 +158,9 @@ class TestHelp:
         """chronoagent run-experiment --help exits 0 and lists subcommands."""
         result = runner.invoke(app, ["run-experiment", "--help"])
         assert result.exit_code == 0
-        assert "phase1" in result.output
-        assert "phase10" in result.output
+        output = _plain(result.output)
+        assert "phase1" in output
+        assert "phase10" in output
 
     def test_run_experiment_phase1_help(self) -> None:
         """chronoagent run-experiment phase1 --help exits 0."""
@@ -158,15 +171,17 @@ class TestHelp:
         """chronoagent run-experiment phase10 --help exits 0 and documents flags."""
         result = runner.invoke(app, ["run-experiment", "phase10", "--help"])
         assert result.exit_code == 0
-        assert "--plots" in result.output
-        assert "--tables" in result.output
-        assert "--quiet" in result.output
+        output = _plain(result.output)
+        assert "--plots" in output
+        assert "--tables" in output
+        assert "--quiet" in output
 
     def test_compare_experiments_help(self) -> None:
         """chronoagent compare-experiments --help exits 0."""
         result = runner.invoke(app, ["compare-experiments", "--help"])
         assert result.exit_code == 0
-        assert "--experiment" in result.output
+        output = _plain(result.output)
+        assert "--experiment" in output
 
     def test_check_health_help(self) -> None:
         """chronoagent check-health --help exits 0."""
