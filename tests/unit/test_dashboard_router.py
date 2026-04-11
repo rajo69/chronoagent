@@ -14,8 +14,8 @@ from __future__ import annotations
 import datetime
 import uuid
 from collections.abc import Generator
-from typing import Any
 from types import SimpleNamespace
+from typing import Any
 
 import chromadb
 import pytest
@@ -206,6 +206,7 @@ class TestListAgents:
 
     def test_scorer_agent_appears(self, client_app: tuple[TestClient, FastAPI]) -> None:
         tc, app = client_app
+
         # Inject a stub scorer with one known agent.
         class StubScorer:
             def get_all_health(self) -> dict[str, HealthUpdate]:
@@ -276,8 +277,12 @@ class TestListAgents:
         class StubScorer:
             def get_all_health(self) -> dict[str, HealthUpdate]:
                 return {
-                    "healthy": HealthUpdate(agent_id="healthy", health=0.95, bocpd_score=None, chronos_score=None),
-                    "sick": HealthUpdate(agent_id="sick", health=0.1, bocpd_score=None, chronos_score=None),
+                    "healthy": HealthUpdate(
+                        agent_id="healthy", health=0.95, bocpd_score=None, chronos_score=None
+                    ),
+                    "sick": HealthUpdate(
+                        agent_id="sick", health=0.1, bocpd_score=None, chronos_score=None
+                    ),
                 }
 
             def stop(self) -> None:
@@ -297,7 +302,9 @@ class TestListAgents:
         class StubScorer:
             def get_all_health(self) -> dict[str, HealthUpdate]:
                 return {
-                    "scored": HealthUpdate(agent_id="scored", health=0.5, bocpd_score=None, chronos_score=None)
+                    "scored": HealthUpdate(
+                        agent_id="scored", health=0.5, bocpd_score=None, chronos_score=None
+                    )
                 }
 
             def stop(self) -> None:
@@ -332,7 +339,9 @@ class TestListAgents:
         class StubScorer:
             def get_all_health(self) -> dict[str, HealthUpdate]:
                 return {
-                    "both": HealthUpdate(agent_id="both", health=0.7, bocpd_score=0.3, chronos_score=0.2)
+                    "both": HealthUpdate(
+                        agent_id="both", health=0.7, bocpd_score=0.3, chronos_score=0.2
+                    )
                 }
 
             def stop(self) -> None:
@@ -561,7 +570,9 @@ class TestMemoryStatus:
         assert body["quarantine_count"] == 0
         assert body["quarantined_ids"] == []
 
-    def test_503_when_integrity_module_missing(self, client_app: tuple[TestClient, FastAPI]) -> None:
+    def test_503_when_integrity_module_missing(
+        self, client_app: tuple[TestClient, FastAPI]
+    ) -> None:
         tc, app = client_app
         original = app.state.integrity_module
         app.state.integrity_module = None
@@ -571,7 +582,9 @@ class TestMemoryStatus:
         finally:
             app.state.integrity_module = original
 
-    def test_503_when_quarantine_store_missing(self, client_app: tuple[TestClient, FastAPI]) -> None:
+    def test_503_when_quarantine_store_missing(
+        self, client_app: tuple[TestClient, FastAPI]
+    ) -> None:
         tc, app = client_app
         original = app.state.quarantine_store
         app.state.quarantine_store = None
@@ -639,7 +652,9 @@ class TestEscalationQueue:
 
     def test_response_shape(self, client_app: tuple[TestClient, FastAPI]) -> None:
         tc, app = client_app
-        eid = _seed_escalation(app, agent_id="agent_x", trigger="quarantine_event", status="pending")
+        eid = _seed_escalation(
+            app, agent_id="agent_x", trigger="quarantine_event", status="pending"
+        )
         resp = tc.get("/dashboard/api/escalations")
         entry = resp.json()["pending"][0]
         assert entry["id"] == eid
@@ -711,7 +726,9 @@ class TestLiveFeed:
         assert frame["agent_count"] == 1
         assert frame["agents"][0]["agent_id"] == "live_agent"
 
-    def test_not_ready_frame_when_scorer_missing(self, client_app: tuple[TestClient, FastAPI]) -> None:
+    def test_not_ready_frame_when_scorer_missing(
+        self, client_app: tuple[TestClient, FastAPI]
+    ) -> None:
         tc, app = client_app
         original = app.state.health_scorer
         app.state.health_scorer = None
