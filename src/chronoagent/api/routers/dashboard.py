@@ -55,10 +55,12 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from chronoagent.dashboard import INDEX_HTML
 from chronoagent.db.models import AgentSignalRecord, AllocationAuditRecord, EscalationRecord
 from chronoagent.memory.integrity import MemoryIntegrityModule
 from chronoagent.memory.quarantine import QuarantineStore
@@ -367,6 +369,33 @@ def _get_quarantine_store(request: Request) -> QuarantineStore:
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/",
+    response_class=HTMLResponse,
+    summary="Serve the dashboard single-page HTML",
+    description=(
+        "Returns the self-contained dashboard HTML (Chart.js via CDN, no build step). "
+        "All data is fetched client-side from the ``/dashboard/api/*`` endpoints and "
+        "the ``/dashboard/ws/live`` WebSocket."
+    ),
+    include_in_schema=False,
+)
+def dashboard_index() -> FileResponse:
+    """Return the dashboard single-page HTML asset.
+
+    Returns:
+        :class:`~fastapi.responses.FileResponse` pointing at the bundled
+        ``src/chronoagent/dashboard/static/index.html`` file.
+
+    Raises:
+        :class:`~fastapi.HTTPException` 500 if the bundled asset is missing
+        (indicates a packaging error).
+    """
+    if not INDEX_HTML.is_file():
+        raise HTTPException(status_code=500, detail="Dashboard index.html missing from package")
+    return FileResponse(INDEX_HTML, media_type="text/html")
 
 
 @router.get(
