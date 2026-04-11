@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import contextlib
 import json
-import logging
 import threading
 from collections import defaultdict
 from typing import Any
@@ -23,9 +22,10 @@ from typing import Any
 import redis
 
 from chronoagent.messaging.bus import MessageBus, MessageHandler
+from chronoagent.observability.logging import get_logger
 from chronoagent.retry import redis_retry
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class RedisBus(MessageBus):
@@ -118,7 +118,7 @@ class RedisBus(MessageBus):
                 data_bytes.decode() if isinstance(data_bytes, bytes) else data_bytes
             )
         except (json.JSONDecodeError, AttributeError):
-            logger.warning("redis_bus: could not decode message on %s", channel)
+            logger.warning("redis_bus_decode_failed", channel=channel)
             return
 
         with self._lock:
@@ -127,7 +127,7 @@ class RedisBus(MessageBus):
             try:
                 h(channel, data)
             except Exception:  # noqa: BLE001
-                logger.exception("redis_bus: handler error on channel %s", channel)
+                logger.exception("redis_bus_handler_error", channel=channel)
 
     def _ensure_listener(self) -> None:
         """Start the background listener thread if it is not running."""

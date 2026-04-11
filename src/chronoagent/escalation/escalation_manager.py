@@ -31,7 +31,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal
 
-import structlog
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -40,10 +39,11 @@ from chronoagent.db.models import EscalationRecord as EscalationRecordORM
 from chronoagent.escalation.audit import AuditTrailLogger
 from chronoagent.memory.quarantine import QuarantineStore
 from chronoagent.messaging.bus import MessageBus
+from chronoagent.observability.logging import get_logger
 from chronoagent.retry import db_retry
 from chronoagent.scorer.health_scorer import HealthUpdate, TemporalHealthScorer
 
-logger: structlog.BoundLogger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ESCALATION_CHANNEL = "escalations"
 RESOLVED_CHANNEL = "escalation.resolved"

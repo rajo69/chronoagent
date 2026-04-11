@@ -12,17 +12,17 @@ Channel conventions
 
 from __future__ import annotations
 
-import logging
 import threading
 from dataclasses import dataclass, field
 from typing import Any
 
 from chronoagent.messaging.bus import MessageBus
+from chronoagent.observability.logging import get_logger
 from chronoagent.scorer.bocpd import BOCPD
 from chronoagent.scorer.chronos_forecaster import ChronosForecaster
 from chronoagent.scorer.ensemble import EnsembleResult, EnsembleScorer
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 SIGNAL_CHANNEL = "signal_updates"
 HEALTH_CHANNEL = "health_updates"
@@ -141,10 +141,16 @@ class TemporalHealthScorer:
             elif isinstance(message, SignalPayload):
                 payload = message
             else:
-                logger.warning("health_scorer: unexpected message type %s", type(message))
+                logger.warning(
+                    "health_scorer_unexpected_message_type",
+                    payload_type=type(message).__name__,
+                )
                 return
         except (TypeError, KeyError):
-            logger.warning("health_scorer: malformed signal payload: %s", message)
+            logger.warning(
+                "health_scorer_malformed_signal_payload",
+                payload=repr(message),
+            )
             return
 
         with self._lock:
@@ -169,8 +175,8 @@ class TemporalHealthScorer:
         self._health_cache[payload.agent_id] = update
         self._bus.publish(HEALTH_CHANNEL, vars(update))
         logger.debug(
-            "health_scorer: agent=%s health=%.3f bocpd=%.3f",
-            payload.agent_id,
-            update.health,
-            bocpd_score,
+            "health_scorer_update",
+            agent_id=payload.agent_id,
+            health=update.health,
+            bocpd_score=bocpd_score,
         )

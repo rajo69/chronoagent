@@ -52,6 +52,14 @@ _MAX_ATTEMPTS = 3
 _WAIT = wait_exponential(multiplier=0.25, min=0.25, max=2.0)
 
 # Single logger for every retry warning so log filters can target one name.
+# This module deliberately uses stdlib ``logging.getLogger`` (not
+# ``chronoagent.observability.logging.get_logger``) because tenacity's
+# :func:`before_sleep_log` hook requires a stdlib :class:`logging.Logger`
+# instance.  ``configure_logging`` wires the stdlib root handler through the
+# same ``structlog.stdlib.ProcessorFormatter`` that native structlog calls use,
+# so the warning still renders with the project's JSON/console output.
+# Audit note (Phase 9 task 9.5): this is the only remaining
+# ``logging.getLogger`` call in ``src/`` outside ``observability/logging.py``.
 _logger = logging.getLogger("chronoagent.retry")
 _before_sleep = before_sleep_log(_logger, logging.WARNING)
 

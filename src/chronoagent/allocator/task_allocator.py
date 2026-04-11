@@ -58,7 +58,6 @@ Design notes
 
 from __future__ import annotations
 
-import logging
 import threading
 from typing import Any
 
@@ -74,9 +73,10 @@ from chronoagent.allocator.negotiation import (
     run_contract_net,
 )
 from chronoagent.messaging.bus import MessageBus
+from chronoagent.observability.logging import get_logger
 from chronoagent.scorer.health_scorer import HEALTH_CHANNEL, HealthUpdate
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class DecentralizedTaskAllocator:
@@ -202,12 +202,11 @@ class DecentralizedTaskAllocator:
             )
         except Exception as exc:
             logger.warning(
-                "task_allocator: negotiation failed for task_id=%r task_type=%r "
-                "(%s: %s); falling back to round-robin",
-                task_id,
-                task_type,
-                type(exc).__name__,
-                exc,
+                "task_allocator_round_robin_fallback",
+                task_id=task_id,
+                task_type=task_type,
+                error_type=type(exc).__name__,
+                error=str(exc),
             )
             return self._round_robin_fallback(task_id, task_type, exc)
 
@@ -298,9 +297,9 @@ class DecentralizedTaskAllocator:
         with self._lock:
             self._health_cache[update.agent_id] = update
         logger.debug(
-            "task_allocator: cached health agent=%s health=%.3f",
-            update.agent_id,
-            update.health,
+            "task_allocator_cached_health",
+            agent_id=update.agent_id,
+            health=update.health,
         )
 
     @staticmethod
@@ -317,9 +316,15 @@ class DecentralizedTaskAllocator:
             try:
                 return HealthUpdate(**message)
             except TypeError:
-                logger.warning("task_allocator: dict fields do not match HealthUpdate: %r", message)
+                logger.warning(
+                    "task_allocator_malformed_health_dict",
+                    payload=repr(message),
+                )
                 return None
-        logger.warning("task_allocator: unexpected health payload type %s", type(message).__name__)
+        logger.warning(
+            "task_allocator_unexpected_health_type",
+            payload_type=type(message).__name__,
+        )
         return None
 
 

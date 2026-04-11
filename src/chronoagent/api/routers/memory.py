@@ -32,7 +32,6 @@ from __future__ import annotations
 
 from typing import Annotated
 
-import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
@@ -40,8 +39,9 @@ from chronoagent.memory.integrity import MemoryIntegrityModule
 from chronoagent.memory.quarantine import QuarantineStore
 from chronoagent.memory.store import MemoryStore
 from chronoagent.messaging.bus import MessageBus
+from chronoagent.observability.logging import get_logger
 
-logger: structlog.BoundLogger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["memory"])
 

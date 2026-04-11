@@ -31,13 +31,13 @@ Response shape (all agents)::
 
 from __future__ import annotations
 
-import structlog
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from chronoagent.observability.logging import get_logger
 from chronoagent.scorer.health_scorer import HealthUpdate, TemporalHealthScorer
 
-logger: structlog.BoundLogger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["health-scores"])
 

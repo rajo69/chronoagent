@@ -136,7 +136,7 @@ class TestPayloadHandling:
         with caplog.at_level(logging.WARNING, logger="chronoagent.allocator.task_allocator"):
             bus.publish(HEALTH_CHANNEL, {"oops": "no agent_id"})
         assert allocator.get_snapshot() == {}
-        assert any("do not match HealthUpdate" in rec.message for rec in caplog.records)
+        assert any("task_allocator_malformed_health_dict" in rec.message for rec in caplog.records)
 
     def test_unknown_payload_type_is_logged_and_dropped(
         self, caplog: pytest.LogCaptureFixture
@@ -146,7 +146,7 @@ class TestPayloadHandling:
         with caplog.at_level(logging.WARNING, logger="chronoagent.allocator.task_allocator"):
             bus.publish(HEALTH_CHANNEL, 12345)
         assert allocator.get_snapshot() == {}
-        assert any("unexpected health payload type" in rec.message for rec in caplog.records)
+        assert any("task_allocator_unexpected_health_type" in rec.message for rec in caplog.records)
 
     def test_unknown_agent_ids_still_cached(self) -> None:
         """Extras are tolerated: negotiation ignores them so they cost nothing."""
@@ -505,7 +505,7 @@ class TestRoundRobinFallback:
         assert "boom" in result.rationale
         # Warning log captured.
         assert any(
-            "falling back to round-robin" in rec.message and rec.levelname == "WARNING"
+            "task_allocator_round_robin_fallback" in rec.message and rec.levelname == "WARNING"
             for rec in caplog.records
         )
 
@@ -525,7 +525,7 @@ class TestRoundRobinFallback:
         assert result.escalated is False
         assert "TimeoutError" in result.rationale
         assert "negotiation deadline exceeded" in result.rationale
-        assert any("falling back to round-robin" in rec.message for rec in caplog.records)
+        assert any("task_allocator_round_robin_fallback" in rec.message for rec in caplog.records)
 
     def test_round_robin_cursor_advances_across_calls(
         self,
