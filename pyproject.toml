@@ -123,6 +123,7 @@ module = [
     "torch.*",
     "chronos",
     "chronos.*",
+    "sklearn.*",
 ]
 ignore_missing_imports = true
 disable_error_code = ["import-untyped"]
