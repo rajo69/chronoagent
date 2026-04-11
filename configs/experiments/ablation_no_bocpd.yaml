@@ -1,0 +1,37 @@
+# Ablation: BOCPD off (Phase 10 task 10.5)
+#
+# Purpose: measure the contribution of the Bayesian Online Changepoint
+# Detector inside the temporal health scorer ensemble. Same MINJA attack
+# + same seed/num_runs as main_experiment; ONLY ablation.bocpd flips to
+# false. When this flag is off, the scorer ensemble runs Chronos-only.
+#
+# One-knob delta vs main_experiment: every other ablation flag stays true.
+# Locked in by tests/unit/test_experiment_configs.py so the paper's
+# ablation table has a clean row-per-knob structure.
+#
+# Validated by ExperimentConfig.from_yaml (see src/chronoagent/experiments/
+# config_schema.py).
+
+name: ablation_no_bocpd
+seed: 42
+num_runs: 5
+num_prs: 25
+
+attack:
+  type: minja
+  target: both
+  injection_step: 10
+  n_poison_docs: 10
+  strategy: default
+
+ablation:
+  forecaster: true
+  bocpd: false
+  health: true
+  integrity: true
+
+system:
+  llm_backend: mock
+  bocpd_hazard_lambda: 50.0
+  health_threshold: 0.3
+  integrity_threshold: 0.6

@@ -1,0 +1,39 @@
+# Ablation: forecaster off (Phase 10 task 10.5)
+#
+# Purpose: measure the contribution of the Chronos-2 forecaster component
+# inside the temporal health scorer ensemble. Same MINJA attack + same
+# seed/num_runs as main_experiment; ONLY ablation.forecaster flips to
+# false. When this flag is off, the temporal health scorer falls back to
+# BOCPD-only mode (same path Phase 9 task 9.3 surfaces as
+# "forecaster: fallback" in the comprehensive health endpoint).
+#
+# One-knob delta vs main_experiment: every other ablation flag stays true.
+# Locked in by tests/unit/test_experiment_configs.py so the paper's
+# ablation table has a clean row-per-knob structure.
+#
+# Validated by ExperimentConfig.from_yaml (see src/chronoagent/experiments/
+# config_schema.py).
+
+name: ablation_no_forecaster
+seed: 42
+num_runs: 5
+num_prs: 25
+
+attack:
+  type: minja
+  target: both
+  injection_step: 10
+  n_poison_docs: 10
+  strategy: default
+
+ablation:
+  forecaster: false
+  bocpd: true
+  health: true
+  integrity: true
+
+system:
+  llm_backend: mock
+  bocpd_hazard_lambda: 50.0
+  health_threshold: 0.3
+  integrity_threshold: 0.6
