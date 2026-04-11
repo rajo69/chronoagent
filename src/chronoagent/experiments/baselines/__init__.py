@@ -8,5 +8,5 @@ full-system runs with the same code path.
 * :mod:`chronoagent.experiments.baselines.sentinel` -- reactive
   threshold baseline (task 10.3).
 * :mod:`chronoagent.experiments.baselines.no_monitoring` -- round-robin
-  baseline with no monitoring at all (task 10.4, to be added).
+  baseline with no monitoring at all (task 10.4).
 """
