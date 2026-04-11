@@ -69,7 +69,7 @@ The project is built in numbered phases. Each phase has an exit criterion and a 
 | 11 | Paper Scaffold and Reproducibility | ⬜ Planned |
 | 12 | CI/CD and Release | ⬜ Planned |
 
-**Currently:** Phase 7 (Human Escalation Layer) is complete. Auto-escalation fires on health below threshold or quarantine events, with per-agent cooldown, full context snapshots (health components, flagged doc IDs, recent allocation history), an append-only audit trail, and a REST API for human resolution (approve/reject/modify). 845 tests pass with 94% line coverage.
+**Currently:** Phase 8 is in progress. Tasks 8.1 (backend: 5 REST endpoints plus a live WebSocket feed) and 8.2 (frontend: single self-contained HTML + Chart.js, no build step) are in; task 8.3 (Prometheus metrics and Grafana dashboard JSON) is the last item before closing the phase. The dashboard is reachable at `http://localhost:8000/dashboard/` once the server is running, and shows per-agent health bars, a signal explorer chart, the allocation log, memory integrity state, and the escalation queue in one view. 889 tests pass with 94.58% line coverage.
 
 **An honest pivot worth recording:** Phase 1 was a hard signal-validation gate. Before building anything else, we measured whether the behavioral signals we wanted to forecast were actually distinguishable from noise. KL divergence from a clean baseline turned out to be a strong primary signal (Cohen's d ≈ 1.6 on the MINJA attack benchmark), while three of the six secondary signals were effectively constant under our test conditions. The original framing around "advance warning time" did not survive the data. The project was reframed around concurrent detection plus reliability-weighted allocation, which the data does support. The full ruling is in [`docs/phase1_decision.md`](./docs/phase1_decision.md).
 
@@ -146,6 +146,25 @@ curl http://localhost:8000/api/v1/agents/health
 ```
 
 This returns the current health score for every registered agent, the breakdown into BOCPD and Chronos contributions, and a system-level aggregate.
+
+### Open the dashboard
+
+With the server running, visit:
+
+```
+http://localhost:8000/dashboard/
+```
+
+The dashboard is a single self-contained HTML page (no build step, Chart.js from a CDN) that shows:
+
+- **Header strip:** system health, agent count, pending escalations, quarantined doc count, live via a WebSocket at `/dashboard/ws/live` (refreshes every 2 seconds).
+- **Agents panel (left):** per-agent health bars ordered most-at-risk first. Click an agent to drive the signal explorer.
+- **Signal Explorer (center):** line chart of the selected agent's behavioral signals. A dropdown switches between KL divergence (default), latency, token count, retrieval count, tool calls, and memory query entropy.
+- **Allocation Log (right):** most recent task-allocation decisions, task type, winning agent or `ESCALATED`, and the human-readable rationale.
+- **Memory Inspector (bottom left):** baseline fit state, signal weights, total retrievals, and the current quarantine list.
+- **Escalation Queue (bottom right):** pending escalations plus the most recently resolved ones.
+
+All panels degrade gracefully: if the WebSocket drops it reconnects every 3 seconds, and the REST panels continue polling on their own interval.
 
 ---
 

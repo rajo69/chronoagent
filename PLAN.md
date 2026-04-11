@@ -410,8 +410,8 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 - Loads <3s, near-real-time updates
 
 **Tasks:**
-- [ ] 8.1 Dashboard backend -- FastAPI endpoints: `/dashboard/api/agents`, `/dashboard/api/agents/{id}/timeline`, `/dashboard/api/allocations`, `/dashboard/api/memory`, `/dashboard/api/escalations`, WebSocket `/dashboard/ws/live`
-- [ ] 8.2 Dashboard frontend (MVP: single HTML + Chart.js, no build step, ~500 LOC). Views: Agent Health Panel (gauges + sparklines), Signal Explorer, Allocation Log, Memory Inspector, Escalation Queue
+- [x] 8.1 Dashboard backend -- FastAPI endpoints: `/dashboard/api/agents`, `/dashboard/api/agents/{id}/timeline`, `/dashboard/api/allocations`, `/dashboard/api/memory`, `/dashboard/api/escalations`, WebSocket `/dashboard/ws/live`
+- [x] 8.2 Dashboard frontend (MVP: single HTML + Chart.js, no build step, ~500 LOC). Views: Agent Health Panel (gauges + sparklines), Signal Explorer, Allocation Log, Memory Inspector, Escalation Queue
 - [ ] 8.3 Prometheus metrics (optional prod path): `src/chronoagent/observability/metrics.py` -- gauges/counters/histograms + Grafana dashboard JSON
 
 **Key Files:** `dashboard/`, `observability/metrics.py`

@@ -1,0 +1,818 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ChronoAgent Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+      :root {
+        --bg: #0b1020;
+        --panel: #141a30;
+        --panel-2: #1b2140;
+        --border: #2a3358;
+        --text: #e5e9f5;
+        --muted: #8a92b2;
+        --accent: #5aa9ff;
+        --good: #3ecf8e;
+        --warn: #f5b971;
+        --bad: #ef6e6e;
+        --chart-grid: #22294a;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        font-size: 14px;
+      }
+      header {
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        background: var(--panel);
+      }
+      header h1 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+      }
+      header h1 span { color: var(--accent); }
+      .stat {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 110px;
+      }
+      .stat .label {
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--muted);
+      }
+      .stat .value {
+        font-size: 18px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+      .stat.system-health .value.good { color: var(--good); }
+      .stat.system-health .value.warn { color: var(--warn); }
+      .stat.system-health .value.bad { color: var(--bad); }
+      .ws-indicator {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .ws-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--muted);
+        transition: background 0.25s;
+      }
+      .ws-dot.live { background: var(--good); box-shadow: 0 0 8px var(--good); }
+      .ws-dot.dead { background: var(--bad); }
+
+      main {
+        display: grid;
+        grid-template-columns: 280px 1fr 360px;
+        grid-template-rows: 1fr 320px;
+        gap: 14px;
+        padding: 14px;
+        height: calc(100vh - 60px);
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .panel header {
+        padding: 10px 14px;
+        background: var(--panel-2);
+        border-bottom: 1px solid var(--border);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: none;
+      }
+      .panel header .count {
+        margin-left: auto;
+        color: var(--text);
+        font-size: 11px;
+        background: var(--bg);
+        padding: 2px 8px;
+        border-radius: 10px;
+      }
+      .panel .body {
+        padding: 12px 14px;
+        overflow: auto;
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+      .panel.agents { grid-column: 1; grid-row: 1; }
+      .panel.explorer { grid-column: 2; grid-row: 1; }
+      .panel.allocations { grid-column: 3; grid-row: 1; }
+      .panel.memory { grid-column: 1 / span 2; grid-row: 2; }
+      .panel.escalations { grid-column: 3; grid-row: 2; }
+
+      /* Agents list */
+      .agent-row {
+        padding: 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        border: 1px solid transparent;
+        margin-bottom: 6px;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      .agent-row:hover { background: var(--panel-2); }
+      .agent-row.selected {
+        background: var(--panel-2);
+        border-color: var(--accent);
+      }
+      .agent-row .head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+      }
+      .agent-row .name {
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .agent-row .health-val {
+        font-variant-numeric: tabular-nums;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .bar {
+        margin-top: 6px;
+        height: 6px;
+        background: var(--panel-2);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .bar-fill {
+        height: 100%;
+        background: var(--good);
+        transition: width 0.4s, background 0.4s;
+      }
+      .bar-fill.warn { background: var(--warn); }
+      .bar-fill.bad { background: var(--bad); }
+      .agent-row .meta {
+        margin-top: 4px;
+        font-size: 11px;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+      }
+
+      /* Explorer */
+      .explorer .body { display: flex; flex-direction: column; }
+      .explorer-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+        font-size: 12px;
+      }
+      .explorer-head .selected-agent { color: var(--accent); font-weight: 600; }
+      .explorer-head select {
+        background: var(--panel-2);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+      .chart-wrap {
+        position: relative;
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+
+      /* Allocations */
+      .alloc-row {
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 12px;
+      }
+      .alloc-row:last-child { border-bottom: none; }
+      .alloc-row .row-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      .alloc-row .task-type {
+        font-weight: 600;
+        color: var(--text);
+      }
+      .alloc-row .assigned {
+        color: var(--good);
+        font-family: "SFMono-Regular", Consolas, monospace;
+        font-size: 11px;
+      }
+      .alloc-row.escalated .assigned { color: var(--bad); }
+      .alloc-row .rationale {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .alloc-row .ts {
+        color: var(--muted);
+        font-size: 10px;
+      }
+
+      /* Memory */
+      .memory .body { display: flex; gap: 20px; flex-wrap: wrap; }
+      .memory .col {
+        flex: 1 1 200px;
+        min-width: 180px;
+      }
+      .memory h4 {
+        margin: 0 0 8px 0;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--muted);
+      }
+      .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 12px; }
+      .kv .k { color: var(--muted); }
+      .kv .v {
+        font-variant-numeric: tabular-nums;
+        font-family: "SFMono-Regular", Consolas, monospace;
+      }
+      .kv .v.good { color: var(--good); }
+      .kv .v.bad { color: var(--bad); }
+      .q-list {
+        margin-top: 6px;
+        padding: 8px;
+        background: var(--panel-2);
+        border-radius: 4px;
+        max-height: 150px;
+        overflow: auto;
+        font-family: "SFMono-Regular", Consolas, monospace;
+        font-size: 11px;
+      }
+      .q-list .q-id {
+        padding: 2px 0;
+        color: var(--muted);
+      }
+      .q-list .q-empty { color: var(--good); font-style: italic; }
+
+      /* Escalations */
+      .esc-row {
+        padding: 8px 10px;
+        border-radius: 4px;
+        background: var(--panel-2);
+        margin-bottom: 6px;
+        font-size: 12px;
+      }
+      .esc-row.pending { border-left: 3px solid var(--warn); }
+      .esc-row.resolved { border-left: 3px solid var(--good); opacity: 0.7; }
+      .esc-row .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      .esc-row .agent {
+        font-weight: 600;
+      }
+      .esc-row .trigger {
+        font-size: 10px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .esc-row .status {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--muted);
+      }
+      .esc-row.pending .status { color: var(--warn); }
+      .esc-row.resolved .status { color: var(--good); }
+      .esc-section-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--muted);
+        margin: 8px 0 4px 0;
+      }
+      .esc-section-label:first-child { margin-top: 0; }
+
+      .empty {
+        padding: 20px;
+        text-align: center;
+        color: var(--muted);
+        font-style: italic;
+        font-size: 12px;
+      }
+      .error {
+        padding: 12px;
+        color: var(--bad);
+        font-size: 12px;
+        background: rgba(239, 110, 110, 0.08);
+        border-radius: 4px;
+        margin: 8px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Chrono<span>Agent</span></h1>
+      <div class="stat system-health">
+        <span class="label">System health</span>
+        <span class="value" id="stat-system-health">--</span>
+      </div>
+      <div class="stat">
+        <span class="label">Agents</span>
+        <span class="value" id="stat-agent-count">--</span>
+      </div>
+      <div class="stat">
+        <span class="label">Pending escalations</span>
+        <span class="value" id="stat-pending">--</span>
+      </div>
+      <div class="stat">
+        <span class="label">Quarantined docs</span>
+        <span class="value" id="stat-quarantine">--</span>
+      </div>
+      <div class="ws-indicator">
+        <span class="ws-dot" id="ws-dot"></span>
+        <span id="ws-status">connecting</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel agents">
+        <header>Agents <span class="count" id="agents-count">0</span></header>
+        <div class="body" id="agents-body">
+          <div class="empty">No agents yet</div>
+        </div>
+      </section>
+
+      <section class="panel explorer">
+        <header>Signal Explorer</header>
+        <div class="body">
+          <div class="explorer-head">
+            <span>Agent:</span>
+            <span class="selected-agent" id="explorer-agent">(select one)</span>
+            <span style="margin-left: auto"></span>
+            <label>Signal:</label>
+            <select id="signal-select">
+              <option value="total_latency_ms">total_latency_ms</option>
+              <option value="retrieval_count">retrieval_count</option>
+              <option value="token_count">token_count</option>
+              <option value="kl_divergence" selected>kl_divergence</option>
+              <option value="tool_calls">tool_calls</option>
+              <option value="memory_query_entropy">memory_query_entropy</option>
+            </select>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-timeline"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel allocations">
+        <header>Allocation Log <span class="count" id="alloc-count">0</span></header>
+        <div class="body" id="alloc-body">
+          <div class="empty">No allocations yet</div>
+        </div>
+      </section>
+
+      <section class="panel memory">
+        <header>Memory Inspector</header>
+        <div class="body" id="memory-body">
+          <div class="empty">Loading...</div>
+        </div>
+      </section>
+
+      <section class="panel escalations">
+        <header>Escalation Queue</header>
+        <div class="body" id="esc-body">
+          <div class="empty">No escalations</div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      // ------------------------------------------------------------------
+      // State
+      // ------------------------------------------------------------------
+      const state = {
+        selectedAgent: null,
+        selectedSignal: "kl_divergence",
+        timelineChart: null,
+        lastAgents: [],
+      };
+
+      // ------------------------------------------------------------------
+      // Formatters
+      // ------------------------------------------------------------------
+      const fmt = {
+        health: (h) => (h == null ? "--" : h.toFixed(3)),
+        pct: (h) => (h == null ? "--" : (h * 100).toFixed(0) + "%"),
+        num: (n) => (n == null ? "--" : Number(n).toLocaleString()),
+        time: (iso) => {
+          if (!iso) return "--";
+          const d = new Date(iso);
+          return d.toLocaleTimeString();
+        },
+        relTime: (iso) => {
+          if (!iso) return "never";
+          const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+          if (diff < 60) return Math.round(diff) + "s ago";
+          if (diff < 3600) return Math.round(diff / 60) + "m ago";
+          return Math.round(diff / 3600) + "h ago";
+        },
+      };
+
+      function healthClass(h) {
+        if (h == null) return "";
+        if (h >= 0.75) return "good";
+        if (h >= 0.5) return "warn";
+        return "bad";
+      }
+
+      // ------------------------------------------------------------------
+      // Header stats + agents list (from WS or poll fallback)
+      // ------------------------------------------------------------------
+      function renderHeader(data) {
+        const sh = data.system_health;
+        const el = document.getElementById("stat-system-health");
+        el.textContent = fmt.pct(sh);
+        el.className = "value " + healthClass(sh);
+        document.getElementById("stat-agent-count").textContent = data.agent_count ?? "--";
+        document.getElementById("stat-pending").textContent = data.pending_escalations ?? "--";
+        document.getElementById("stat-quarantine").textContent = data.quarantine_count ?? "--";
+      }
+
+      function renderAgents(agents) {
+        state.lastAgents = agents || [];
+        const body = document.getElementById("agents-body");
+        document.getElementById("agents-count").textContent = state.lastAgents.length;
+        if (!state.lastAgents.length) {
+          body.innerHTML = '<div class="empty">No agents yet</div>';
+          return;
+        }
+        // Auto-select first if nothing chosen yet
+        if (!state.selectedAgent && state.lastAgents.length > 0) {
+          state.selectedAgent = state.lastAgents[0].agent_id;
+          document.getElementById("explorer-agent").textContent = state.selectedAgent;
+          loadTimeline();
+        }
+        body.innerHTML = state.lastAgents
+          .map((a) => {
+            const h = a.health;
+            const pctWidth = h == null ? 0 : Math.max(2, h * 100);
+            const cls = healthClass(h);
+            const sel = a.agent_id === state.selectedAgent ? " selected" : "";
+            const last = a.last_signal_at ? fmt.relTime(a.last_signal_at) : "no signals";
+            return `
+              <div class="agent-row${sel}" data-agent="${escapeHtml(a.agent_id)}">
+                <div class="head">
+                  <span class="name">${escapeHtml(a.agent_id)}</span>
+                  <span class="health-val">${fmt.health(h)}</span>
+                </div>
+                <div class="bar"><div class="bar-fill ${cls}" style="width:${pctWidth}%"></div></div>
+                <div class="meta">
+                  <span>${escapeHtml(a.components)}</span>
+                  <span>${last}</span>
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+        body.querySelectorAll(".agent-row").forEach((row) => {
+          row.addEventListener("click", () => {
+            state.selectedAgent = row.dataset.agent;
+            document.getElementById("explorer-agent").textContent = state.selectedAgent;
+            renderAgents(state.lastAgents);
+            loadTimeline();
+          });
+        });
+      }
+
+      // ------------------------------------------------------------------
+      // Signal Explorer chart
+      // ------------------------------------------------------------------
+      function ensureChart() {
+        if (state.timelineChart) return state.timelineChart;
+        const ctx = document.getElementById("chart-timeline").getContext("2d");
+        state.timelineChart = new Chart(ctx, {
+          type: "line",
+          data: { labels: [], datasets: [] },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 300 },
+            plugins: {
+              legend: { labels: { color: "#e5e9f5" } },
+              tooltip: { mode: "index", intersect: false },
+            },
+            scales: {
+              x: {
+                ticks: { color: "#8a92b2", maxRotation: 0, autoSkipPadding: 20 },
+                grid: { color: "#22294a" },
+              },
+              y: {
+                ticks: { color: "#8a92b2" },
+                grid: { color: "#22294a" },
+              },
+            },
+          },
+        });
+        return state.timelineChart;
+      }
+
+      async function loadTimeline() {
+        if (!state.selectedAgent) return;
+        try {
+          const r = await fetch(
+            `/dashboard/api/agents/${encodeURIComponent(state.selectedAgent)}/timeline?limit=200`
+          );
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const data = await r.json();
+          const chart = ensureChart();
+          chart.data.labels = data.points.map((p) => fmt.time(p.timestamp));
+          chart.data.datasets = [
+            {
+              label: state.selectedSignal,
+              data: data.points.map((p) => p[state.selectedSignal]),
+              borderColor: "#5aa9ff",
+              backgroundColor: "rgba(90, 169, 255, 0.12)",
+              tension: 0.2,
+              pointRadius: 2,
+              fill: true,
+            },
+          ];
+          chart.update();
+        } catch (e) {
+          console.warn("timeline fetch failed", e);
+        }
+      }
+
+      document.getElementById("signal-select").addEventListener("change", (e) => {
+        state.selectedSignal = e.target.value;
+        loadTimeline();
+      });
+
+      // ------------------------------------------------------------------
+      // Allocation Log
+      // ------------------------------------------------------------------
+      async function loadAllocations() {
+        try {
+          const r = await fetch("/dashboard/api/allocations?limit=25");
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const data = await r.json();
+          const body = document.getElementById("alloc-body");
+          document.getElementById("alloc-count").textContent = data.count;
+          if (!data.allocations.length) {
+            body.innerHTML = '<div class="empty">No allocations yet</div>';
+            return;
+          }
+          body.innerHTML = data.allocations
+            .map((a) => {
+              const cls = a.escalated ? " escalated" : "";
+              const who = a.escalated ? "ESCALATED" : a.assigned_agent || "--";
+              return `
+                <div class="alloc-row${cls}">
+                  <div class="row-top">
+                    <span class="task-type">${escapeHtml(a.task_type)}</span>
+                    <span class="assigned">${escapeHtml(who)}</span>
+                  </div>
+                  <div class="rationale">${escapeHtml(a.rationale || "")}</div>
+                  <div class="ts">${fmt.time(a.timestamp)} &middot; threshold ${a.threshold}</div>
+                </div>
+              `;
+            })
+            .join("");
+        } catch (e) {
+          console.warn("allocations fetch failed", e);
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // Memory Inspector
+      // ------------------------------------------------------------------
+      async function loadMemory() {
+        try {
+          const r = await fetch("/dashboard/api/memory");
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const data = await r.json();
+          const body = document.getElementById("memory-body");
+          const weightRows = Object.entries(data.weights || {})
+            .map(
+              ([k, v]) =>
+                `<div class="k">${escapeHtml(k)}</div><div class="v">${Number(v).toFixed(3)}</div>`
+            )
+            .join("");
+          const qList = data.quarantined_ids.length
+            ? data.quarantined_ids
+                .map((id) => `<div class="q-id">${escapeHtml(id)}</div>`)
+                .join("")
+            : '<div class="q-empty">none</div>';
+          body.innerHTML = `
+            <div class="col">
+              <h4>Baseline</h4>
+              <div class="kv">
+                <div class="k">fitted</div>
+                <div class="v ${data.baseline_fitted ? "good" : "bad"}">
+                  ${data.baseline_fitted ? "yes" : "no"}
+                </div>
+                <div class="k">size</div>
+                <div class="v">${fmt.num(data.baseline_size)}</div>
+                <div class="k">pending refit</div>
+                <div class="v">${fmt.num(data.pending_refit_count)}</div>
+                <div class="k">total retrievals</div>
+                <div class="v">${fmt.num(data.total_retrievals)}</div>
+                <div class="k">flag threshold</div>
+                <div class="v">${Number(data.flag_threshold).toFixed(3)}</div>
+              </div>
+            </div>
+            <div class="col">
+              <h4>Signal weights</h4>
+              <div class="kv">${weightRows || '<div class="k">none</div><div class="v">--</div>'}</div>
+            </div>
+            <div class="col">
+              <h4>Quarantine (${data.quarantine_count})</h4>
+              <div class="q-list">${qList}</div>
+            </div>
+          `;
+        } catch (e) {
+          console.warn("memory fetch failed", e);
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // Escalation Queue
+      // ------------------------------------------------------------------
+      async function loadEscalations() {
+        try {
+          const r = await fetch("/dashboard/api/escalations?limit=10");
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const data = await r.json();
+          const body = document.getElementById("esc-body");
+          if (!data.pending.length && !data.recent_resolved.length) {
+            body.innerHTML = '<div class="empty">No escalations</div>';
+            return;
+          }
+          const render = (rec, klass) => `
+            <div class="esc-row ${klass}">
+              <div class="top">
+                <span class="agent">${escapeHtml(rec.agent_id)}</span>
+                <span class="status">${escapeHtml(rec.status)}</span>
+              </div>
+              <div class="trigger">${escapeHtml(rec.trigger)} &middot; ${fmt.relTime(rec.created_at)}</div>
+            </div>
+          `;
+          const sections = [];
+          if (data.pending.length) {
+            sections.push(
+              '<div class="esc-section-label">Pending (' + data.pending_count + ")</div>"
+            );
+            sections.push(data.pending.map((r) => render(r, "pending")).join(""));
+          }
+          if (data.recent_resolved.length) {
+            sections.push(
+              '<div class="esc-section-label">Recently resolved (' +
+                data.resolved_count +
+                ")</div>"
+            );
+            sections.push(data.recent_resolved.map((r) => render(r, "resolved")).join(""));
+          }
+          body.innerHTML = sections.join("");
+        } catch (e) {
+          console.warn("escalations fetch failed", e);
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // Utilities
+      // ------------------------------------------------------------------
+      function escapeHtml(s) {
+        if (s == null) return "";
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      // ------------------------------------------------------------------
+      // WebSocket (live header + agents)
+      // ------------------------------------------------------------------
+      let ws = null;
+      let wsReconnectTimer = null;
+
+      function setWsStatus(ok, label) {
+        const dot = document.getElementById("ws-dot");
+        const txt = document.getElementById("ws-status");
+        dot.className = "ws-dot " + (ok ? "live" : "dead");
+        txt.textContent = label;
+      }
+
+      function connectWs() {
+        const proto = location.protocol === "https:" ? "wss:" : "ws:";
+        const url = `${proto}//${location.host}/dashboard/ws/live`;
+        try {
+          ws = new WebSocket(url);
+        } catch (e) {
+          setWsStatus(false, "ws error");
+          scheduleReconnect();
+          return;
+        }
+        ws.onopen = () => setWsStatus(true, "live");
+        ws.onmessage = (ev) => {
+          try {
+            const frame = JSON.parse(ev.data);
+            if (frame.error) {
+              setWsStatus(false, "not ready");
+              return;
+            }
+            renderHeader(frame);
+            // merge live agent health with last known last_signal_at values
+            const lastSeenMap = {};
+            for (const a of state.lastAgents) lastSeenMap[a.agent_id] = a.last_signal_at;
+            const merged = (frame.agents || []).map((a) => ({
+              ...a,
+              last_signal_at: a.last_signal_at ?? lastSeenMap[a.agent_id] ?? null,
+            }));
+            renderAgents(merged);
+          } catch (e) {
+            console.warn("bad ws frame", e);
+          }
+        };
+        ws.onclose = () => {
+          setWsStatus(false, "disconnected");
+          scheduleReconnect();
+        };
+        ws.onerror = () => {
+          setWsStatus(false, "error");
+        };
+      }
+
+      function scheduleReconnect() {
+        if (wsReconnectTimer) return;
+        wsReconnectTimer = setTimeout(() => {
+          wsReconnectTimer = null;
+          connectWs();
+        }, 3000);
+      }
+
+      // ------------------------------------------------------------------
+      // Initial poll fallback (runs once immediately so the panel is never
+      // blank even if the WS is not yet sending)
+      // ------------------------------------------------------------------
+      async function initialAgentsPoll() {
+        try {
+          const r = await fetch("/dashboard/api/agents");
+          if (!r.ok) return;
+          const data = await r.json();
+          renderHeader({
+            system_health: data.system_health,
+            agent_count: data.count,
+            pending_escalations: null,
+            quarantine_count: null,
+          });
+          renderAgents(data.agents);
+        } catch (e) {
+          /* noop */
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // Boot
+      // ------------------------------------------------------------------
+      initialAgentsPoll();
+      loadAllocations();
+      loadMemory();
+      loadEscalations();
+      if (state.selectedAgent) loadTimeline();
+      connectWs();
+
+      setInterval(loadAllocations, 5000);
+      setInterval(loadMemory, 10000);
+      setInterval(loadEscalations, 5000);
+      setInterval(() => {
+        if (state.selectedAgent) loadTimeline();
+      }, 10000);
+    </script>
+  </body>
+</html>
