@@ -478,7 +478,7 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 - Paper figures auto-generated
 
 **Tasks:**
-- [ ] 10.1 `experiments/config_schema.py` -- `ExperimentConfig` Pydantic model: name, seed, num_runs, num_prs, AttackConfig (type, target, injection step, strategy), AblationConfig (forecaster/bocpd/health/integrity toggles), SystemConfig
+- [x] 10.1 `experiments/config_schema.py` -- `ExperimentConfig` Pydantic model: name, seed, num_runs, num_prs, AttackConfig (type, target, injection step, strategy), AblationConfig (forecaster/bocpd/health/integrity toggles), SystemConfig
 - [ ] 10.2 `experiments/metrics.py` -- `advance_warning_time(injection, detection)`, `allocation_efficiency(results)`, `detection_auroc(y_true, y_scores)`, `detection_f1(y_true, y_pred)`
 - [ ] 10.3 `experiments/baselines/sentinel.py` -- Reactive baseline: execution trace matching, no temporal forecasting, no health scores
 - [ ] 10.4 `experiments/baselines/no_monitoring.py` -- No monitoring, round-robin allocation, no integrity checks
@@ -523,9 +523,9 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 | **Allocation efficiency vs round-robin** | _fill in: % gain_ |
 | **Key finding** | _fill in: one-sentence summary of the most important result_ |
 | **Pivot triggered?** | _fill in: yes/no and which_ |
-| **Findings** | _fill in_ |
-| **Challenges** | _fill in_ |
-| **Completed** | _fill in: date_ |
+| **Findings** | **10.1:** New `src/chronoagent/experiments/config_schema.py` ships four pydantic models that every Phase 10 experiment YAML loads through: `ExperimentConfig` (top-level: `name`, `seed`, `num_runs`, `num_prs`, plus nested `attack` / `ablation` / `system`), `AttackConfig` (`type` Literal `"minja"|"agentpoison"|"none"`, `target` Literal `"security_reviewer"|"summarizer"|"both"`, `injection_step`, `n_poison_docs`, `strategy` free-form descriptor), `AblationConfig` (four bool toggles: `forecaster`, `bocpd`, `health`, `integrity`, all default `True`), `SystemConfig` (`llm_backend`, `bocpd_hazard_lambda`, `health_threshold`, `integrity_threshold` -- the runtime knobs the harness overrides per experiment). Every model uses `model_config = ConfigDict(extra="forbid")` so a YAML key typo hard-fails at load time instead of silently shadowing. `ExperimentConfig.from_yaml(path)` is the single loader entry point: it surfaces `FileNotFoundError`, `ValueError` for non-mapping roots, and `pydantic.ValidationError` for any field-level failure. `per_run_seed(run_index)` is a deterministic helper that returns `seed + run_index` so a single config drives `num_runs` reproducible runs without re-loading. The schema is intentionally narrow: it captures only the parameters PLAN.md task 10.1 enumerates plus the minimum needed to make YAML loading work (`from_yaml`, `per_run_seed`). |
+| **Challenges** | **10.1:** Two design calls locked in. (1) **Strategy validator only enforces non-emptiness, not whitespace stripping.** The first test attempt expected `cfg.strategy == "high_noise"` after passing `"  high_noise  "`, but the validator only rejects whitespace-only strings. Silent input mutation is a footgun (operators looking at result rows would be confused why their YAML value differs from the recorded one), so the validator stays as-is and the test was renamed to `test_strategy_with_surrounding_whitespace_accepted_verbatim` and asserts the string passes through unchanged. (2) **`name` field uses a strict ASCII-safe validator.** The validator allows `[A-Za-z0-9_-]` only, because `ExperimentConfig.name` is spliced into output filenames by the runner (10.6) and into log/event names. Allowing dots, slashes, or shell metacharacters would create a path-traversal risk and break filename hashing. The test parametrizes over both safe (`main`, `main_experiment`, `ablation-no-bocpd`, `v2_run`) and unsafe (`""`, `"   "`, `"with space"`, `"../escape"`, `"weird!"`) names. |
+| **Completed** | 10.1: 2026-04-11 |
 
 ---
 
