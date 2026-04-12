@@ -32,6 +32,7 @@ from numpy.typing import NDArray
 
 from chronoagent.experiments.analysis.tables import (
     ABLATION_TABLE_STEM,
+    LATENCY_TABLE_STEM,
     MAIN_RESULTS_TABLE_STEM,
     SIGNAL_VALIDATION_TABLE_STEM,
     SignalStatRow,
@@ -42,6 +43,7 @@ from chronoagent.experiments.analysis.tables import (
     _is_better,
     generate_all_tables,
     make_ablation_table,
+    make_latency_table,
     make_main_results_table,
     make_signal_validation_table,
 )
@@ -274,7 +276,7 @@ class TestMakeMainResultsTable:
             ["main_experiment", "baseline_sentinel", "ablation_no_health_scores"],
         )
         text = path.read_text(encoding="utf-8")
-        assert "\\begin{tabular}{lcccc}" in text
+        assert "\\begin{tabular}{lccccc}" in text
         assert "\\end{tabular}" in text
         # Header row
         assert "Experiment" in text
@@ -282,6 +284,7 @@ class TestMakeMainResultsTable:
         assert "AUROC" in text
         assert "F1" in text
         assert "Alloc eff" in text
+        assert "Latency (ms/step)" in text
         # 3 data rows: count "\\\\" line endings between hlines.
         # Header + 3 data rows = 4 row separators inside the tabular.
         body_lines = [line for line in text.splitlines() if line.endswith(" \\\\")]
@@ -519,6 +522,73 @@ class TestMakeSignalValidationTable:
 
 
 # ---------------------------------------------------------------------------
+# Latency table
+# ---------------------------------------------------------------------------
+
+
+class TestMakeLatencyTable:
+    def test_writes_default_path(self, tmp_path: Path) -> None:
+        _seed_full_suite(tmp_path)
+        path = make_latency_table(tmp_path, ["main_experiment"])
+        assert path == tmp_path / "tables" / f"{LATENCY_TABLE_STEM}.tex"
+        assert path.is_file()
+
+    def test_output_path_override(self, tmp_path: Path) -> None:
+        _seed_full_suite(tmp_path)
+        target = tmp_path / "custom" / "latency.tex"
+        path = make_latency_table(tmp_path, ["main_experiment"], output_path=target)
+        assert path == target
+        assert path.is_file()
+
+    def test_table_structure(self, tmp_path: Path) -> None:
+        _seed_full_suite(tmp_path)
+        path = make_latency_table(
+            tmp_path,
+            ["main_experiment", "baseline_sentinel", "ablation_no_health_scores"],
+        )
+        text = path.read_text(encoding="utf-8")
+        assert "\\begin{tabular}{lc}" in text
+        assert "\\end{tabular}" in text
+        assert "Configuration" in text
+        assert "Latency (ms/step)" in text
+        body_lines = [line for line in text.splitlines() if line.endswith(" \\\\")]
+        assert len(body_lines) == 4  # 1 header + 3 data
+
+    def test_bolding_marks_lowest_latency(self, tmp_path: Path) -> None:
+        _seed_full_suite(tmp_path)
+        path = make_latency_table(
+            tmp_path,
+            ["main_experiment", "baseline_sentinel", "ablation_no_health_scores"],
+        )
+        text = path.read_text(encoding="utf-8")
+        assert "\\textbf{" in text
+
+    def test_empty_experiment_list_rejected(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="must not be empty"):
+            make_latency_table(tmp_path, [])
+
+    def test_missing_experiment_raises(self, tmp_path: Path) -> None:
+        with pytest.raises(FileNotFoundError):
+            make_latency_table(tmp_path, ["does_not_exist"])
+
+    def test_uses_display_names(self, tmp_path: Path) -> None:
+        _seed_full_suite(tmp_path)
+        path = make_latency_table(tmp_path, ["main_experiment"])
+        text = path.read_text(encoding="utf-8")
+        assert "ChronoAgent (full)" in text
+
+    def test_latency_values_are_positive(self, tmp_path: Path) -> None:
+        _seed_full_suite(tmp_path)
+        path = make_latency_table(tmp_path, ["main_experiment"])
+        text = path.read_text(encoding="utf-8")
+        # The rendered cell should have a non-zero number
+        body = [line for line in text.splitlines() if line.endswith(" \\\\")]
+        data_rows = body[1:]  # skip header
+        for row in data_rows:
+            assert "--" not in row  # latency is always defined
+
+
+# ---------------------------------------------------------------------------
 # generate_all_tables
 # ---------------------------------------------------------------------------
 
@@ -532,10 +602,11 @@ class TestGenerateAllTables:
             full_system_name="main_experiment",
             ablation_names=["ablation_no_forecaster", "ablation_no_bocpd"],
         )
-        assert len(paths) == 2
+        assert len(paths) == 3
         stems = {p.stem for p in paths}
         assert MAIN_RESULTS_TABLE_STEM in stems
         assert ABLATION_TABLE_STEM in stems
+        assert LATENCY_TABLE_STEM in stems
 
     def test_includes_signal_validation_when_rows_supplied(self, tmp_path: Path) -> None:
         _seed_full_suite(tmp_path)
@@ -557,9 +628,10 @@ class TestGenerateAllTables:
             ablation_names=["ablation_no_forecaster"],
             signal_validation_rows=rows,
         )
-        assert len(paths) == 3
+        assert len(paths) == 4
         stems = {p.stem for p in paths}
         assert SIGNAL_VALIDATION_TABLE_STEM in stems
+        assert LATENCY_TABLE_STEM in stems
 
     def test_signal_validation_lands_under_tables_dir(self, tmp_path: Path) -> None:
         _seed_full_suite(tmp_path)

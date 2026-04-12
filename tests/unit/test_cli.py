@@ -76,6 +76,7 @@ def _stub_aggregate(name: str, num_runs: int = 1) -> AggregateResult:
         allocation_efficiency_score=0.75,
         detection_auroc_score=0.9,
         detection_f1_score=0.8,
+        latency_ms=1.5,
     )
     return AggregateResult(
         name=name,
@@ -90,6 +91,7 @@ def _stub_aggregate(name: str, num_runs: int = 1) -> AggregateResult:
         ),
         detection_auroc_score=MetricAggregate(mean=0.9, std=0.0, ci_low=0.9, ci_high=0.9, n=1),
         detection_f1_score=MetricAggregate(mean=0.8, std=0.0, ci_low=0.8, ci_high=0.8, n=1),
+        latency_ms=MetricAggregate(mean=1.5, std=0.0, ci_low=1.5, ci_high=1.5, n=1),
         provenance={"name": name},
     )
 
@@ -475,6 +477,10 @@ class TestCompareExperiments:
                 return_value=out_dir / "tables" / "main.tex",
             ) as mock_main,
             patch(
+                "chronoagent.experiments.analysis.tables.make_latency_table",
+                return_value=out_dir / "tables" / "latency.tex",
+            ) as mock_latency,
+            patch(
                 "chronoagent.experiments.analysis.tables.make_ablation_table",
                 return_value=out_dir / "tables" / "ablation.tex",
             ) as mock_ablation,
@@ -496,6 +502,7 @@ class TestCompareExperiments:
         assert result.exit_code == 0, result.output
         mock_plots.assert_called_once()
         mock_main.assert_called_once()
+        mock_latency.assert_called_once()
         mock_ablation.assert_called_once()
         # Default drift_experiment is the first --experiment value.
         assert mock_plots.call_args.kwargs["drift_experiment"] == "main_experiment"
@@ -516,6 +523,10 @@ class TestCompareExperiments:
             patch(
                 "chronoagent.experiments.analysis.tables.make_main_results_table",
                 return_value=out_dir / "tables" / "main.tex",
+            ),
+            patch(
+                "chronoagent.experiments.analysis.tables.make_latency_table",
+                return_value=out_dir / "tables" / "latency.tex",
             ),
             patch(
                 "chronoagent.experiments.analysis.tables.make_ablation_table",
@@ -543,6 +554,7 @@ class TestCompareExperiments:
         with (
             patch("chronoagent.experiments.analysis.plots.generate_all_plots") as mock_plots,
             patch("chronoagent.experiments.analysis.tables.make_main_results_table") as mock_main,
+            patch("chronoagent.experiments.analysis.tables.make_latency_table"),
             patch("chronoagent.experiments.analysis.tables.make_ablation_table") as mock_ablation,
         ):
             result = runner.invoke(
@@ -575,6 +587,10 @@ class TestCompareExperiments:
             patch(
                 "chronoagent.experiments.analysis.tables.make_main_results_table",
                 return_value=out_dir / "main.tex",
+            ),
+            patch(
+                "chronoagent.experiments.analysis.tables.make_latency_table",
+                return_value=out_dir / "latency.tex",
             ),
             patch(
                 "chronoagent.experiments.analysis.tables.make_ablation_table",

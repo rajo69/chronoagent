@@ -305,6 +305,7 @@ class TestComputeMetrics:
             detector_name="full_system_detector",
             injection_step=injection_step,
             num_prs=num_prs,
+            latency_ms=1.0,
         )
         assert result.allocation_efficiency_score == pytest.approx(injection_step / num_prs)
         assert result.detection_auroc_score == pytest.approx(1.0)
@@ -333,6 +334,7 @@ class TestComputeMetrics:
             detector_name="full_system_detector",
             injection_step=injection_step,
             num_prs=num_prs,
+            latency_ms=1.0,
         )
         assert result.first_flagged_step == 4
         assert result.advance_warning_time == 2
@@ -357,6 +359,7 @@ class TestComputeMetrics:
             detector_name="full_system_detector",
             injection_step=injection_step,
             num_prs=num_prs,
+            latency_ms=1.0,
         )
         assert result.first_flagged_step is None
         assert result.advance_warning_time is None
@@ -382,6 +385,7 @@ class TestComputeMetrics:
                 detector_name="full_system_detector",
                 injection_step=2,
                 num_prs=5,
+                latency_ms=1.0,
             )
 
 
@@ -516,6 +520,7 @@ class TestResultDataclasses:
             allocation_efficiency_score=0.5,
             detection_auroc_score=1.0,
             detection_f1_score=1.0,
+            latency_ms=0.5,
         )
         with pytest.raises(FrozenInstanceError):
             run.seed = 99  # type: ignore[misc]
@@ -538,6 +543,7 @@ class TestResultDataclasses:
                 allocation_efficiency_score=0.5,
                 detection_auroc_score=1.0,
                 detection_f1_score=1.0,
+                latency_ms=0.5,
             )
             for i in range(3)
         ]
@@ -553,6 +559,7 @@ class TestResultDataclasses:
             allocation_efficiency_score=metric,
             detection_auroc_score=metric,
             detection_f1_score=metric,
+            latency_ms=metric,
         )
         assert [r.run_index for r in agg.runs] == [0, 1, 2]
 
@@ -703,6 +710,7 @@ class TestWriteExperimentResults:
             "allocation_efficiency_score",
             "detection_auroc_score",
             "detection_f1_score",
+            "latency_ms",
         }
         assert payload["provenance"]["attack"]["type"] == "minja"
 

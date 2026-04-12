@@ -321,6 +321,7 @@ def compare_experiments(
     from chronoagent.experiments.analysis.plots import generate_all_plots
     from chronoagent.experiments.analysis.tables import (
         make_ablation_table,
+        make_latency_table,
         make_main_results_table,
     )
 
@@ -365,6 +366,13 @@ def compare_experiments(
             typer.echo(f"ERROR: main results table failed: {exc}", err=True)
             raise typer.Exit(code=1) from None
         _say(f"Wrote table:  {main_path}")
+
+        try:
+            latency_path = make_latency_table(output, experiments)
+        except (FileNotFoundError, ValueError) as exc:
+            typer.echo(f"ERROR: latency table failed: {exc}", err=True)
+            raise typer.Exit(code=1) from None
+        _say(f"Wrote table:  {latency_path}")
 
         if ablation_names:
             try:
