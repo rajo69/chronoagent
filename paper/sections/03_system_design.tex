@@ -3,8 +3,10 @@
 
 \todo{architecture figure + longer prose.}
 
-\sys{} sits between a LangGraph-orchestrated agent pool and a shared
-ChromaDB vector memory. It exposes three control-plane components:
+\sys{} sits between a LangGraph~\citep{langgraph}-orchestrated agent
+pool, built on LangChain~\citep{langchain} primitives, and a shared
+Chroma~\citep{chromadb} vector memory. It exposes three control-plane
+components:
 
 \paragraph{Behavioral Monitor (\cref{sec:methodology:signals}).}
 For every PR-handling step, each agent emits six scalar signals:
@@ -16,18 +18,20 @@ them to the Temporal Health Scorer.
 
 \paragraph{Temporal Health Scorer (\cref{sec:methodology:detector}).}
 The scorer combines two detectors on the dominant signal
-(KL divergence): a Bayesian Online Change-Point Detector that flags
-regime shifts with calibrated run-length posteriors, and a Chronos-2
+(KL divergence): a Bayesian Online Change-Point
+Detector~\citep{adams2007bocpd} that flags regime shifts with
+calibrated run-length posteriors, and a Chronos-2~\citep{chronos}
 probabilistic forecaster that supplies an expected-range prior. A
 positive detection from either branch decrements the agent's health
 score; a sustained normal regime lets the score recover.
 
 \paragraph{Decentralized Task Allocator (\cref{sec:methodology:alloc}).}
-New PRs are offered via a lightweight negotiation protocol; each agent
-bids a cost that is a function of its own health score and queue
-depth. The allocator picks the lowest-cost bid. A drifting agent's
-health score drops, its cost rises, and work routes away from it
-automatically, without a centralized kill-switch.
+New PRs are offered via a lightweight contract-net-style negotiation
+protocol~\citep{contractnet}; each agent bids a cost that is a
+function of its own health score and queue depth. The allocator picks
+the lowest-cost bid. A drifting agent's health score drops, its cost
+rises, and work routes away from it automatically, without a
+centralized kill-switch.
 
 \paragraph{Human Escalation Layer.}
 When the aggregate health score across the pool drops below a

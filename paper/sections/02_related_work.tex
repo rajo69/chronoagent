@@ -1,44 +1,45 @@
 \section{Related Work}
 \label{sec:related}
 
-\todo{fill in citations in task 11.3.}
-
 \subsection{Memory Poisoning Attacks on LLM Agents}
 \label{sec:related:attacks}
 
-MINJA, AgentPoison, and A-MemGuard established that shared vector
-memory is a viable attack surface for multi-agent LLM systems. MINJA
-targets the retrieval layer directly by crafting high-similarity
-trigger documents; AgentPoison adds a learned backdoor that activates
-on a semantic trigger; A-MemGuard proposes a defensive retrieval
-filter but operates per-query without temporal context.
-\todo{cite MINJA, AgentPoison, A-MemGuard.}
+MINJA~\citep{minja}, AgentPoison~\citep{agentpoison}, and
+A-MemGuard~\citep{amemguard} established that shared vector memory is
+a viable attack surface for multi-agent LLM systems.
+\citet{minja} target the retrieval layer directly by crafting
+high-similarity trigger documents; \citet{agentpoison} add a learned
+backdoor that activates on a semantic trigger; \citet{amemguard}
+propose a defensive retrieval filter but operate per-query without
+temporal context.
 
 \subsection{Decentralized Task Allocation in Multi-Agent Systems}
 \label{sec:related:alloc}
 
-Classical approaches include contract-net protocols and Dec-POMDP
-solvers. More recent work on LLM-based task allocation (AutoGen,
-MetaGPT, CrewAI) delegates coordination to a privileged planner agent;
-this centralizes trust and re-introduces the very single-point-of-
-failure that multi-agent systems were meant to avoid.
-\todo{cite contract-net, Dec-POMDP surveys, AutoGen, MetaGPT.}
+Classical approaches include contract-net protocols~\citep{contractnet}
+and Dec-POMDP solvers~\citep{decpomdp}. More recent work on LLM-based
+task allocation, including AutoGen~\citep{autogen},
+MetaGPT~\citep{metagpt}, and CrewAI~\citep{crewai}, delegates
+coordination to a privileged planner agent; this centralizes trust
+and re-introduces the very single-point-of-failure that multi-agent
+systems were meant to avoid.
 
 \subsection{Online Change-Point Detection and Forecasting}
 \label{sec:related:cpd}
 
-BOCPD (Adams \& MacKay, 2007) provides a principled run-length
-posterior with $O(T)$ memory. Chronos-2 (2024) is a pretrained
-probabilistic time-series forecaster whose zero-shot predictive
-distribution we use as a temporal prior on agent behavior.
-\todo{cite BOCPD, Chronos-2.}
+Bayesian Online Change-Point Detection~\citep{adams2007bocpd} provides
+a principled run-length posterior with $O(T)$ memory. The Chronos
+family of pretrained probabilistic time-series
+forecasters~\citep{chronos} gives a zero-shot predictive distribution
+we use as a temporal prior on agent behavior; ChronoAgent ships with
+the small variant of the refreshed 2024/2025 Chronos-2 model.
 
 \subsection{Runtime Monitoring for LLM Agents}
 \label{sec:related:monitoring}
 
-Prior runtime monitors (NeMo Guardrails, LlamaGuard, constitutional AI
-classifiers) focus on content-level filtering at the input and output
-boundary. They are complementary to \sys{}: they answer ``is this
-specific message safe?'' while \sys{} answers ``has this agent's
-behavior drifted over the last $k$ steps?''.
-\todo{cite NeMo Guardrails, LlamaGuard.}
+Prior runtime monitors such as NeMo Guardrails~\citep{nemoguardrails},
+Llama Guard~\citep{llamaguard}, and constitutional-AI
+classifiers~\citep{constitutionalai} focus on content-level filtering
+at the input and output boundary. They are complementary to \sys{}:
+they answer ``is this specific message safe?'' while \sys{} answers
+``has this agent's behavior drifted over the last $k$ steps?''.

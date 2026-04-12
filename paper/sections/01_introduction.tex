@@ -4,14 +4,17 @@
 \todo{full intro draft.}
 
 \paragraph{Problem.}
-Vector-memory-backed multi-agent LLM systems have become the default
-architecture for long-horizon tasks (planning, code review, research
-assistants). Shared memory is a force multiplier for throughput but it
-is also a single high-value attack surface: an adversary who can write
-even one malicious document into the shared store can influence every
-retrieval-time decision that follows. Recent work (MINJA, AgentPoison,
-A-MemGuard) has shown that such attacks are both feasible and
-hard to detect with static input filters.
+Vector-memory-backed multi-agent LLM systems, built on frameworks
+such as LangChain~\citep{langchain}, LangGraph~\citep{langgraph},
+AutoGen~\citep{autogen}, and MetaGPT~\citep{metagpt}, have become the
+default architecture for long-horizon tasks (planning, code review,
+research assistants). Shared memory is a force multiplier for
+throughput but it is also a single high-value attack surface: an
+adversary who can write even one malicious document into the shared
+store can influence every retrieval-time decision that follows.
+Recent work~\citep{minja,agentpoison,amemguard} has shown that such
+attacks are both feasible and hard to detect with static input
+filters.
 
 \paragraph{Gap.}
 Existing defenses are predominantly reactive: they inspect each
@@ -32,9 +35,10 @@ run inline. Concretely, we contribute:
   \item \textbf{A health-weighted decentralized allocator} that routes
   tasks away from drifting agents without pausing the whole system
   (\cref{sec:system}).
-  \item \textbf{An end-to-end evaluation} against MINJA and AgentPoison
-  with three ablations and two reactive baselines, reporting Advance
-  Warning Time (\awt{}), efficiency under attack, and ROC curves
+  \item \textbf{An end-to-end evaluation} against
+  MINJA~\citep{minja} and AgentPoison~\citep{agentpoison} with three
+  ablations and two reactive baselines, reporting Advance Warning
+  Time (\awt{}), efficiency under attack, and ROC curves
   (\cref{sec:experiments,sec:results}).
 \end{enumerate}
 

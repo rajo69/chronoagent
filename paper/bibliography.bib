@@ -1,15 +1,243 @@
 % ChronoAgent bibliography.
 %
-% Phase 11 task 11.1 ships a stub so main.tex compiles with natbib.
-% Task 11.3 populates the real entries: MINJA, AgentPoison,
-% A-MemGuard, BOCPD (Adams and MacKay 2007), Chronos-2, LangChain /
-% LangGraph, AutoGen, MetaGPT, contract-net, Dec-POMDP surveys,
-% NeMo Guardrails, LlamaGuard, A-MemGuard.
+% Phase 11 task 11.3 populates this file with real entries for every
+% work the scaffold prose already name-drops. Entries are grouped by
+% the section that introduces them:
+%
+%   * Memory-poisoning attacks on LLM agents  (sec:related:attacks)
+%   * Decentralized task allocation           (sec:related:alloc)
+%   * Change-point detection and forecasting  (sec:related:cpd)
+%   * Runtime monitoring for LLM agents       (sec:related:monitoring)
+%   * Multi-agent LLM frameworks              (sec:system)
+%   * Vector memory / retrieval stack         (sec:system)
+%
+% Style: natbib + plainnat, numeric sort&compress (see main.tex). Keys
+% are lowercase, hyphen-free, and stable; use \citep{key} for the
+% parenthetical form and \citet{key} when the author name carries the
+% sentence.
 
-@misc{chronoagent-stub,
-  author       = {Nandi, Rajarshi},
-  title        = {{ChronoAgent} bibliography placeholder},
-  howpublished = {Internal repository, \url{https://github.com/rajarshi-nandi/chronoagent}},
-  year         = {2026},
-  note         = {Replaced in Phase 11 task 11.3.},
+% ---------------------------------------------------------------------------
+% Memory-poisoning attacks on LLM agents
+% ---------------------------------------------------------------------------
+
+@misc{minja,
+  author       = {Dong, Shen and Xu, Shaochen and He, Pengfei and Li, Yige and
+                  Tang, Jiliang and Liu, Tianming and Liu, Hui and Xing, Zhen
+                  and Wang, Jundong},
+  title        = {{MINJA}: A Practical Memory Injection Attack against {LLM}
+                  Agents},
+  year         = {2025},
+  eprint       = {2503.03704},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CR},
+  howpublished = {arXiv preprint arXiv:2503.03704},
+}
+
+@inproceedings{agentpoison,
+  author       = {Chen, Zhaorun and Xiang, Zhen and Xiao, Chaowei and Song,
+                  Dawn and Li, Bo},
+  title        = {{AgentPoison}: Red-teaming {LLM} Agents via Poisoning Memory
+                  or Knowledge Bases},
+  booktitle    = {Advances in Neural Information Processing Systems
+                  (NeurIPS)},
+  year         = {2024},
+  eprint       = {2407.12784},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CR},
+}
+
+@misc{amemguard,
+  author       = {Wang, Haoran and Wang, Lin and Xu, Jiahao and Chen, Huan and
+                  Xu, Tianlong and Wang, Shuyi},
+  title        = {{A-MemGuard}: A Proactive Defense Framework for {LLM}-Based
+                  Agent Memory},
+  year         = {2025},
+  eprint       = {2510.17968},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CR},
+  howpublished = {arXiv preprint arXiv:2510.17968},
+}
+
+% ---------------------------------------------------------------------------
+% Decentralized task allocation and multi-agent LLM orchestration
+% ---------------------------------------------------------------------------
+
+@article{contractnet,
+  author       = {Smith, Reid G.},
+  title        = {The Contract Net Protocol: High-Level Communication and
+                  Control in a Distributed Problem Solver},
+  journal      = {IEEE Transactions on Computers},
+  volume       = {C-29},
+  number       = {12},
+  pages        = {1104--1113},
+  year         = {1980},
+  doi          = {10.1109/TC.1980.1675516},
+}
+
+@book{decpomdp,
+  author       = {Oliehoek, Frans A. and Amato, Christopher},
+  title        = {A Concise Introduction to Decentralized {POMDPs}},
+  publisher    = {Springer},
+  series       = {SpringerBriefs in Intelligent Systems},
+  year         = {2016},
+  doi          = {10.1007/978-3-319-28929-8},
+}
+
+@misc{autogen,
+  author       = {Wu, Qingyun and Bansal, Gagan and Zhang, Jieyu and Wu,
+                  Yiran and Li, Beibin and Zhu, Erkang and Jiang, Li and
+                  Zhang, Xiaoyun and Zhang, Shaokun and Liu, Jiale and
+                  Awadallah, Ahmed Hassan and White, Ryen W. and Burger,
+                  Doug and Wang, Chi},
+  title        = {{AutoGen}: Enabling Next-Gen {LLM} Applications via
+                  Multi-Agent Conversation},
+  year         = {2023},
+  eprint       = {2308.08155},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.AI},
+  howpublished = {arXiv preprint arXiv:2308.08155},
+}
+
+@inproceedings{metagpt,
+  author       = {Hong, Sirui and Zhuge, Mingchen and Chen, Jonathan and
+                  Zheng, Xiawu and Cheng, Yuheng and Wang, Jinlin and Zhang,
+                  Ceyao and Wang, Zili and Yau, Steven Ka Shing and Lin,
+                  Zijuan and Zhou, Liyang and Ran, Chenyu and Xiao, Lingfeng
+                  and Wu, Chenglin and Schmidhuber, J{\"u}rgen},
+  title        = {{MetaGPT}: Meta Programming for a Multi-Agent Collaborative
+                  Framework},
+  booktitle    = {International Conference on Learning Representations
+                  (ICLR)},
+  year         = {2024},
+  eprint       = {2308.00352},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.AI},
+}
+
+@misc{crewai,
+  author       = {{crewAI Inc.}},
+  title        = {{CrewAI}: Framework for Orchestrating Role-Playing,
+                  Autonomous {AI} Agents},
+  howpublished = {\url{https://github.com/crewAIInc/crewAI}},
+  year         = {2024},
+  note         = {Open-source software, accessed 2026-04-12.},
+}
+
+% ---------------------------------------------------------------------------
+% Online change-point detection and probabilistic forecasting
+% ---------------------------------------------------------------------------
+
+@misc{adams2007bocpd,
+  author       = {Adams, Ryan Prescott and MacKay, David J. C.},
+  title        = {Bayesian Online Changepoint Detection},
+  year         = {2007},
+  eprint       = {0710.3742},
+  archivePrefix = {arXiv},
+  primaryClass = {stat.ML},
+  howpublished = {arXiv preprint arXiv:0710.3742},
+}
+
+@misc{chronos,
+  author       = {Ansari, Abdul Fatir and Stella, Lorenzo and Turkmen,
+                  Caner and Zhang, Xiyuan and Mercado, Pedro and Shen,
+                  Huibin and Shchur, Oleksandr and Rangapuram, Syama Sundar
+                  and Pineda Arango, Sebastian and Kapoor, Shubham and Zschiegner,
+                  Jasper and Maddix, Danielle C. and Wang, Hao and Mahoney,
+                  Michael W. and Torkkola, Kari and Wilson, Andrew Gordon and
+                  Bohlke-Schneider, Michael and Wang, Yuyang},
+  title        = {Chronos: Learning the Language of Time Series},
+  year         = {2024},
+  eprint       = {2403.07815},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.LG},
+  howpublished = {arXiv preprint arXiv:2403.07815. Chronos-2 is the
+                  refreshed 2024/2025 model family; ChronoAgent uses the
+                  small variant via the authors' reference implementation.},
+}
+
+% ---------------------------------------------------------------------------
+% Runtime monitoring / input-output safety for LLM agents
+% ---------------------------------------------------------------------------
+
+@misc{nemoguardrails,
+  author       = {Rebedea, Traian and Dinu, Razvan and Sreedhar, Makesh
+                  Narsimhan and Parisien, Christopher and Cohen, Jonathan},
+  title        = {{NeMo Guardrails}: A Toolkit for Controllable and Safe
+                  {LLM} Applications with Programmable Rails},
+  year         = {2023},
+  eprint       = {2310.10501},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  howpublished = {arXiv preprint arXiv:2310.10501},
+}
+
+@misc{llamaguard,
+  author       = {Inan, Hakan and Upasani, Kartikeya and Chi, Jianfeng and
+                  Rungta, Rashi and Iyer, Krithika and Mao, Yuning and
+                  Tontchev, Michael and Hu, Qing and Fuller, Brian and
+                  Testuggine, Davide and Khabsa, Madian},
+  title        = {{Llama Guard}: {LLM}-based Input-Output Safeguard for
+                  Human-{AI} Conversations},
+  year         = {2023},
+  eprint       = {2312.06674},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  howpublished = {arXiv preprint arXiv:2312.06674},
+}
+
+@misc{constitutionalai,
+  author       = {Bai, Yuntao and Kadavath, Saurav and Kundu, Sandipan and
+                  Askell, Amanda and Kernion, Jackson and Jones, Andy and
+                  Chen, Anna and Goldie, Anna and Mirhoseini, Azalia and
+                  McKinnon, Cameron and Chen, Carol and Olsson, Catherine and
+                  Olah, Christopher and Hernandez, Danny and Drain, Dawn and
+                  Ganguli, Deep and Li, Dustin and Tran-Johnson, Eli and
+                  Perez, Ethan and Kerr, Jamie and Mueller, Jared and
+                  Ladish, Jeffrey and Landau, Joshua and Ndousse, Kamal and
+                  Lukosuite, Kamile and Lovitt, Liane and Sellitto, Michael
+                  and Elhage, Nelson and Schiefer, Nicholas and Mercado,
+                  Noemi and DasSarma, Nova and Lasenby, Robert and Larson,
+                  Robin and Ringer, Sam and Johnston, Scott and Kravec,
+                  Shauna and El Showk, Sheer and Fort, Stanislav and
+                  Lanham, Tamera and Telleen-Lawton, Timothy and Conerly,
+                  Tom and Henighan, Tom and Hume, Tristan and Bowman,
+                  Samuel R. and Hatfield-Dodds, Zac and Mann, Ben and
+                  Amodei, Dario and Joseph, Nicholas and McCandlish, Sam and
+                  Brown, Tom and Kaplan, Jared},
+  title        = {Constitutional {AI}: Harmlessness from {AI} Feedback},
+  year         = {2022},
+  eprint       = {2212.08073},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  howpublished = {arXiv preprint arXiv:2212.08073},
+}
+
+% ---------------------------------------------------------------------------
+% Multi-agent LLM frameworks and vector-memory stack used by ChronoAgent
+% ---------------------------------------------------------------------------
+
+@misc{langchain,
+  author       = {Chase, Harrison},
+  title        = {{LangChain}: Building Applications with {LLM}s through
+                  Composability},
+  howpublished = {\url{https://github.com/langchain-ai/langchain}},
+  year         = {2022},
+  note         = {Open-source software, accessed 2026-04-12.},
+}
+
+@misc{langgraph,
+  author       = {{LangChain, Inc.}},
+  title        = {{LangGraph}: Stateful, Multi-Actor Applications with
+                  {LLM}s},
+  howpublished = {\url{https://github.com/langchain-ai/langgraph}},
+  year         = {2024},
+  note         = {Open-source software, accessed 2026-04-12.},
+}
+
+@misc{chromadb,
+  author       = {{Chroma, Inc.}},
+  title        = {{Chroma}: The {AI}-Native Open-Source Embedding Database},
+  howpublished = {\url{https://github.com/chroma-core/chroma}},
+  year         = {2023},
+  note         = {Open-source software, accessed 2026-04-12.},
 }
