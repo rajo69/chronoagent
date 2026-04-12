@@ -10,7 +10,7 @@ WORKDIR /build
 
 RUN pip install --no-cache-dir "uv==${UV_VERSION}"
 
-COPY requirements.lock pyproject.toml ./
+COPY requirements.lock pyproject.toml README.md ./
 COPY src ./src
 
 RUN uv pip install --system --no-cache -r requirements.lock && \
