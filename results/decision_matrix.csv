@@ -1,0 +1,7 @@
+signal,clean_mean,clean_std,poisoned_mean,poisoned_std,cohens_d,large_effect,pelt_breakpoint,awt,threshold,first_crossing
+total_latency_ms,4.423748,1.1256,4.08962,0.786836,0.34407,False,4,4,6.674947,0
+retrieval_count,6.0,0.0,6.0,0.0,0.0,False,-1,-1,6.0,-1
+token_count,18.36,4.060788,17.24,2.314447,0.338876,False,4,0,26.481576,-1
+kl_divergence,48.814706,39.772854,104.578225,46.038581,1.296225,True,9,0,128.360413,11
+tool_calls,2.0,0.0,2.0,0.0,0.0,False,-1,-1,2.0,-1
+memory_query_entropy,0.0,0.0,0.0,0.0,0.0,False,-1,-1,0.0,-1

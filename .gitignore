@@ -37,8 +37,12 @@ htmlcov/
 chroma_data*/
 *.db
 *.db-journal
-results/
 *.log
+
+# Results: track key artifacts (figures, tables), ignore per-run intermediates
+results/*/runs.csv
+results/*/aggregate.json
+results/comparison/
 
 # IDE
 .idea/
