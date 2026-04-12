@@ -1,4 +1,5 @@
-.PHONY: dev test lint docker-up docker-down update-readme install
+.PHONY: dev test lint docker-up docker-down update-readme install \
+       reproduce reproduce-signal reproduce-main reproduce-ablations reproduce-figures
 
 # ── Development ───────────────────────────────────────────────────────────────
 dev:
@@ -39,6 +40,50 @@ install:
 
 lock:
 	uv pip compile pyproject.toml -o requirements.lock
+
+# ── Reproducibility ──────────────────────────────────────────────────────────
+# Re-run the full experiment suite and regenerate every figure and table
+# referenced in the paper. These targets mirror the protocol documented
+# in paper/sections/05_experiments.tex.
+
+reproduce-signal:
+	chronoagent run-experiment phase1 \
+		--config configs/experiments/signal_validation.yaml \
+		--output results/
+
+reproduce-main:
+	chronoagent run-experiment phase10 \
+		--config configs/experiments/main_experiment.yaml \
+		--output results/
+	chronoagent run-experiment phase10 \
+		--config configs/experiments/agentpoison_experiment.yaml \
+		--output results/
+	chronoagent run-experiment phase10 \
+		--config configs/experiments/baseline_sentinel.yaml \
+		--output results/
+
+reproduce-ablations:
+	chronoagent run-experiment phase10 \
+		--config configs/experiments/ablation_no_bocpd.yaml \
+		--output results/
+	chronoagent run-experiment phase10 \
+		--config configs/experiments/ablation_no_forecaster.yaml \
+		--output results/
+	chronoagent run-experiment phase10 \
+		--config configs/experiments/ablation_no_health_scores.yaml \
+		--output results/
+
+reproduce-figures:
+	chronoagent compare-experiments \
+		--output results/ \
+		--experiment main_experiment \
+		--experiment agentpoison_experiment \
+		--experiment baseline_sentinel \
+		--ablation ablation_no_bocpd \
+		--ablation ablation_no_forecaster \
+		--ablation ablation_no_health_scores
+
+reproduce: reproduce-signal reproduce-main reproduce-ablations reproduce-figures
 
 # ── Docs ──────────────────────────────────────────────────────────────────────
 update-readme:

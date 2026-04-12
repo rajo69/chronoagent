@@ -60,6 +60,7 @@ from __future__ import annotations
 import csv
 import json
 import math
+import time
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -307,6 +308,9 @@ class RunResult:
         detection_f1_score: F1 vs the same ground truth. May be ``nan``
             for empty runs, but in practice every Phase 10 run has at
             least one row per label.
+        latency_ms: Mean per-step wall-clock latency in milliseconds
+            for the detector pipeline on this run. Measured end-to-end
+            from signal matrix ingestion through decision emission.
     """
 
     run_index: int
@@ -319,6 +323,7 @@ class RunResult:
     allocation_efficiency_score: float
     detection_auroc_score: float
     detection_f1_score: float
+    latency_ms: float
 
 
 @dataclass(frozen=True)
@@ -352,6 +357,7 @@ class AggregateResult:
             (always defined).
         detection_auroc_score: Aggregate skipping nan per-run values.
         detection_f1_score: Aggregate skipping nan per-run values.
+        latency_ms: Aggregate per-step latency in milliseconds.
     """
 
     name: str
@@ -364,6 +370,7 @@ class AggregateResult:
     allocation_efficiency_score: MetricAggregate
     detection_auroc_score: MetricAggregate
     detection_f1_score: MetricAggregate
+    latency_ms: MetricAggregate
     provenance: dict[str, Any] = field(default_factory=dict)
 
 
@@ -455,6 +462,7 @@ def _compute_metrics(
     detector_name: str,
     injection_step: int,
     num_prs: int,
+    latency_ms: float,
 ) -> RunResult:
     """Turn a decision stream into a :class:`RunResult`.
 
@@ -504,6 +512,7 @@ def _compute_metrics(
         allocation_efficiency_score=float(alloc_score),
         detection_auroc_score=float(auroc),
         detection_f1_score=float(f1),
+        latency_ms=latency_ms,
     )
 
 
@@ -581,6 +590,7 @@ class ExperimentRunner:
         alloc_values = [r.allocation_efficiency_score for r in runs]
         auroc_values = [r.detection_auroc_score for r in runs]
         f1_values = [r.detection_f1_score for r in runs]
+        latency_values = [r.latency_ms for r in runs]
 
         return AggregateResult(
             name=self._cfg.name,
@@ -593,6 +603,7 @@ class ExperimentRunner:
             allocation_efficiency_score=_aggregate_metric(alloc_values),
             detection_auroc_score=_aggregate_metric(auroc_values),
             detection_f1_score=_aggregate_metric(f1_values),
+            latency_ms=_aggregate_metric(latency_values),
             provenance=self._build_provenance(),
         )
 
@@ -610,7 +621,10 @@ class ExperimentRunner:
             num_prs=self._cfg.num_prs,
             n_poison_docs=self._cfg.attack.n_poison_docs,
         )
+        t0 = time.perf_counter()
         decisions = list(detector.run(signal_matrix))
+        elapsed_ms = (time.perf_counter() - t0) * 1000.0
+        per_step_ms = elapsed_ms / len(decisions) if decisions else 0.0
         run_result = _compute_metrics(
             decisions,
             run_index=run_index,
@@ -618,6 +632,7 @@ class ExperimentRunner:
             detector_name=detector_label,
             injection_step=self._cfg.attack.injection_step,
             num_prs=self._cfg.num_prs,
+            latency_ms=per_step_ms,
         )
         if self._collect_raw:
             projected = [_project_decision_for_raw(d) for d in decisions]
@@ -740,6 +755,7 @@ def write_experiment_results(
         "allocation_efficiency_score",
         "detection_auroc_score",
         "detection_f1_score",
+        "latency_ms",
     ]
     with runs_path.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=fieldnames)
@@ -761,6 +777,7 @@ def write_experiment_results(
             "allocation_efficiency_score": asdict(aggregate.allocation_efficiency_score),
             "detection_auroc_score": asdict(aggregate.detection_auroc_score),
             "detection_f1_score": asdict(aggregate.detection_f1_score),
+            "latency_ms": asdict(aggregate.latency_ms),
         },
         "provenance": aggregate.provenance,
     }
