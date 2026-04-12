@@ -66,10 +66,10 @@ The project is built in numbered phases. Each phase has an exit criterion and a 
 | 8 | Observability Dashboard | ✅ Done |
 | 9 | Production Hardening | ✅ Done |
 | 10 | Research Experiment Suite | ✅ Done |
-| 11 | Paper Scaffold and Reproducibility | 🚧 In progress |
+| 11 | Paper Scaffold and Reproducibility | ✅ Done |
 | 12 | CI/CD and Release | ⬜ Planned |
 
-**Currently:** Phase 11 task 11.4 wired the C5 latency microbenchmark end-to-end and added Makefile reproducibility targets. `RunResult` and `AggregateResult` carry a new `latency_ms` field (mean per-step wall-clock detector latency), persisted in `runs.csv` and `aggregate.json`. The main results and ablation tables gained a "Latency (ms/step)" column, and a dedicated `make_latency_table()` function produces `results/tables/table4_latency.tex` (a focused per-detector latency comparison that backs claim C5). The `\todo` in `paper/sections/06_results.tex` is replaced by a `\inputiffound` call to `table4_latency.tex` wrapped in a labeled table float. Five new Makefile targets (`reproduce`, `reproduce-signal`, `reproduce-main`, `reproduce-ablations`, `reproduce-figures`) mirror the protocol in `paper/sections/05_experiments.tex`. The `compare-experiments` CLI command now emits the latency table alongside the main results and ablation tables. Task 11.5 (Docker pin + seed freeze) remains. 1507 tests pass with 95.94% coverage (7 new tests for latency table + existing test updates).
+**Currently:** Phase 11 complete. Task 11.5 pinned all Docker image versions (Python 3.11.13-slim-bookworm, uv 0.7.12, Redis 7.4, Postgres 16.9, ChromaDB 1.5.7), verified all experiment seeds are fixed (`seed: 42` across all 7 configs), and added a `docker-smoke` CI job that builds the image and runs `make reproduce-signal` inside it. 1508 tests pass with 95.92% coverage.
 
 **An honest pivot worth recording:** Phase 1 was a hard signal-validation gate. Before building anything else, we measured whether the behavioral signals we wanted to forecast were actually distinguishable from noise. KL divergence from a clean baseline turned out to be a strong primary signal (Cohen's d ≈ 1.6 on the MINJA attack benchmark), while three of the six secondary signals were effectively constant under our test conditions. The original framing around "advance warning time" did not survive the data. The project was reframed around concurrent detection plus reliability-weighted allocation, which the data does support. The full ruling is in [`docs/phase1_decision.md`](./docs/phase1_decision.md).
 
