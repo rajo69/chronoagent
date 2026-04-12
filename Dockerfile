@@ -14,7 +14,7 @@ COPY requirements.lock pyproject.toml README.md ./
 COPY src ./src
 
 RUN uv pip install --system --no-cache -r requirements.lock && \
-    uv pip install --system --no-cache .
+    uv pip install --system --no-cache ".[experiments]"
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
 FROM python:${PYTHON_TAG} AS runtime
