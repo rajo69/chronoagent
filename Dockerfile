@@ -4,6 +4,7 @@ ARG UV_VERSION=0.7.12
 
 # ── Stage 1: builder ──────────────────────────────────────────────────────────
 FROM python:${PYTHON_TAG} AS builder
+ARG UV_VERSION
 
 WORKDIR /build
 
