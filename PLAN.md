@@ -541,7 +541,7 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 - `make reproduce` runs all experiments from scratch and regenerates figures
 
 **Tasks:**
-- [ ] 11.1 Paper structure: `main.tex` + sections (abstract, intro, related work, system design, methodology, experiments, results, discussion, conclusion)
+- [x] 11.1 Paper structure: `main.tex` + sections (abstract, intro, related work, system design, methodology, experiments, results, discussion, conclusion)
 - [ ] 11.2 Map claims to experiments:
   - C1: Behavioral signals shift under poisoning (signal validation)
   - C2: BOCPD+Chronos ensemble detects shifts with AWT>=0 (main experiment)
@@ -559,9 +559,9 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 ### Phase 11 Log
 | | |
 |--|--|
-| **Findings** | _fill in_ |
-| **Challenges** | _fill in_ |
-| **Completed** | _fill in: date_ |
+| **Findings** | **11.1** Scaffolding the paper as nine section `\input` files under `paper/sections/` keeps `main.tex` readable and gives task 11.2 a small, unambiguous place to wire each claim. `\graphicspath` lists every per-experiment and multi-experiment figures directory under `../results/` so the body sections can reference figures by bare filename (`fig1_signal_drift.png`, not a full path); a `\inputiffound` macro wraps each `\input{../results/tables/<stem>.tex}` call so the scaffold compiles even when the Phase 10 results are stale or missing, which is the expected state at the end of 11.1. `natbib` with `plainnat` was chosen over `biblatex` to avoid a `backend=biber` dependency on the eventual CI LaTeX image; `cleveref` gives cross-ref polish without a style change later. The bibliography stub keeps the PDF build green until task 11.3 populates real entries. |
+| **Challenges** | **11.1** Two decisions that needed explicit reasoning. (a) **`\input{../results/tables/*.tex}` vs. a copy step.** Copying tables into `paper/tables/` would decouple the paper from the analysis pipeline but then drift silently on every re-run; inlining `../results/` keeps the paper coupled to whatever `chronoagent compare-experiments` most recently wrote. The `\inputiffound` guard is the cost of that coupling: it prevents a missing-file hard error and surfaces a visible TODO in the PDF instead. (b) **Where does C5 live?** C5 (forecaster overhead) has no Phase 10 artefact yet; the results section keeps it as an explicit `\todo` so task 11.2 has to either wire a microbenchmark into the runner or downgrade the claim. Recording the gap here (rather than fabricating a placeholder table) is the safer move. |
+| **Completed** | 11.1: 2026-04-12. |
 
 **Research Notes:**
 - Paper claims to validate:

@@ -1,0 +1,62 @@
+\section{Methodology}
+\label{sec:methodology}
+
+\todo{formalize each subsection.}
+
+\subsection{Behavioral Signals}
+\label{sec:methodology:signals}
+
+Let $s_{a,t} \in \mathbb{R}^6$ denote the signal vector for agent $a$
+at PR-handling step $t$. The six components are:
+\begin{enumerate}
+  \item \textbf{Tool-call entropy} $H(\pi_{\text{tool}})$ over the
+  agent's empirical tool distribution in a sliding window.
+  \item \textbf{Decision latency} (median wall-clock time per step).
+  \item \textbf{Memory-query entropy} $H(\pi_{\text{query}})$ over the
+  embedding cluster IDs that the agent retrieved.
+  \item \textbf{KL divergence} $\kldiv(p_t \parallel p_0)$ of the
+  current signal distribution against a pre-attack baseline.
+  \item \textbf{Retrieval-hit rate} (fraction of memory queries whose
+  top-$k$ contained a relevant document).
+  \item \textbf{Action-repetition rate} over the last $w$ steps.
+\end{enumerate}
+
+\subsection{BOCPD + Chronos Ensemble}
+\label{sec:methodology:detector}
+
+We apply a Bayesian Online Change-Point Detector (BOCPD) to the KL
+divergence stream, using a Gaussian observation model with conjugate
+Normal-Gamma prior. The run-length posterior $p(r_t \mid s_{1:t})$
+collapses when a change point is detected; we flag step $t$ whenever
+$p(r_t = 0 \mid s_{1:t}) > \tau_{\text{cpd}}$.
+
+In parallel, a Chronos-2-Small forecaster is conditioned on the last
+$L=64$ KL divergence samples and emits quantile predictions
+$\{\hat{q}_{0.1}, \hat{q}_{0.5}, \hat{q}_{0.9}\}$ for the next step.
+An observation outside $[\hat{q}_{0.1}, \hat{q}_{0.9}]$ is flagged.
+The two detectors are combined with an OR aggregation; the system
+health score is decremented on either branch firing.
+
+\subsection{Advance Warning Time}
+\label{sec:methodology:awt}
+
+For each run we define Advance Warning Time as
+\begin{equation}
+  \awt{} = t_{\text{first\_flagged}} - t_{\text{injection}},
+\end{equation}
+where $t_{\text{injection}}$ is the ground-truth step at which the
+poisoning payload was written to memory. $\awt{} < 0$ means the
+detector fired before the payload took effect (the desired regime);
+$\awt{} = 0$ means concurrent detection (Pivot~A);
+$\awt{} > 0$ means the detector fired only after downstream damage.
+
+\subsection{Health-Weighted Allocation}
+\label{sec:methodology:alloc}
+
+Agent $a$'s bid for PR $j$ is
+\begin{equation}
+  c_{a,j} = \alpha \cdot \text{queue\_depth}_a + \beta \cdot (1 - h_a),
+\end{equation}
+where $h_a \in [0, 1]$ is the rolling health score. An agent whose
+health score drops to zero becomes non-competitive and receives no new
+work until it recovers.

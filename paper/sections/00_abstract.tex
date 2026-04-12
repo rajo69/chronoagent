@@ -1,0 +1,18 @@
+% Phase 11 task 11.1: abstract skeleton. Full draft lands with the
+% writing pass that follows the claim-to-experiment mapping in 11.2.
+\todo{draft abstract (200--250 words).}
+
+Multi-agent LLM systems that share a vector memory are vulnerable to
+memory-poisoning attacks: a single compromised agent can inject
+retrieval-time triggers that steer every downstream agent. We introduce
+\sys{}, a runtime monitoring layer that combines (i) six per-agent
+behavioral signals, (ii) a Bayesian Online Change-Point Detector (BOCPD)
+on the dominant signal, (iii) a Chronos-2-Small probabilistic forecaster
+that supplies a temporal prior on future agent behavior, and (iv) a
+health-weighted decentralized task allocator that routes work away from
+drifting agents. We evaluate \sys{} on two memory-poisoning attacks
+(MINJA, AgentPoison) across six experimental configurations (full
+system, three ablations, and two reactive baselines). We report Advance
+Warning Time (\awt{}), allocation efficiency under attack, and ROC
+characteristics, and map each number back to the five claims C1--C5
+listed in \cref{sec:experiments}.

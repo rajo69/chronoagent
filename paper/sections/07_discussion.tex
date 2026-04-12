@@ -1,0 +1,39 @@
+\section{Discussion}
+\label{sec:discussion}
+
+\todo{rewrite after the numbers land.}
+
+\paragraph{Temporal context matters.}
+Reactive baselines only see the current query or the current action,
+so a slow-drifting attack (MINJA's gradient-descent flavor) can walk
+just under their threshold. Temporal monitoring reframes detection as
+``is this agent now different from itself six steps ago?'' -- a
+question that is easier for the defender to answer than ``is this
+query malicious?''.
+
+\paragraph{Pivot A (\texorpdfstring{$\awt{} = 0$}{AWT = 0}).}
+In the original proposal the detector was expected to produce
+strictly positive Advance Warning Time. In practice the sharper
+formulation is \emph{concurrent} detection at the moment the attack
+takes effect; that is what the Phase 10 runs measure. This pivot is
+documented in \texttt{docs/phase1\_decision.md}.
+
+\paragraph{Limitations.}
+\begin{itemize}
+  \item The signal set is fixed at six scalars; an attacker with
+  access to the signal catalog could in principle optimize a payload
+  that masks every channel.
+  \item Chronos-2-Small is a zero-shot forecaster; domain adaptation
+  to individual agent behavior is future work.
+  \item The evaluation is limited to two published attack recipes.
+  Unknown attacks are not covered; \sys{} is a complement, not a
+  replacement, for input-level guards.
+  \item Our throughput numbers come from the MockBackend simulator;
+  real-LLM numbers land with the Production Hardening phase (Phase 9).
+\end{itemize}
+
+\paragraph{Threat model boundary.}
+\sys{} defends against an attacker who can write to shared memory but
+does not have direct control over an agent's weights or its system
+prompt. Weight-level compromises and prompt-level compromises are out
+of scope and would be flagged by orthogonal defenses.

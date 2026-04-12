@@ -1,0 +1,120 @@
+% ChronoAgent paper scaffold.
+%
+% Phase 11 task 11.1 ships the skeleton: preamble, title block, and nine
+% section \input files. Task 11.2 maps claims C1--C5 to the Phase 10
+% experiments already persisted under ../results/. Task 11.3 populates
+% bibliography.bib. Task 11.4 adds Makefile targets that re-run the
+% experiment suite and regenerate figures/tables.
+%
+% Compile with:
+%   cd paper && latexmk -pdf main.tex
+% or (manually):
+%   cd paper && pdflatex main && bibtex main && pdflatex main && pdflatex main
+
+\documentclass[11pt,a4paper]{article}
+
+% ---------------------------------------------------------------------------
+% Encoding + fonts
+% ---------------------------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+
+% ---------------------------------------------------------------------------
+% Layout
+% ---------------------------------------------------------------------------
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{parskip}
+
+% ---------------------------------------------------------------------------
+% Math + tables + graphics
+% ---------------------------------------------------------------------------
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{xcolor}
+\usepackage{siunitx}
+
+% Figures are persisted under ../results/ by the Phase 10 analysis pipeline.
+% Multi-experiment comparison figures live at ../results/figures/ and
+% per-experiment figures live at ../results/<experiment_name>/figures/.
+\graphicspath{%
+  {../results/}%
+  {../results/figures/}%
+  {../results/main_experiment/figures/}%
+  {../results/agentpoison_experiment/figures/}%
+  {../results/baseline_sentinel/figures/}%
+  {../results/ablation_no_bocpd/figures/}%
+  {../results/ablation_no_forecaster/figures/}%
+  {../results/ablation_no_health_scores/figures/}%
+}
+
+% ---------------------------------------------------------------------------
+% Citations + hyperlinks
+% ---------------------------------------------------------------------------
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+\usepackage{cleveref}
+
+% ---------------------------------------------------------------------------
+% Convenience macros
+% ---------------------------------------------------------------------------
+\newcommand{\sys}{ChronoAgent}
+\newcommand{\awt}{\text{AWT}}
+\newcommand{\kldiv}{\text{KL}}
+\newcommand{\todo}[1]{\textcolor{red}{\textbf{[TODO:~#1]}}}
+
+% Guarded \input: only include a .tex fragment if it exists on disk. Keeps
+% the scaffold compilable before Phase 10 results are regenerated.
+\newcommand{\inputiffound}[2]{%
+  \IfFileExists{#1}{\input{#1}}{%
+    \par\noindent\todo{missing artefact: \texttt{#1} -- #2}\par%
+  }%
+}
+
+% ---------------------------------------------------------------------------
+% Title block
+% ---------------------------------------------------------------------------
+\title{\sys: Temporal Behavioral Monitoring\\ for Memory-Poisoning Defense in Multi-Agent LLM Systems}
+
+\author{%
+  Rajarshi Nandi\\
+  \texttt{rajarshi.nandi@example.org}%
+}
+
+\date{\today}
+
+% ---------------------------------------------------------------------------
+% Document
+% ---------------------------------------------------------------------------
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\input{sections/00_abstract}
+\end{abstract}
+
+\input{sections/01_introduction}
+\input{sections/02_related_work}
+\input{sections/03_system_design}
+\input{sections/04_methodology}
+\input{sections/05_experiments}
+\input{sections/06_results}
+\input{sections/07_discussion}
+\input{sections/08_conclusion}
+
+% ---------------------------------------------------------------------------
+% Bibliography (populated in task 11.3)
+% ---------------------------------------------------------------------------
+\bibliographystyle{plainnat}
+\bibliography{bibliography}
+
+\end{document}
