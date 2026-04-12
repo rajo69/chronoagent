@@ -19,13 +19,13 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.4-alpine
     ports:
       - "6379:6379"
     restart: unless-stopped
 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.9-alpine
     environment:
       POSTGRES_USER: chrono
       POSTGRES_PASSWORD: changeme
@@ -37,7 +37,7 @@ services:
     restart: unless-stopped
 
   chroma:
-    image: chromadb/chroma:latest
+    image: chromadb/chroma:1.5.7
     ports:
       - "8001:8000"
     volumes:
