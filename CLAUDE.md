@@ -8,8 +8,8 @@
 
 | Field | Value |
 |-------|-------|
-| **Current phase** | Phase 12 (CI/CD + Release) OPEN. Task 12.1 complete on branch `feat/phase12-task12.1-ci`. |
-| **Next task** | **Phase 12 task 12.2 (experiments workflow).** After 12.1 merges, cut `feat/phase12-task12.2-experiments` FRESH from `main`. |
+| **Current phase** | Phase 12 (CI/CD + Release) OPEN. Tasks 12.1-12.2 complete. |
+| **Next task** | **Phase 12 task 12.3 (release workflow).** After 12.2 merges, cut `feat/phase12-task12.3-release` FRESH from `main`. |
 | **Blocked?** | No |
 | **Last session** | 2026-04-12. **Phase 12 task 12.1 shipped on branch `feat/phase12-task12.1-ci`.** Local pre-push run: ruff check clean, ruff format --check clean (130 files already formatted), mypy --strict clean (80 source files, zero issues), pytest 1508 passed 95.94% coverage. **What 12.1 shipped:** (a) **CI split into lint + test + docker-smoke jobs.** Lint job (ruff check, ruff format --check, mypy) runs first; test matrix (3.11, 3.12) depends on lint passing. (b) **Redis 7.4-alpine + PostgreSQL 16.9-alpine services** added to test job with health checks and env vars (`REDIS_URL`, `DATABASE_URL`). (c) **Integration test marker.** Added `integration` pytest marker in `pyproject.toml`; applied `pytestmark = pytest.mark.integration` to e2e tests. CI runs unit and integration as separate steps. (d) **uv cache** via `actions/cache@v4` for faster installs. (e) **Concurrency control** cancels superseded runs on the same ref. (f) **Makefile targets** `test-unit` and `test-integration` added for local parity. **Files changed:** `.github/workflows/ci.yml`, `pyproject.toml`, `tests/integration/test_pipeline_e2e.py`, `Makefile`, `PLAN.md`, `CLAUDE.md`. |
 
