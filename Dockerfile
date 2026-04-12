@@ -34,6 +34,8 @@ COPY --from=builder /build/src ./src
 COPY configs ./configs
 COPY Makefile ./
 
+RUN mkdir -p results && chown chrono:chrono results
+
 USER chrono
 
 EXPOSE 8000
