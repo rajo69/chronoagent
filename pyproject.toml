@@ -135,6 +135,7 @@ pythonpath = ["."]
 addopts = "--cov=chronoagent --cov-report=term-missing --cov-fail-under=80"
 markers = [
     "slow: marks tests as slow (opt out with -m 'not slow')",
+    "integration: end-to-end tests that may need external services",
 ]
 
 [tool.coverage.run]

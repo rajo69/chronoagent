@@ -21,6 +21,8 @@ from chronoagent.agents.style_reviewer import StyleReview
 from chronoagent.agents.summarizer import ReviewReport
 from chronoagent.pipeline.graph import ReviewPipeline
 
+pytestmark = pytest.mark.integration
+
 # ---------------------------------------------------------------------------
 # Shared PR fixtures
 # ---------------------------------------------------------------------------
