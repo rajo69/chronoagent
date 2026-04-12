@@ -1,0 +1,87 @@
+\section{Experiments}
+\label{sec:experiments}
+
+\todo{expand per-experiment prose in task 11.2.}
+
+\subsection{Claims}
+\label{sec:experiments:claims}
+
+We evaluate five claims:
+\begin{description}
+  \item[C1] Behavioral signals shift measurably under memory poisoning.
+  \item[C2] The BOCPD + Chronos ensemble flags shifts with
+  $\awt{} \geq 0$ across runs.
+  \item[C3] Health-weighted allocation improves efficiency under
+  attack relative to a no-monitoring round-robin baseline.
+  \item[C4] \sys{} achieves competitive AUROC against a reactive
+  Sentinel-style baseline thanks to temporal context.
+  \item[C5] The forecaster adds less than 1\% computational overhead
+  relative to BOCPD alone.
+\end{description}
+
+\subsection{Configurations}
+\label{sec:experiments:configs}
+
+Six YAML configs (see \texttt{configs/experiments/}) define the study:
+\begin{enumerate}
+  \item \textbf{\texttt{main\_experiment}} -- MINJA attack, full
+  \sys{} stack.
+  \item \textbf{\texttt{agentpoison\_experiment}} -- AgentPoison
+  attack, full stack.
+  \item \textbf{\texttt{baseline\_sentinel}} -- reactive per-query
+  filter baseline.
+  \item \textbf{\texttt{ablation\_no\_bocpd}} -- forecaster only.
+  \item \textbf{\texttt{ablation\_no\_forecaster}} -- BOCPD only.
+  \item \textbf{\texttt{ablation\_no\_health\_scores}} -- detectors
+  on, allocator insensitive to health.
+\end{enumerate}
+
+A seventh config, \texttt{signal\_validation} (Phase 1), establishes
+C1 independent of the runtime stack.
+
+\subsection{Claim-to-Experiment Map}
+\label{sec:experiments:map}
+
+\todo{reference \cref{tab:claim-map} with a proper mapping table in
+11.2.}
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Claim & Primary experiment & Supporting artefacts \\
+\midrule
+C1 & \texttt{signal\_validation} & \texttt{decision\_matrix.csv}, \texttt{signals\_*.png} \\
+C2 & \texttt{main\_experiment}, \texttt{agentpoison\_experiment} & fig1\_signal\_drift, table1\_main\_results \\
+C3 & full vs.\ \texttt{ablation\_no\_health\_scores} & fig4\_allocation\_efficiency\_over\_time, table2\_ablation \\
+C4 & full vs.\ \texttt{baseline\_sentinel} & fig5\_roc\_curve, table1\_main\_results \\
+C5 & microbenchmark & \todo{latency measurement, 11.2/11.4} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Protocol}
+\label{sec:experiments:protocol}
+
+Each configuration is executed via
+\begin{verbatim}
+chronoagent run-experiment phase10 \
+    --config configs/experiments/<name>.yaml \
+    --output results/
+\end{verbatim}
+which persists \texttt{runs.csv}, \texttt{aggregate.json}, and a
+\texttt{raw/} subdirectory under \texttt{results/<name>/}. The full
+comparison pass is
+\begin{verbatim}
+chronoagent compare-experiments \
+    --output results/ \
+    --experiment main_experiment \
+    --experiment agentpoison_experiment \
+    --experiment baseline_sentinel \
+    --ablation ablation_no_bocpd \
+    --ablation ablation_no_forecaster \
+    --ablation ablation_no_health_scores
+\end{verbatim}
+which writes the six comparison figures (\texttt{fig1}--\texttt{fig6})
+under \texttt{results/figures/} and the two LaTeX tables
+(\texttt{table1\_main\_results}, \texttt{table2\_ablation}) under
+\texttt{results/tables/}. Those artefacts are \texttt{\textbackslash
+input}'d into \cref{sec:results}.
