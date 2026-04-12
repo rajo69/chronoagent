@@ -1,8 +1,6 @@
 \section{Experiments}
 \label{sec:experiments}
 
-\todo{expand per-experiment prose in task 11.2.}
-
 \subsection{Claims}
 \label{sec:experiments:claims}
 
@@ -15,8 +13,10 @@ We evaluate five claims:
   attack relative to a no-monitoring round-robin baseline.
   \item[C4] \sys{} achieves competitive AUROC against a reactive
   Sentinel-style baseline thanks to temporal context.
-  \item[C5] The forecaster adds less than 1\% computational overhead
-  relative to BOCPD alone.
+  \item[C5] The Chronos forecaster can be run inline per PR-handling
+  step without stalling the control plane. C5 is a soft, qualitative
+  claim in this draft; a quantitative wall-clock microbenchmark is
+  deferred to task 11.4 and the reproducibility harness.
 \end{description}
 
 \subsection{Configurations}
@@ -42,21 +42,42 @@ C1 independent of the runtime stack.
 \subsection{Claim-to-Experiment Map}
 \label{sec:experiments:map}
 
-\todo{reference \cref{tab:claim-map} with a proper mapping table in
-11.2.}
-\begin{center}
-\begin{tabular}{@{}lll@{}}
-\toprule
-Claim & Primary experiment & Supporting artefacts \\
-\midrule
-C1 & \texttt{signal\_validation} & \texttt{decision\_matrix.csv}, \texttt{signals\_*.png} \\
-C2 & \texttt{main\_experiment}, \texttt{agentpoison\_experiment} & fig1\_signal\_drift, table1\_main\_results \\
-C3 & full vs.\ \texttt{ablation\_no\_health\_scores} & fig4\_allocation\_efficiency\_over\_time, table2\_ablation \\
-C4 & full vs.\ \texttt{baseline\_sentinel} & fig5\_roc\_curve, table1\_main\_results \\
-C5 & microbenchmark & \todo{latency measurement, 11.2/11.4} \\
-\bottomrule
-\end{tabular}
-\end{center}
+\Cref{tab:claim-map} maps every claim to the experiment that produces
+its primary evidence, the ablation or baseline it is compared
+against, and the Phase 10 figures and tables that back it.
+
+\begin{table}[tbp]
+  \centering
+  \small
+  \caption{Claim-to-experiment map. Each claim C1--C5 points at the
+  experiment(s) that produce its evidence, the comparator used, and
+  the Phase 10 figure/table artefacts that render it. C5 is a soft
+  qualitative claim in this draft; its quantitative microbenchmark
+  is deferred to task 11.4.}
+  \label{tab:claim-map}
+  \begin{tabular}{@{}llll@{}}
+    \toprule
+    Claim & Primary experiment & Comparator & Artefacts \\
+    \midrule
+    C1 & \texttt{signal\_validation} & clean vs.\ poisoned phase
+       & \texttt{decision\_matrix.csv}, \texttt{signals\_minja.png} \\
+    C2 & \texttt{main\_experiment}
+       & pre- vs.\ post-injection window
+       & \texttt{fig1\_signal\_drift}, \texttt{table1\_main\_results} \\
+     & \texttt{agentpoison\_experiment} & & \\
+    C3 & \texttt{main\_experiment}
+       & vs.\ \texttt{ablation\_no\_health\_scores}
+       & \texttt{fig4\_allocation\_efficiency\_over\_time}, \\
+     & & (no-monitoring path) & \texttt{table2\_ablation} \\
+    C4 & \texttt{main\_experiment}
+       & vs.\ \texttt{baseline\_sentinel}
+       & \texttt{fig5\_roc\_curve}, \texttt{table1\_main\_results} \\
+    C5 & (qualitative, soft)
+       & BOCPD-only vs.\ ensemble
+       & deferred microbenchmark (11.4) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \subsection{Protocol}
 \label{sec:experiments:protocol}

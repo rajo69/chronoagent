@@ -79,6 +79,19 @@
   }%
 }
 
+% Guarded \includegraphics: include the figure at the given explicit path
+% if it exists, otherwise emit a red TODO line. Same rationale as
+% \inputiffound -- Phase 10 figures live under ../results/ and may be
+% absent on a clean checkout, so a bare \includegraphics would hard-fail
+% the PDF build. #1 is the full path (with .png) relative to the paper/
+% directory so \IfFileExists can resolve it; \graphicspath is not used
+% here because \IfFileExists ignores it.
+\newcommand{\figureiffound}[2]{%
+  \IfFileExists{#1}{\includegraphics[width=\columnwidth]{#1}}{%
+    \todo{missing figure: \texttt{#1} -- #2}%
+  }%
+}
+
 % ---------------------------------------------------------------------------
 % Title block
 % ---------------------------------------------------------------------------
