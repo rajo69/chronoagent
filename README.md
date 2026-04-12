@@ -3,8 +3,9 @@
 > A multi-agent LLM system that watches its own behavior over time and uses what it sees to decide which agent to trust with the next task.
 
 [![CI](https://github.com/rajo69/chronoagent/actions/workflows/ci.yml/badge.svg)](https://github.com/rajo69/chronoagent/actions/workflows/ci.yml)
+[![Release](https://github.com/rajo69/chronoagent/actions/workflows/release.yml/badge.svg)](https://github.com/rajo69/chronoagent/actions/workflows/release.yml)
 ![python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
-![tests](https://img.shields.io/badge/tests-1500%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-1508%20passing-brightgreen)
 ![coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)
 ![license](https://img.shields.io/badge/license-Apache%202.0-blue)
 
@@ -67,9 +68,9 @@ The project is built in numbered phases. Each phase has an exit criterion and a 
 | 9 | Production Hardening | ✅ Done |
 | 10 | Research Experiment Suite | ✅ Done |
 | 11 | Paper Scaffold and Reproducibility | ✅ Done |
-| 12 | CI/CD and Release | ⬜ Planned |
+| 12 | CI/CD and Release | ✅ Done |
 
-**Currently:** Phase 11 complete. Task 11.5 pinned all Docker image versions (Python 3.11.13-slim-bookworm, uv 0.7.12, Redis 7.4, Postgres 16.9, ChromaDB 1.5.7), verified all experiment seeds are fixed (`seed: 42` across all 7 configs), and added a `docker-smoke` CI job that builds the image and runs `make reproduce-signal` inside it. 1508 tests pass with 95.92% coverage.
+**Currently:** Phase 12 complete. CI split into lint/test/docker-smoke jobs with Redis and PostgreSQL service containers. Manual experiments workflow (`workflow_dispatch`) runs any experiment suite on demand. Release workflow builds wheel + Docker image and pushes to GHCR on `v*` tags. 1508 tests pass with 95.94% coverage.
 
 **An honest pivot worth recording:** Phase 1 was a hard signal-validation gate. Before building anything else, we measured whether the behavioral signals we wanted to forecast were actually distinguishable from noise. KL divergence from a clean baseline turned out to be a strong primary signal (Cohen's d ≈ 1.6 on the MINJA attack benchmark), while three of the six secondary signals were effectively constant under our test conditions. The original framing around "advance warning time" did not survive the data. The project was reframed around concurrent detection plus reliability-weighted allocation, which the data does support. The full ruling is in [`docs/phase1_decision.md`](./docs/phase1_decision.md).
 
@@ -268,6 +269,16 @@ ChronoAgent's contribution is the integration: a system that takes the time-seri
 | Type checking | Mypy strict mode |
 | Tests | Pytest + Hypothesis |
 | Container | Docker Compose |
+
+---
+
+## Contributing
+
+1. Fork the repo and create a branch (`feat/`, `fix/`, or `chore/` prefix).
+2. Install dev dependencies: `make install`.
+3. Run lint and tests locally before pushing: `make lint && make test`.
+4. Open a PR against `main`. CI must be green before merge.
+5. Use conventional commits (`feat(scope): ...`, `fix(scope): ...`). The project uses commitizen: run `cz commit` instead of `git commit`.
 
 ---
 

@@ -587,7 +587,7 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 **Tasks:**
 - [x] 12.1 `.github/workflows/ci.yml` -- ruff, mypy, pytest unit + integration, codecov. Services: redis, postgres
 - [x] 12.2 `.github/workflows/experiments.yml` -- manual trigger, runs experiments on GPU runner (or CPU + mock for CI validation)
-- [ ] 12.3 `.github/workflows/release.yml` -- on tag `v*`: build wheel, build Docker image, push to GHCR
+- [x] 12.3 `.github/workflows/release.yml` -- on tag `v*`: build wheel, build Docker image, push to GHCR
 
 **Key Files:** `.github/workflows/*.yml`
 
@@ -596,9 +596,9 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 ### Phase 12 Log
 | | |
 |--|--|
-| **Findings** | _fill in_ |
-| **Challenges** | _fill in_ |
-| **Completed** | _fill in: date_ |
+| **Findings** | Existing CI already covered lint + test + docker-smoke; main addition was services (redis, postgres), job splitting, caching, concurrency. Release workflow already existed in skeleton form; enhanced with parallel jobs, docker/metadata-action for semver tags, and sdist. |
+| **Challenges** | None significant. pytestmark placement triggered E402 lint error (moved after imports). |
+| **Completed** | 2026-04-12 |
 
 ---
 
