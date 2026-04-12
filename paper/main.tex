@@ -3,8 +3,9 @@
 % Phase 11 task 11.1 ships the skeleton: preamble, title block, and nine
 % section \input files. Task 11.2 maps claims C1--C5 to the Phase 10
 % experiments already persisted under ../results/. Task 11.3 populates
-% bibliography.bib. Task 11.4 adds Makefile targets that re-run the
-% experiment suite and regenerate figures/tables.
+% bibliography.bib with real entries for every work named in the prose
+% and wires \cite{} calls inline. Task 11.4 adds Makefile targets that
+% re-run the experiment suite and regenerate figures/tables.
 %
 % Compile with:
 %   cd paper && latexmk -pdf main.tex
@@ -125,7 +126,7 @@
 \input{sections/08_conclusion}
 
 % ---------------------------------------------------------------------------
-% Bibliography (populated in task 11.3)
+% Bibliography
 % ---------------------------------------------------------------------------
 \bibliographystyle{plainnat}
 \bibliography{bibliography}

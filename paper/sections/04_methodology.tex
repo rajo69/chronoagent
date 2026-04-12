@@ -24,14 +24,16 @@ at PR-handling step $t$. The six components are:
 \subsection{BOCPD + Chronos Ensemble}
 \label{sec:methodology:detector}
 
-We apply a Bayesian Online Change-Point Detector (BOCPD) to the KL
-divergence stream, using a Gaussian observation model with conjugate
-Normal-Gamma prior. The run-length posterior $p(r_t \mid s_{1:t})$
-collapses when a change point is detected; we flag step $t$ whenever
+We apply a Bayesian Online Change-Point Detector
+(BOCPD)~\citep{adams2007bocpd} to the KL divergence stream, using a
+Gaussian observation model with conjugate Normal-Gamma prior. The
+run-length posterior $p(r_t \mid s_{1:t})$ collapses when a change
+point is detected; we flag step $t$ whenever
 $p(r_t = 0 \mid s_{1:t}) > \tau_{\text{cpd}}$.
 
-In parallel, a Chronos-2-Small forecaster is conditioned on the last
-$L=64$ KL divergence samples and emits quantile predictions
+In parallel, a Chronos-2-Small forecaster~\citep{chronos} is
+conditioned on the last $L=64$ KL divergence samples and emits
+quantile predictions
 $\{\hat{q}_{0.1}, \hat{q}_{0.5}, \hat{q}_{0.9}\}$ for the next step.
 An observation outside $[\hat{q}_{0.1}, \hat{q}_{0.9}]$ is flagged.
 The two detectors are combined with an OR aggregation; the system
@@ -53,7 +55,10 @@ $\awt{} > 0$ means the detector fired only after downstream damage.
 \subsection{Health-Weighted Allocation}
 \label{sec:methodology:alloc}
 
-Agent $a$'s bid for PR $j$ is
+The allocation layer is a shallow contract-net
+variant~\citep{contractnet}; a Dec-POMDP view of the underlying
+coordination problem is given by~\citet{decpomdp}. Agent $a$'s bid
+for PR $j$ is
 \begin{equation}
   c_{a,j} = \alpha \cdot \text{queue\_depth}_a + \beta \cdot (1 - h_a),
 \end{equation}

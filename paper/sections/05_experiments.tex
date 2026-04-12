@@ -24,12 +24,14 @@ We evaluate five claims:
 
 Six YAML configs (see \texttt{configs/experiments/}) define the study:
 \begin{enumerate}
-  \item \textbf{\texttt{main\_experiment}} -- MINJA attack, full
-  \sys{} stack.
-  \item \textbf{\texttt{agentpoison\_experiment}} -- AgentPoison
-  attack, full stack.
+  \item \textbf{\texttt{main\_experiment}} -- MINJA~\citep{minja}
+  attack, full \sys{} stack.
+  \item \textbf{\texttt{agentpoison\_experiment}} --
+  AgentPoison~\citep{agentpoison} attack, full stack.
   \item \textbf{\texttt{baseline\_sentinel}} -- reactive per-query
-  filter baseline.
+  filter baseline in the spirit of
+  LlamaGuard~\citep{llamaguard} and NeMo
+  Guardrails~\citep{nemoguardrails}.
   \item \textbf{\texttt{ablation\_no\_bocpd}} -- forecaster only.
   \item \textbf{\texttt{ablation\_no\_forecaster}} -- BOCPD only.
   \item \textbf{\texttt{ablation\_no\_health\_scores}} -- detectors
