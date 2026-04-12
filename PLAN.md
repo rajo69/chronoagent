@@ -585,7 +585,7 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 - Experiment workflow manually triggerable via Actions
 
 **Tasks:**
-- [ ] 12.1 `.github/workflows/ci.yml` -- ruff, mypy, pytest unit + integration, codecov. Services: redis, postgres
+- [x] 12.1 `.github/workflows/ci.yml` -- ruff, mypy, pytest unit + integration, codecov. Services: redis, postgres
 - [ ] 12.2 `.github/workflows/experiments.yml` -- manual trigger, runs experiments on GPU runner (or CPU + mock for CI validation)
 - [ ] 12.3 `.github/workflows/release.yml` -- on tag `v*`: build wheel, build Docker image, push to GHCR
 

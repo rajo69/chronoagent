@@ -1,4 +1,4 @@
-.PHONY: dev test lint docker-up docker-down update-readme install \
+.PHONY: dev test test-unit test-integration lint docker-up docker-down update-readme install \
        reproduce reproduce-signal reproduce-main reproduce-ablations reproduce-figures
 
 # ── Development ───────────────────────────────────────────────────────────────
@@ -8,6 +8,12 @@ dev:
 # ── Testing ───────────────────────────────────────────────────────────────────
 test:
 	pytest tests/ -v
+
+test-unit:
+	pytest tests/unit/ -v
+
+test-integration:
+	pytest tests/integration/ -v -m integration --no-cov
 
 test-fast:
 	pytest tests/ -v -x --no-cov

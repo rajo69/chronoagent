@@ -6,12 +6,81 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  ci:
+  lint:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Cache uv packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-lint-${{ runner.os }}-${{ hashFiles('requirements.lock') }}
+          restore-keys: uv-lint-${{ runner.os }}-
+
+      - name: Install from lock file
+        run: uv pip install --system -r requirements.lock
+
+      - name: Install package
+        run: uv pip install --system -e ".[dev]"
+
+      - name: Ruff lint
+        run: ruff check src/ tests/
+
+      - name: Ruff format check
+        run: ruff format --check src/ tests/
+
+      - name: Mypy
+        run: mypy src/
+
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
+
+    services:
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      postgres:
+        image: postgres:16.9-alpine
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: chrono
+          POSTGRES_PASSWORD: chrono
+          POSTGRES_DB: chronoagent_test
+        options: >-
+          --health-cmd "pg_isready -U chrono"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      REDIS_URL: redis://localhost:6379/0
+      DATABASE_URL: postgresql://chrono:chrono@localhost:5432/chronoagent_test
 
     steps:
       - uses: actions/checkout@v4
@@ -24,33 +93,35 @@ jobs:
       - name: Install uv
         run: pip install uv
 
+      - name: Cache uv packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-test-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('requirements.lock') }}
+          restore-keys: uv-test-${{ runner.os }}-py${{ matrix.python-version }}-
+
       - name: Install from lock file
         run: uv pip install --system -r requirements.lock
 
       - name: Install package
         run: uv pip install --system -e ".[dev,experiments]"
 
-      - name: Ruff lint
-        run: ruff check src/ tests/
+      - name: Unit tests
+        run: pytest tests/unit/ -v --cov=chronoagent --cov-report=xml --cov-fail-under=80
 
-      - name: Ruff format check
-        run: ruff format --check src/ tests/
-
-      - name: Mypy
-        run: mypy src/
-
-      - name: Pytest with coverage
-        run: pytest tests/ -v --cov=chronoagent --cov-report=xml --cov-fail-under=80
+      - name: Integration tests
+        run: pytest tests/integration/ -v -m integration --no-cov
 
       - name: Upload coverage report
         uses: codecov/codecov-action@v4
         if: matrix.python-version == '3.11'
         with:
           file: ./coverage.xml
+          fail_ci_if_error: false
 
   docker-smoke:
     runs-on: ubuntu-latest
-    needs: ci
+    needs: test
     if: github.event_name == 'push' || github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
