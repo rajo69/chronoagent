@@ -1,0 +1,76 @@
+name: Experiments
+
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Which experiment suite to run"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - signal
+          - main
+          - ablations
+          - figures
+          - all
+
+concurrency:
+  group: experiments-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  experiments:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Cache uv packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-experiments-${{ runner.os }}-${{ hashFiles('requirements.lock') }}
+          restore-keys: uv-experiments-${{ runner.os }}-
+
+      - name: Install from lock file
+        run: uv pip install --system -r requirements.lock
+
+      - name: Install package
+        run: uv pip install --system -e ".[dev,experiments]"
+
+      - name: Create results directory
+        run: mkdir -p results
+
+      - name: Run signal validation
+        if: inputs.suite == 'signal' || inputs.suite == 'all'
+        run: make reproduce-signal
+
+      - name: Run main experiments
+        if: inputs.suite == 'main' || inputs.suite == 'all'
+        run: make reproduce-main
+
+      - name: Run ablation experiments
+        if: inputs.suite == 'ablations' || inputs.suite == 'all'
+        run: make reproduce-ablations
+
+      - name: Generate figures and tables
+        if: inputs.suite == 'figures' || inputs.suite == 'all'
+        run: make reproduce-figures
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: experiment-results-${{ inputs.suite }}-${{ github.sha }}
+          path: results/
+          retention-days: 30
