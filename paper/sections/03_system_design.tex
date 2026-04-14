@@ -10,11 +10,11 @@ components:
 
 \paragraph{Behavioral Monitor (\cref{sec:methodology:signals}).}
 For every PR-handling step, each agent emits six scalar signals:
-tool-call entropy, decision latency, memory-query entropy, KL
-divergence against a pre-attack baseline distribution, retrieval-hit
-rate, and action-repetition rate. The monitor persists these signals
-to SQLite (dev) or PostgreSQL (prod) for offline analysis and streams
-them to the Temporal Health Scorer.
+response latency, retrieval count, output token count, KL
+divergence against a pre-attack baseline distribution, tool-call
+frequency, and memory-query entropy. The monitor persists these
+signals to SQLite (dev) or PostgreSQL (prod) for offline analysis
+and streams them to the Temporal Health Scorer.
 
 \paragraph{Temporal Health Scorer (\cref{sec:methodology:detector}).}
 The scorer combines two detectors on the dominant signal
@@ -27,11 +27,13 @@ score; a sustained normal regime lets the score recover.
 
 \paragraph{Decentralized Task Allocator (\cref{sec:methodology:alloc}).}
 New PRs are offered via a lightweight contract-net-style negotiation
-protocol~\citep{contractnet}; each agent bids a cost that is a
-function of its own health score and queue depth. The allocator picks
-the lowest-cost bid. A drifting agent's health score drops, its cost
-rises, and work routes away from it automatically, without a
-centralized kill-switch.
+protocol~\citep{contractnet}; each agent submits a bid equal to its
+static capability for the task type multiplied by its current health
+score. The allocator assigns the task to the highest bid above a
+configurable threshold, or escalates to a human reviewer when no
+agent clears the threshold. A drifting agent's health score drops,
+its bid falls, and work routes away from it automatically, without
+a centralized kill-switch.
 
 \paragraph{Human Escalation Layer.}
 When the aggregate health score across the pool drops below a
