@@ -59,28 +59,87 @@ The contribution boundary is deliberately narrow: ChronoAgent does not invent ne
 
 ---
 
-## Project Status
+## Formal Problem Statement
 
-The project was built in 13 numbered phases, each with explicit exit criteria and a test gate. All core phases are complete.
+We formalize ChronoAgent as a Partially Observable Markov Decision Process (POMDP) defined by the tuple $\langle S, A, \Omega, T, O, R, \gamma \rangle$. The allocator is centralized: it observes the full signal vector across all agents and issues allocation decisions. This is weaker than a Dec-POMDP, which we discuss at the end of the section.
 
-| Phase | Name | Status |
-|-------|------|--------|
-| 0 | Bootstrap (config, logging, health, Docker, CI) | Done |
-| 1 | Signal Validation GO/NO-GO Gate | Done |
-| 2 | Core Agent Pipeline (4 agents, LangGraph) | Done |
-| 3 | Behavioral Monitor (6 signals, persistence) | Done |
-| 4 | Temporal Health Scorer (BOCPD + Chronos ensemble) | Done |
-| 5 | Decentralized Task Allocator (contract-net) | Done |
-| 6 | Memory Integrity Module (isolation forest, quarantine) | Done |
-| 7 | Human Escalation Layer (threshold, cooldown, audit) | Done |
-| 8 | Observability Dashboard (HTML + Chart.js + Prometheus) | Done |
-| 9 | Production Hardening (rate limits, retry, degradation) | Done |
-| 10 | Research Experiment Suite (6 configs, baselines, ablations) | Done |
-| 11 | Paper Scaffold and Reproducibility (LaTeX, `make reproduce`) | Done |
-| 12 | CI/CD and Release (lint/test/docker-smoke, GHCR) | Done |
-| 13 | Polish and First Release | In progress |
+### State Space $S$
 
-**Current state**: 1508 tests passing, 95.94% coverage, strict mypy, all CI checks green.
+The true state at step $t$ is a tuple $s_t = (M_t, \boldsymbol{\theta}_t, q_t)$ where:
+
+- $M_t \in \{0, 1, \ldots, K\}$ is the memory corruption level, i.e. the number of active poison documents in the retrieval corpus.
+- $\boldsymbol{\theta}_t = (\theta_t^1, \ldots, \theta_t^n)$ is the vector of per-agent behavioral regimes, with $\theta_t^i \in \{\text{clean}, \text{drifting}\}$.
+- $q_t$ is the pending task queue.
+
+Critically, $M_t$ and each $\theta_t^i$ are hidden: they are never directly observed. This partial observability is what distinguishes the problem from a standard MDP and motivates belief-state monitoring.
+
+### Action Space $A$
+
+For each pending task the allocator selects $a_t \in \{1, \ldots, n\} \cup \{\text{escalate}\}$, corresponding to assigning task $j$ to agent $i$ or escalating the task to a human reviewer.
+
+### Observation Space $\Omega$
+
+At each step the allocator observes a six-signal behavioral profile per agent:
+
+$$\omega_t^i = (\ell_t^i, \, r_t^i, \, \tau_t^i, \, D_{\mathrm{KL},t}^i, \, f_t^i, \, H_t^i) \in \mathbb{R}^6$$
+
+corresponding to latency, retrieval count, token count, KL divergence (against a clean reference distribution), tool-call frequency, and memory-query entropy. The full observation concatenates across all $n$ agents: $\omega_t \in \mathbb{R}^{6n}$.
+
+The Phase 1 empirical signal validation grounds the observation model. Under the MINJA attack:
+
+$$D_{\mathrm{KL}} \mid \theta^i = \text{clean} \sim \mathcal{N}(42.99, 33.57^2), \quad D_{\mathrm{KL}} \mid \theta^i = \text{drifting} \sim \mathcal{N}(100.01, 37.12^2)$$
+
+Under AGENTPOISON:
+
+$$D_{\mathrm{KL}} \mid \theta^i = \text{clean} \sim \mathcal{N}(50.69, 40.10^2), \quad D_{\mathrm{KL}} \mid \theta^i = \text{drifting} \sim \mathcal{N}(100.06, 32.78^2)$$
+
+The Phase 1 Cohen's $d$ values of $1.611$ (MINJA) and $1.348$ (AGENTPOISON) directly quantify the separation between these observation distributions. Note that 3 of the 6 signals degenerate to zero variance under the MockBackend and are modeled as constants; this is a deliberate simplification of the observation model for deterministic experimentation.
+
+### Transition Function $T$
+
+The transition kernel $T(s_{t+1} \mid s_t, a_t)$ decomposes into three components:
+
+- **Corruption dynamics.** $M_{t+1} = M_t + \xi_t$, where $\xi_t \sim \text{Poisson}(\lambda)$ models a stochastic attacker injecting poison documents at rate $\lambda$, or $\xi_t = k \cdot \mathbb{1}(t = t_{\text{inject}})$ models a burst injection of $k$ documents at time $t_{\text{inject}}$.
+- **Regime transitions.** $P(\theta_{t+1}^i = \text{drifting} \mid \theta_t^i = \text{clean}, M_t) = g(M_t)$, with $g$ monotonically increasing in $M_t$: agents that retrieve from increasingly corrupted memory are more likely to drift into the compromised regime.
+- **Task queue.** $q_t$ updates deterministically given allocation decisions and new task arrivals.
+
+### Observation Function $O$
+
+$O(\omega_t \mid s_t, a_t)$ is the probability of observing $\omega_t$ under true state $s_t$. We factor the observation model across agents under the assumption that per-agent signals are conditionally independent given each agent's regime:
+
+$$O(\omega_t \mid s_t) = \prod_{i=1}^{n} P(\omega_t^i \mid \theta_t^i)$$
+
+Each factor is parameterized by the clean and drifting distributions fit in Phase 1.
+
+### Reward Function $R$
+
+The reward decomposes into task and safety components:
+
+$$R(s_t, a_t) = \alpha \cdot R_{\text{task}}(s_t, a_t) + \beta \cdot R_{\text{safety}}(s_t, a_t)$$
+
+with:
+
+- $R_{\text{task}}$ returning $+1$ for correct allocation to a clean agent, $-1$ for allocation to a compromised agent, and $-c_e$ for escalation (reflecting the cost of human intervention).
+- $R_{\text{safety}}$ returning $+1$ for a true positive detection of a drifting agent and $-c_f$ for a false alarm.
+
+In the empirical results, allocation efficiency approximates $\mathbb{E}[R_{\text{task}}]$ and the detection AUROC characterizes the discrimination quality of $R_{\text{safety}}$.
+
+### Discount Factor $\gamma$
+
+The discount factor controls the policy's temporal horizon. As $\gamma \to 0$ the policy becomes myopic, maximizing immediate throughput and ignoring health signals; as $\gamma \to 1$ the policy weights future corruption risk, favoring conservative allocation even at short-term throughput cost.
+
+### Connection to System Components
+
+Each module of ChronoAgent maps to a specific operation over the POMDP:
+
+- **BOCPD as approximate Bayesian filtering.** The Bayesian Online Changepoint Detector maintains a posterior over run-length $r_t$ on the signal stream $x_{1:t}^i$. The changepoint probability $P(r_t = 0 \mid x_{1:t}^i)$ approximates the regime-transition posterior $P(\theta_t^i \neq \theta_{t-1}^i \mid \omega_{1:t}^i)$.
+- **Health score as belief state.** The per-agent health score is the sufficient statistic for decision-making under partial observability. It compresses the observation history $\omega_{1:t}^i$ into a scalar summary of $P(\theta_t^i = \text{clean} \mid \omega_{1:t}^i)$.
+- **Allocator policy over the belief space.** The contract-net allocator (threshold health, scale bids by health, escalate when no agent is trustworthy) is a hand-designed policy $\pi(b_t)$ operating on the belief $b_t$ rather than the hidden state $s_t$.
+- **AWT = 0 is structural.** The observation function $O$ depends on the current state $s_t$ only, not on future states. Concurrent detection (alerting at or before the step at which drift begins) is therefore the theoretical best case achievable given this observation structure: no detector can systematically lead the regime change when the leading information is not encoded in the present observation.
+
+### Limitations of the Centralized Formulation
+
+The formulation above assumes a centralized allocator that observes the full signal vector $\omega_t \in \mathbb{R}^{6n}$ across all agents. In distributed deployments where agents run on separate infrastructure with communication constraints, each agent would observe only its own signals and the coordination problem becomes a Dec-POMDP, a strictly harder problem class requiring decentralized policies with partial information sharing. We leave the decentralized extension to future work.
 
 ---
 
