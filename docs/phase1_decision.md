@@ -35,10 +35,10 @@ chronoagent run-experiment \
 
 | Signal | Clean μ | Clean σ | Poison μ | Poison σ | Cohen's d | Large effect? |
 |--------|---------|---------|----------|----------|-----------|---------------|
-| total_latency_ms | 13.44 | 5.52 | 12.96 | 1.09 | 0.119 | no |
+| total_latency_ms | 4.09 | 0.86 | 4.12 | 0.70 | 0.040 | no |
 | retrieval_count | 6.000 | 0.000 | 6.000 | 0.000 | 0.000 | no |
 | token_count | 18.36 | 4.06 | 17.24 | 2.31 | 0.339 | no |
-| **kl_divergence** | **42.99** | **33.57** | **100.01** | **37.12** | **1.611** | **YES** |
+| **kl_divergence** | **42.21** | **32.89** | **97.18** | **47.61** | **1.343** | **YES** |
 | tool_calls | 2.000 | 0.000 | 2.000 | 0.000 | 0.000 | no |
 | memory_query_entropy | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | no |
 
@@ -48,10 +48,10 @@ chronoagent run-experiment \
 
 | Signal | Clean μ | Clean σ | Poison μ | Poison σ | Cohen's d | Large effect? |
 |--------|---------|---------|----------|----------|-----------|---------------|
-| total_latency_ms | 11.05 | 1.65 | 11.80 | 2.37 | 0.369 | no |
+| total_latency_ms | 4.20 | 1.66 | 5.72 | 4.96 | 0.409 | no |
 | retrieval_count | 6.000 | 0.000 | 6.000 | 0.000 | 0.000 | no |
 | token_count | 18.36 | 4.06 | 17.24 | 2.31 | 0.339 | no |
-| **kl_divergence** | **50.69** | **40.10** | **100.06** | **32.78** | **1.348** | **YES** |
+| **kl_divergence** | **42.21** | **32.89** | **89.03** | **33.89** | **1.402** | **YES** |
 | tool_calls | 2.000 | 0.000 | 2.000 | 0.000 | 0.000 | no |
 | memory_query_entropy | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | no |
 
@@ -62,7 +62,7 @@ chronoagent run-experiment \
 | Attack | Signal | PELT CP | AWT | First crossing |
 |--------|--------|---------|-----|----------------|
 | MINJA | kl_divergence | step 9 | 0 | step 30 |
-| AGENTPOISON | kl_divergence | step 9 | 0 | step 33 |
+| AGENTPOISON | kl_divergence | step 9 | 0 | step 27 |
 
 > AWT = PELT changepoint step − first threshold crossing step.  
 > AWT = 0 means the signal crossed the detection threshold at or after the statistical changepoint — **concurrent detection**, not proactive.
@@ -75,10 +75,10 @@ chronoagent run-experiment \
 
 The KL divergence between retrieval embeddings and the clean Gaussian baseline is the dominant signal under both attacks:
 
-- MINJA: d = 1.611 (very large), mean nearly doubles (43 → 100)
-- AGENTPOISON: d = 1.348 (large), mean nearly doubles (51 → 100)
-- PELT consistently detects the changepoint at step 9 (4 steps into Phase C)
-- AWT = 0 in both cases: the threshold crossing lags the PELT changepoint
+- MINJA: d = 1.343 (large), mean more than doubles (42 → 97)
+- AGENTPOISON: d = 1.402 (large), mean roughly doubles (42 → 89)
+- PELT flags a changepoint at index 9 of the concatenated (Phase A ‖ Phase C) signal series; the detection threshold is first crossed at index 30 (step 5 of Phase C). Step indices throughout this document use this concatenated numbering.
+- AWT = 0 in both cases: the PELT index precedes the threshold crossing, and the floor at zero (concurrent detection) dominates the raw subtraction.
 
 **Interpretation:** KL divergence is a reliable, attack-agnostic detector. The doubling of embedding distribution divergence is mechanistically sound — poisoned documents inject out-of-distribution embeddings into the retrieval space. The signal works for both query-optimized (MINJA) and backdoor-trigger (AGENTPOISON) attacks.
 
@@ -135,7 +135,7 @@ AWT = 0 on the only confirmed signal. Per the pivot protocol:
 
 > **Pivot A:** "Behavioral Time-Series Monitoring for Reliable Multi-Agent Task Allocation with Concurrent Attack Detection"
 
-The paper framing shifts from "proactive early warning" to "concurrent detection." This is an honest finding — PELT changepoint detection identifies the injection boundary (step 9 of 25, i.e., 4 steps after Phase C begins), which is real-time detection capability.
+The paper framing shifts from "proactive early warning" to "concurrent detection." This is an honest finding: PELT changepoint detection flags index 9 of the concatenated (Phase A ‖ Phase C) series for both attacks, and the detection threshold is first crossed at index 30 (MINJA) and index 27 (AGENTPOISON), which is real-time detection capability.
 
 **Impact on project scope:** No code changes required. Allocation efficiency becomes the primary paper contribution; concurrent detection via KL-divergence is the security contribution.
 
@@ -181,9 +181,9 @@ The paper framing shifts from "proactive early warning" to "concurrent detection
 
 | Field | Value |
 |-------|-------|
-| **Signal Results** | KL-div: d=1.611 (MINJA), d=1.348 (AGENTPOISON). All other signals: d < 0.4. Entropy/retrieval_count/tool_calls are MockBackend constants (σ=0). |
+| **Signal Results** | KL-div: d=1.343 (MINJA), d=1.402 (AGENTPOISON). All other signals: d < 0.45. Entropy/retrieval_count/tool_calls are MockBackend constants (σ=0). |
 | **GO/NO-GO Decision** | Conditional GO with Pivot A. Strict criterion: NO-GO (1/6). Adjusted: primary signal confirmed. |
-| **Pivot Taken** | Pivot A — AWT=0, concurrent detection framing. |
+| **Pivot Taken** | Pivot A, AWT=0, concurrent detection framing. |
 | **Findings** | KL-divergence is the only backend-independent signal; it works for both MINJA and AGENTPOISON. MockBackend eliminates 3/6 signals as observable. PELT detects changepoint at step 9/25. |
 | **Challenges** | MockBackend limits signal observability; 3 signals are constants. Entropy flat at 0.0 (uniform similarity distribution). Token-count effect is a PR seed confound. |
 | **Decisions** | Applied Pivot A; deferred 3 signals to Phase 2 with real LLM backend. KL-div promoted as anchor signal for Phase 2 monitor integration. |

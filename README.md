@@ -87,13 +87,13 @@ corresponding to latency, retrieval count, token count, KL divergence (against a
 
 The Phase 1 empirical signal validation grounds the observation model. Under the MINJA attack:
 
-$$D_{\mathrm{KL}} \mid \theta^i = \text{clean} \sim \mathcal{N}(42.99, 33.57^2), \quad D_{\mathrm{KL}} \mid \theta^i = \text{drifting} \sim \mathcal{N}(100.01, 37.12^2)$$
+$$D_{\mathrm{KL}} \mid \theta^i = \text{clean} \sim \mathcal{N}(42.21, 32.89^2), \quad D_{\mathrm{KL}} \mid \theta^i = \text{drifting} \sim \mathcal{N}(97.18, 47.61^2)$$
 
 Under AGENTPOISON:
 
-$$D_{\mathrm{KL}} \mid \theta^i = \text{clean} \sim \mathcal{N}(50.69, 40.10^2), \quad D_{\mathrm{KL}} \mid \theta^i = \text{drifting} \sim \mathcal{N}(100.06, 32.78^2)$$
+$$D_{\mathrm{KL}} \mid \theta^i = \text{clean} \sim \mathcal{N}(42.21, 32.89^2), \quad D_{\mathrm{KL}} \mid \theta^i = \text{drifting} \sim \mathcal{N}(89.03, 33.89^2)$$
 
-The Phase 1 Cohen's $d$ values of $1.611$ (MINJA) and $1.348$ (AGENTPOISON) directly quantify the separation between these observation distributions. Note that 3 of the 6 signals degenerate to zero variance under the MockBackend and are modeled as constants; this is a deliberate simplification of the observation model for deterministic experimentation.
+The Phase 1 Cohen's $d$ values of $1.343$ (MINJA) and $1.402$ (AGENTPOISON) directly quantify the separation between these observation distributions. The clean distribution is identical across the two attack conditions because Phase 1 shares a single calibration phase (seed 42) before injection. Note that 3 of the 6 signals degenerate to zero variance under the MockBackend and are modeled as constants; this is a deliberate simplification of the observation model for deterministic experimentation.
 
 ### Transition Function $T$
 
@@ -127,6 +127,10 @@ In the empirical results, allocation efficiency approximates $\mathbb{E}[R_{\tex
 ### Discount Factor $\gamma$
 
 The discount factor controls the policy's temporal horizon. As $\gamma \to 0$ the policy becomes myopic, maximizing immediate throughput and ignoring health signals; as $\gamma \to 1$ the policy weights future corruption risk, favoring conservative allocation even at short-term throughput cost.
+
+### Implementation Status of the State Space
+
+The state-space elements $M_t$, $\boldsymbol{\theta}_t$, and $q_t$ are conceptual formalizations of the decision problem rather than explicit runtime variables in the code. The implementation tracks derived quantities: the per-agent health score acts as the belief over $\theta_t^i$, per-retrieval integrity flags replace a scalar $M_t$, and the allocator is stateless across tasks rather than maintaining a persisted $q_t$. The POMDP tuple is a faithful model of what the system is deciding and observing, not a one-to-one map of the code's data structures.
 
 ### Connection to System Components
 
@@ -299,7 +303,7 @@ The implementation in `src/chronoagent/scorer/bocpd.py` follows Adams and MacKay
 
 **Implementation note**: the naive computation of normalized R\[0\]/total always cancels algebraically to the constant hazard rate H. This is a known pitfall. The fix is to return `H * pred_probs[0] / evidence`, where evidence is computed before normalization. This correctly spikes to ~1.0 on a regime shift and stays near 0 on stable signal.
 
-The entire implementation is ~80 lines of NumPy with no external dependencies beyond SciPy. It runs in microseconds per update, making it suitable for real-time streaming.
+The entire implementation is ~130 lines of NumPy with no external dependencies beyond SciPy. It runs in microseconds per update, making it suitable for real-time streaming.
 
 ### Chronos-2-Small Forecaster
 
@@ -320,7 +324,7 @@ health = 1 − clamp(w_bocpd × bocpd_score + w_chronos × chronos_score, 0, 1)
 
 | Scenario | Behavior |
 |----------|----------|
-| Both components available | Weighted fusion (default: w_bocpd=0.4, w_chronos=0.6) |
+| Both components available | Weighted fusion (default: w_bocpd=0.5, w_chronos=0.5) |
 | Chronos unavailable | w_bocpd promoted to 1.0 (BOCPD-only) |
 | BOCPD fails | w_chronos promoted to 1.0 (Chronos-only) |
 | Both unavailable | Health defaults to 1.0 (optimistic, no monitoring) |
@@ -403,10 +407,10 @@ Before building the full system, Phase 1 ran a hard **GO/NO-GO gate** to empiric
 
 | Signal | Clean Mean | Clean Std | Poisoned Mean | Poisoned Std | Cohen's d | Large Effect? |
 |--------|-----------|-----------|--------------|-------------|-----------|--------------|
-| total_latency_ms | 13.44 | 5.52 | 12.96 | 1.09 | 0.119 | No |
+| total_latency_ms | 4.09 | 0.86 | 4.12 | 0.70 | 0.040 | No |
 | retrieval_count | 6.00 | 0.00 | 6.00 | 0.00 | 0.000 | No |
 | token_count | 18.36 | 4.06 | 17.24 | 2.31 | 0.339 | No |
-| **kl_divergence** | **42.99** | **33.57** | **100.01** | **37.12** | **1.611** | **Yes** |
+| **kl_divergence** | **42.21** | **32.89** | **97.18** | **47.61** | **1.343** | **Yes** |
 | tool_calls | 2.00 | 0.00 | 2.00 | 0.00 | 0.000 | No |
 | memory_query_entropy | 0.00 | 0.00 | 0.00 | 0.00 | 0.000 | No |
 
@@ -414,14 +418,14 @@ Before building the full system, Phase 1 ran a hard **GO/NO-GO gate** to empiric
 
 | Signal | Clean Mean | Clean Std | Poisoned Mean | Poisoned Std | Cohen's d | Large Effect? |
 |--------|-----------|-----------|--------------|-------------|-----------|--------------|
-| total_latency_ms | 11.05 | 1.65 | 11.80 | 2.37 | 0.369 | No |
+| total_latency_ms | 4.20 | 1.66 | 5.72 | 4.96 | 0.409 | No |
 | retrieval_count | 6.00 | 0.00 | 6.00 | 0.00 | 0.000 | No |
 | token_count | 18.36 | 4.06 | 17.24 | 2.31 | 0.339 | No |
-| **kl_divergence** | **50.69** | **40.10** | **100.06** | **32.78** | **1.348** | **Yes** |
+| **kl_divergence** | **42.21** | **32.89** | **89.03** | **33.89** | **1.402** | **Yes** |
 | tool_calls | 2.00 | 0.00 | 2.00 | 0.00 | 0.000 | No |
 | memory_query_entropy | 0.00 | 0.00 | 0.00 | 0.00 | 0.000 | No |
 
-KL divergence is the only signal that shows a large effect under both attacks (d = 1.611 and d = 1.348 respectively), confirming it is **attack-agnostic**. The mean nearly doubles in both cases, which is a direct mechanistic consequence: poisoned documents inject out-of-distribution embeddings that shift the retrieval distribution away from the clean baseline.
+KL divergence is the only signal that shows a large effect under both attacks (d = 1.343 and d = 1.402 respectively), confirming it is **attack-agnostic**. The poisoned mean more than doubles under MINJA and is roughly 2.1x the clean mean under AGENTPOISON, a direct mechanistic consequence of poisoned documents injecting out-of-distribution embeddings that shift the retrieval distribution away from the clean baseline. Both runs share the same calibration phase under `seed=42`, so the clean mean and standard deviation are identical across the two attack rows.
 
 *Raw data from Phase 1 experiment. Full analysis in [`docs/phase1_decision.md`](./docs/phase1_decision.md).*
 
@@ -429,7 +433,7 @@ KL divergence is the only signal that shows a large effect under both attacks (d
 
 ![Behavioral signal drift under MINJA-style memory poisoning attack](results/signals_minja.png)
 
-*Figure: Per-step behavioral signals across 25 clean steps followed by 25 poisoned steps. KL divergence (panel 4) shows a clear, sustained shift at the injection boundary. The PELT changepoint detector identifies the transition at step 9 of the poisoned phase.*
+*Figure: Per-step behavioral signals across 25 clean steps followed by 25 poisoned steps. KL divergence (panel 4) shows a clear, sustained shift at the injection boundary. The PELT changepoint detector flags an index in the concatenated (clean, poisoned) series; step indices reported in `results/decision_matrix.csv` and `docs/phase1_decision.md` use this concatenated numbering.*
 
 ### Honest Finding: Pivot A (AWT = 0)
 
@@ -642,12 +646,12 @@ chronoagent/
 │   ├── cli.py               Typer CLI (serve, run-experiment, compare-experiments)
 │   └── retry.py             Centralized tenacity retry policies
 ├── tests/
-│   ├── unit/                ~40 test files, ~1480 tests
+│   ├── unit/                ~45 test files, 1508 tests (pytest collection count)
 │   └── integration/         End-to-end pipeline tests with mock backend
 ├── paper/
 │   ├── main.tex             Paper scaffold with conditional figure/table inclusion
 │   ├── sections/            00_abstract through 08_conclusion
-│   └── bibliography.bib     21 references
+│   └── bibliography.bib     17 references
 ├── configs/
 │   ├── base.yaml            Shared defaults
 │   ├── dev.yaml / prod.yaml Environment overrides
@@ -743,9 +747,9 @@ If you use ChronoAgent in your research, please cite:
 
 \[1\] Chen, Z. et al. "AGENTPOISON: Red-teaming LLM Agents via Poisoning Memory or Knowledge Bases." *NeurIPS*, 2024.
 
-\[2\] Cheng, Y. et al. "MINJA: Memory Injection Attack on LLM Agents." *arXiv:2503.03704*, 2025.
+\[2\] Dong, S. et al. "MINJA: A Practical Memory Injection Attack against LLM Agents." *arXiv:2503.03704*, 2025.
 
-\[3\] Zhong, H. et al. "A-MemGuard: Dual-Memory Consensus Verification Defense for Memory-Based LLM Agents." *arXiv:2510.02373*, 2025.
+\[3\] Wang, H. et al. "A-MemGuard: A Proactive Defense Framework for LLM-Based Agent Memory." *arXiv:2510.17968*, 2025.
 
 \[4\] Liu, Y. et al. "Attack and Defense Framework for Memory-Based LLM Agents." *arXiv:2601.05504*, 2026.
 
@@ -782,7 +786,7 @@ If you use ChronoAgent in your research, please cite:
 | Web framework | FastAPI |
 | Agent framework | LangGraph + LangChain |
 | Vector memory | ChromaDB |
-| Forecasting | BOCPD (~80 lines NumPy) + Chronos-2-Small (optional) |
+| Forecasting | BOCPD (~130 lines NumPy) + Chronos-2-Small (optional) |
 | Message bus | LocalBus (dev), Redis pub/sub (prod) |
 | Database | SQLite (dev), PostgreSQL (prod), Alembic migrations |
 | LLM backends | MockBackend (default), Together.ai, Ollama (optional) |
