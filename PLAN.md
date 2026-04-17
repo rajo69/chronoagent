@@ -158,7 +158,7 @@ Parallel opportunities: P6 || P5; P8 starts after P4; P12 basic CI starts at P0.
 ### Phase 1 Log
 | | |
 |--|--|
-| **Signal Results** | KL-div: d=1.611 (MINJA), d=1.348 (AGENTPOISON). All other signals d<0.4. Entropy/retrieval_count/tool_calls are MockBackend constants (σ=0). AWT=0 (concurrent). |
+| **Signal Results** | KL-div: d=1.343 (MINJA), d=1.402 (AGENTPOISON), per `results/decision_matrix.csv`. All other signals d<0.4. Entropy/retrieval_count/tool_calls are MockBackend constants (σ=0). AWT=0 (concurrent). *Earlier draft of this line recorded d=1.611 (MINJA) / d=1.348 (AGENTPOISON) from an outdated run; canonical numbers are the decision_matrix.csv values quoted here and in README.* |
 | **GO/NO-GO Decision** | Conditional GO with Pivot A. Strict criterion: NO-GO (1/6 signals). Adjusted: primary signal confirmed; MockBackend limits 3/6 signals. |
 | **Pivot Taken** | Pivot A — AWT=0; reframe to concurrent detection. No code changes. |
 | **Findings** | KL-divergence is the only backend-independent signal; works under both MINJA and AGENTPOISON (d>1.3). PELT detects changepoint at step 9/25. Entropy flat due to uniform MockBackend similarity scores. |

@@ -761,7 +761,7 @@ If you use ChronoAgent in your research, please cite:
 
 \[3\] Wang, H. et al. "A-MemGuard: A Proactive Defense Framework for LLM-Based Agent Memory." *arXiv:2510.17968*, 2025.
 
-\[4\] Liu, Y. et al. "Attack and Defense Framework for Memory-Based LLM Agents." *arXiv:2601.05504*, 2026.
+\[4\] Liu, Y. et al. "Attack and Defense Framework for Memory-Based LLM Agents." *arXiv:2601.05504*, 2026. *(Unverified: the arXiv ID and author list have not been independently resolved; this entry should be replaced with a verified citation or removed before paper submission.)*
 
 \[5\] Adams, R. P. and MacKay, D. J. C. "Bayesian Online Changepoint Detection." *arXiv:0710.3742*, 2007.
 
