@@ -1,6 +1,7 @@
-"""Lazy-loaded Chronos-2-Small wrapper for temporal forecasting.
+"""Lazy-loaded Chronos (T5-small) wrapper for temporal forecasting.
 
-Chronos-2-Small (46M params, Apache 2.0) is loaded on first use.
+The Chronos T5-small checkpoint (~46M params, Apache 2.0, Ansari et al. 2024)
+is loaded on first use.
 If the ``chronos-forecasting`` package is absent the forecaster returns
 ``None`` gracefully so the ensemble falls back to BOCPD-only mode.
 

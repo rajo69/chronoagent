@@ -23,7 +23,7 @@ real monitoring components, toggled by the three anomaly-facing
 
 * ``forecaster`` adds a lightweight exponential-moving-average (EMA)
   residual channel on the same KL column. This is a placeholder stand-in
-  for the Chronos-2 forecaster which is optional and not always installed
+  for the Chronos forecaster which is optional and not always installed
   (see the Phase 9.3 graceful-degradation path). The stand-in is not the
   full Chronos model, but it gives the runner a NON-TRIVIAL per-row
   score that still depends on the forecaster flag so the ablation row is
