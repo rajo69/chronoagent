@@ -100,16 +100,16 @@ The Phase 1 Cohen's $d$ values of $1.343$ (MINJA) and $1.402$ (AGENTPOISON) dire
 The transition kernel $T(s_{t+1} \mid s_t, a_t)$ decomposes into three components:
 
 - **Corruption dynamics.** $M_{t+1} = M_t + \xi_t$, where $\xi_t \sim \text{Poisson}(\lambda)$ models a stochastic attacker injecting poison documents at rate $\lambda$, or $\xi_t = k \cdot \mathbb{1}(t = t_{\text{inject}})$ models a burst injection of $k$ documents at time $t_{\text{inject}}$.
-- **Regime transitions.** $P(\theta_{t+1}^i = \text{drifting} \mid \theta_t^i = \text{clean}, M_t) = g(M_t)$, with $g$ monotonically increasing in $M_t$: agents that retrieve from increasingly corrupted memory are more likely to drift into the compromised regime.
+- **Regime transitions.** $P(\theta_{t+1}^i = \text{drifting} \mid \theta_t^i = \text{clean}, M_t) = g(M_t)$, with $g$ monotonically increasing in $M_t$: agents that retrieve from increasingly corrupted memory are more likely to drift into the compromised regime. The drifting regime is absorbing under the current attack model: once $\theta_t^i = \text{drifting}$, we set $P(\theta_{t+1}^i = \text{drifting} \mid \theta_t^i = \text{drifting}) = 1$. Recovery is only re-enabled by a memory-quarantine action that removes poison documents and decreases $M_t$; modelling reversible regimes is left to future work.
 - **Task queue.** $q_t$ updates deterministically given allocation decisions and new task arrivals.
 
 ### Observation Function $O$
 
-$O(\omega_t \mid s_t, a_t)$ is the probability of observing $\omega_t$ under true state $s_t$. We factor the observation model across agents under the assumption that per-agent signals are conditionally independent given each agent's regime:
+$O(\omega_t \mid s_t, a_t)$ is the probability of observing $\omega_t$ under true state $s_t$. As a working approximation we factor the observation model across agents conditional on the per-agent regime and the shared memory state:
 
-$$O(\omega_t \mid s_t) = \prod_{i=1}^{n} P(\omega_t^i \mid \theta_t^i)$$
+$$O(\omega_t \mid s_t) \approx \prod_{i=1}^{n} P(\omega_t^i \mid \theta_t^i, M_t)$$
 
-Each factor is parameterized by the clean and drifting distributions fit in Phase 1.
+This is an approximation, not a consequence of the generative model. Because every agent retrieves from the same memory $M_t$, residual correlations in retrieval-level noise across agents are not fully removed by conditioning on $M_t$. We adopt this factorisation as a tractable surrogate and flag modelling the full joint $O(\omega_t \mid \boldsymbol{\theta}_t, M_t)$ as future work. Each factor is parameterized by the clean and drifting distributions fit in Phase 1.
 
 ### Reward Function $R$
 
@@ -120,7 +120,7 @@ $$R(s_t, a_t) = \alpha \cdot R_{\text{task}}(s_t, a_t) + \beta \cdot R_{\text{sa
 with:
 
 - $R_{\text{task}}$ returning $+1$ for correct allocation to a clean agent, $-1$ for allocation to a compromised agent, and $-c_e$ for escalation (reflecting the cost of human intervention).
-- $R_{\text{safety}}$ returning $+1$ for a true positive detection of a drifting agent and $-c_f$ for a false alarm.
+- $R_{\text{safety}}$ returning $+1$ for a true positive detection of a drifting agent and $-c_f$ for a false alarm. Because the action space $A$ contains only allocation actions, we treat the escalate action as the implicit detection event: $a_t = \text{escalate}$ induces a detection, and the TP/FP labels are evaluated against the (hidden) ground-truth regime at step $t$. A strict POMDP formulation would add a separate "detect" action or fold detection into the observation–action coupling; our empirical AUROC characterises the discrimination quality of the underlying health score independently of this collapse.
 
 In the empirical results, allocation efficiency approximates $\mathbb{E}[R_{\text{task}}]$ and the detection AUROC characterizes the discrimination quality of $R_{\text{safety}}$.
 
@@ -137,7 +137,7 @@ The state-space elements $M_t$, $\boldsymbol{\theta}_t$, and $q_t$ are conceptua
 Each module of ChronoAgent maps to a specific operation over the POMDP:
 
 - **BOCPD as approximate Bayesian filtering.** The Bayesian Online Changepoint Detector maintains a posterior over run-length $r_t$ on the signal stream $x_{1:t}^i$. The changepoint probability $P(r_t = 0 \mid x_{1:t}^i)$ approximates the regime-transition posterior $P(\theta_t^i \neq \theta_{t-1}^i \mid \omega_{1:t}^i)$.
-- **Health score as belief state.** The per-agent health score is the sufficient statistic for decision-making under partial observability. It compresses the observation history $\omega_{1:t}^i$ into a scalar summary of $P(\theta_t^i = \text{clean} \mid \omega_{1:t}^i)$.
+- **Health score as a reliability proxy.** The per-agent health score is a scalar reliability proxy, not a Bayesian sufficient statistic. It is a heuristic weighted combination of the BOCPD changepoint probability and the forecaster anomaly score, clamped to $[0, 1]$, and used by downstream policy as a belief-like summary over $\{\theta_t^i = \text{clean}, \theta_t^i = \text{drifting}\}$. We do not claim it equals $P(\theta_t^i = \text{clean} \mid \omega_{1:t}^i)$; deriving a calibrated posterior is open work.
 - **Allocator policy over the belief space.** The contract-net allocator (threshold health, scale bids by health, escalate when no agent is trustworthy) is a hand-designed policy $\pi(b_t)$ operating on the belief $b_t$ rather than the hidden state $s_t$.
 - **AWT = 0 is structural.** The observation function $O$ depends on the current state $s_t$ only, not on future states. Concurrent detection (alerting at or before the step at which drift begins) is therefore the theoretical best case achievable given this observation structure: no detector can systematically lead the regime change when the leading information is not encoded in the present observation.
 
