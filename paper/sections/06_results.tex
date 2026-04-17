@@ -138,6 +138,12 @@ critical path.
 \Cref{fig:ablation-bar} renders the per-knob \awt{} delta relative to
 the full system, complementing the per-metric numbers in
 \cref{tab:ablation}. Removing BOCPD cuts \awt{} the most; removing the
-Chronos forecaster has a smaller but still-positive effect, which
-matches the Phase 10 expectation that BOCPD is the primary change-point
-signal and Chronos provides residual lift on slowly-evolving drifts.
+forecaster channel has a smaller but still-positive effect. We flag
+that the forecaster channel exercised by the current experiment runner
+is an exponential-moving-average residual stand-in rather than the
+Chronos model itself (see \texttt{full\_system\_detector.py},
+\texttt{FORECASTER\_IS\_PLACEHOLDER}); re-running the ablation with
+the Chronos forecaster wired end-to-end through
+\texttt{ChronosForecaster} is open work, and the current ablation row
+therefore isolates the contribution of the EMA stand-in, not of
+Chronos directly.
