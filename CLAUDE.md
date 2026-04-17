@@ -95,7 +95,7 @@ test(allocator): add negotiation invariant tests
 | LLM (real) | Together.ai | Default. Get key at api.together.ai |
 | LLM (tests/experiments) | MockBackend | Zero cost, deterministic |
 | LLM (optional) | Ollama | GPU only, skip |
-| Forecaster | Chronos-2-Small + BOCPD | CPU-safe. Async. |
+| Forecaster | Chronos T5-small + BOCPD | CPU-safe. Async. |
 | Agents | LangGraph + LangChain | |
 | Memory | ChromaDB | |
 | API | FastAPI | |

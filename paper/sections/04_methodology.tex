@@ -31,7 +31,7 @@ run-length posterior $p(r_t \mid s_{1:t})$ collapses when a change
 point is detected; we flag step $t$ whenever
 $p(r_t = 0 \mid s_{1:t}) > \tau_{\text{cpd}}$.
 
-In parallel, a Chronos-2-Small forecaster~\citep{chronos} is
+In parallel, a Chronos (T5-small) forecaster~\citep{chronos} is
 conditioned on the last $L=64$ KL divergence samples and emits
 quantile predictions
 $\{\hat{q}_{0.1}, \hat{q}_{0.5}, \hat{q}_{0.9}\}$ for the next step.

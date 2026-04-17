@@ -1,6 +1,6 @@
 # Ablation: forecaster off (Phase 10 task 10.5)
 #
-# Purpose: measure the contribution of the Chronos-2 forecaster component
+# Purpose: measure the contribution of the Chronos forecaster component
 # inside the temporal health scorer ensemble. Same MINJA attack + same
 # seed/num_runs as main_experiment; ONLY ablation.forecaster flips to
 # false. When this flag is off, the temporal health scorer falls back to

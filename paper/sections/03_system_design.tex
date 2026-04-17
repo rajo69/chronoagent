@@ -20,7 +20,7 @@ and streams them to the Temporal Health Scorer.
 The scorer combines two detectors on the dominant signal
 (KL divergence): a Bayesian Online Change-Point
 Detector~\citep{adams2007bocpd} that flags regime shifts with
-calibrated run-length posteriors, and a Chronos-2~\citep{chronos}
+calibrated run-length posteriors, and a Chronos~\citep{chronos}
 probabilistic forecaster that supplies an expected-range prior. A
 positive detection from either branch decrements the agent's health
 score; a sustained normal regime lets the score recover.

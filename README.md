@@ -17,7 +17,7 @@ Multi-agent LLM systems that share a persistent vector memory are increasingly d
 
 Existing defenses operate reactively. They inspect individual retrievals or agent outputs after poisoning has already taken effect. None of them treat the agent's observable behavior as a time series, and none ask the question: *has this agent's behavior changed in a way that predicts it is about to produce corrupted output?*
 
-ChronoAgent is a runtime monitoring layer that answers this question. It collects six behavioral signals per agent per step (latency, retrieval count, token count, KL divergence from a clean embedding baseline, tool-call frequency, and memory-query entropy), feeds them into an ensemble of Bayesian Online Changepoint Detection (BOCPD) \[5\] and the Chronos-2-Small pretrained time-series forecaster \[6\], and produces a per-agent **health score** in \[0, 1\] that updates in real time. Two downstream subsystems consume this score: a **health-weighted contract-net task allocator** that routes work away from drifting agents, and a **human escalation layer** that pages a reviewer when no available agent is trustworthy.
+ChronoAgent is a runtime monitoring layer that answers this question. It collects six behavioral signals per agent per step (latency, retrieval count, token count, KL divergence from a clean embedding baseline, tool-call frequency, and memory-query entropy), feeds them into an ensemble of Bayesian Online Changepoint Detection (BOCPD) \[5\] and the Chronos T5-small pretrained time-series forecaster \[6\], and produces a per-agent **health score** in \[0, 1\] that updates in real time. Two downstream subsystems consume this score: a **health-weighted contract-net task allocator** that routes work away from drifting agents, and a **human escalation layer** that pages a reviewer when no available agent is trustworthy.
 
 The system is evaluated against MINJA and AGENTPOISON attacks across six configurations (two attack types, three ablations, one reactive baseline), measuring advance warning time (AWT), allocation efficiency, and ROC characteristics. KL divergence is confirmed as a strong, attack-agnostic detection signal (Cohen's d > 1.3). The full evaluation protocol, all experiment configs, and a single `make reproduce` target are included in this repository.
 
@@ -35,7 +35,7 @@ Multi-agent LLM systems (built on frameworks like LangChain \[14\], LangGraph \[
 
 **Anomaly detection in multi-agent systems** also exists. Existing runtime monitors such as NeMo Guardrails \[11\], Llama Guard \[12\], and Constitutional AI \[13\] focus on content-level filtering (asking "is this message safe?"). Trace-level approaches like SentinelAgent model execution graphs with LLM oversight, and TraceAegis achieves 94.3% accuracy via hierarchical trace analysis. All of these are **reactive**: they analyze past traces or individual outputs rather than forecasting future agent behavior.
 
-**Time-series forecasting with LLMs** is a maturing field. Chronos-2 \[6\] provides a pretrained probabilistic forecaster. Time-LLM patches time-series into frozen language models. DCATS uses LLM agents for data-centric AutoML. All of these use temporal models to forecast **external** time-series (demand, weather, stock prices). None apply temporal models to forecast **the agents themselves**.
+**Time-series forecasting with LLMs** is a maturing field. Chronos \[6\] provides a pretrained probabilistic forecaster. Time-LLM patches time-series into frozen language models. DCATS uses LLM agents for data-centric AutoML. All of these use temporal models to forecast **external** time-series (demand, weather, stock prices). None apply temporal models to forecast **the agents themselves**.
 
 **Decentralized task allocation** in multi-agent reinforcement learning (LGTC-IPPO, Dec-POMDP \[8\]) treats agents as reliable actors. The contract-net protocol \[7\] allocates tasks via bidding based on capability. No published framework adjusts allocation based on **predicted future agent reliability**.
 
@@ -49,7 +49,7 @@ No published work (as of April 2026) uses time-series forecasting of agent behav
 
 1. **Six-signal behavioral profile** per agent per step (latency, retrieval count, token count, KL divergence, tool-call frequency, memory-query entropy), with empirical validation that KL divergence is a strong, attack-agnostic detection signal (Cohen's d > 1.3 under both MINJA and AGENTPOISON).
 
-2. **BOCPD + Chronos-2 ensemble** for real-time changepoint detection on behavioral signals, with graceful degradation to BOCPD-only when the forecaster is unavailable.
+2. **BOCPD + Chronos ensemble** for real-time changepoint detection on behavioral signals, with graceful degradation to BOCPD-only when the forecaster is unavailable.
 
 3. **Health-weighted contract-net task allocator** that modulates agent bids by predicted reliability, routing work away from drifting agents and escalating to a human reviewer when no agent is trustworthy.
 
@@ -216,7 +216,7 @@ flowchart TB
 
     subgraph Scorer["Temporal Health Scorer"]
         BOCPD["BOCPD\n(Adams & MacKay 2007)"]
-        Chronos["Chronos-2-Small\n(46M params, optional)"]
+        Chronos["Chronos T5-small\n(46M params, optional)"]
         Ensemble["Ensemble\nhealth ∈ [0, 1]"]
         BOCPD --> Ensemble
         Chronos --> Ensemble
@@ -305,7 +305,7 @@ The implementation in `src/chronoagent/scorer/bocpd.py` follows Adams and MacKay
 
 The entire implementation is ~130 lines of NumPy with no external dependencies beyond SciPy. It runs in microseconds per update, making it suitable for real-time streaming.
 
-### Chronos-2-Small Forecaster
+### Chronos (T5-small) Forecaster
 
 `src/chronoagent/scorer/chronos_forecaster.py` wraps Amazon's pretrained time-series transformer \[6\]:
 
@@ -474,7 +474,7 @@ Six configurations systematically isolate each component's contribution:
 | C2 | BOCPD + Chronos flags shifts with AWT >= 0 | `main_experiment`, `agentpoison_experiment` |
 | C3 | Health-weighted allocation improves efficiency under attack | `main_experiment` vs. `ablation_no_health_scores` |
 | C4 | Competitive AUROC vs. reactive baseline | `main_experiment` vs. `baseline_sentinel` |
-| C5 | Forecaster runs inline without stalling the control plane | Qualitative (Chronos-2-Small is 46M params vs. 7B+ agent LLMs) |
+| C5 | Forecaster runs inline without stalling the control plane | Qualitative (Chronos T5-small is 46M params vs. 7B+ agent LLMs) |
 
 ### Metrics
 
@@ -786,7 +786,7 @@ If you use ChronoAgent in your research, please cite:
 | Web framework | FastAPI |
 | Agent framework | LangGraph + LangChain |
 | Vector memory | ChromaDB |
-| Forecasting | BOCPD (~130 lines NumPy) + Chronos-2-Small (optional) |
+| Forecasting | BOCPD (~130 lines NumPy) + Chronos T5-small (optional) |
 | Message bus | LocalBus (dev), Redis pub/sub (prod) |
 | Database | SQLite (dev), PostgreSQL (prod), Alembic migrations |
 | LLM backends | MockBackend (default), Together.ai, Ollama (optional) |
@@ -808,7 +808,7 @@ Apache 2.0. See [`LICENSE`](./LICENSE).
 
 ChronoAgent was built as a research prototype exploring the intersection of temporal modeling, multi-agent systems security, and decentralized coordination. The research dossier documenting the literature gap analysis and project scoping is available in the repository.
 
-The BOCPD implementation follows Adams and MacKay (2007) \[5\]. The Chronos-2-Small model is provided by Amazon under the Apache 2.0 license \[6\]. Attack simulations are reproductions of published methods (AGENTPOISON \[1\], MINJA \[2\]) used as threat models, not as novel contributions.
+The BOCPD implementation follows Adams and MacKay (2007) \[5\]. The Chronos T5-small model is provided by Amazon under the Apache 2.0 license \[6\]. Attack simulations are reproductions of published methods (AGENTPOISON \[1\], MINJA \[2\]) used as threat models, not as novel contributions.
 
 ---
 
