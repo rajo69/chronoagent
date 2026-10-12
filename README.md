@@ -17,9 +17,9 @@ Multi-agent LLM systems that share a persistent vector memory are increasingly d
 
 Existing defenses operate reactively. They inspect individual retrievals or agent outputs after poisoning has already taken effect. None of them treat the agent's observable behavior as a time series, and none ask the question: *has this agent's behavior changed in a way that predicts it is about to produce corrupted output?*
 
-ChronoAgent is a runtime monitoring layer that answers this question. It collects six behavioral signals per agent per step (latency, retrieval count, token count, KL divergence from a clean embedding baseline, tool-call frequency, and memory-query entropy), feeds them into an ensemble of Bayesian Online Changepoint Detection (BOCPD) \[5\] and the Chronos T5-small pretrained time-series forecaster \[6\], and produces a per-agent **health score** in \[0, 1\] that updates in real time. Two downstream subsystems consume this score: a **health-weighted task assignment rule** (contract-net-inspired; see allocator section for its actual semantics) that routes work away from drifting agents, and a **human escalation layer** that surfaces unresolvable cases through a resolution API (notification wiring is scaffolding, not a production pager).
+ChronoAgent is a runtime monitoring layer built to test this question. It collects six behavioral signals per agent per step (latency, retrieval count, token count, KL divergence from a clean embedding baseline, tool-call frequency, and memory-query entropy), feeds them into an ensemble of Bayesian Online Changepoint Detection (BOCPD) \[5\] and the Chronos T5-small pretrained time-series forecaster \[6\], and produces a per-agent **health score** in \[0, 1\] that updates in real time. Two downstream subsystems consume this score: a **health-weighted task assignment rule** (contract-net-inspired; see allocator section for its actual semantics) that routes work away from drifting agents, and a **human escalation layer** that surfaces unresolvable cases through a resolution API (notification wiring is scaffolding, not a production pager).
 
-The system is evaluated against MINJA and AGENTPOISON attacks across six configurations (two attack types, three ablations, one reactive baseline), measuring advance warning time (AWT), allocation efficiency, and ROC characteristics. KL divergence is confirmed as a strong, attack-agnostic detection signal (Cohen's d > 1.3). The full evaluation protocol, all experiment configs, and a single `make reproduce` target are included in this repository.
+The system is evaluated against MINJA and AGENTPOISON attacks across six configurations (two attack types, three ablations, one reactive baseline), measuring advance warning time (AWT), allocation efficiency, and ROC characteristics. KL divergence is confirmed as a strong, attack-agnostic detection signal (Cohen's d > 1.3 under both MINJA and AGENTPOISON, in a seeded experiment). The KL divergence signal shifts at the injection step rather than before it (measured advance warning time is zero on both attacks), so the project applied its pre-specified Pivot A, reframing from early warning to concurrent detection with reliability-weighted allocation. The full evaluation protocol, all experiment configs, and a single `make reproduce` target are included in this repository.
 
 ---
 
@@ -31,7 +31,7 @@ Multi-agent LLM systems (built on frameworks like LangChain \[14\], LangGraph \[
 
 ### What Exists Today
 
-**Memory poisoning attacks** are well-documented. AGENTPOISON \[1\] demonstrated red-teaming via knowledge-base poisoning at NeurIPS 2024. MINJA \[2\] achieves >95% attack success through query-optimized memory injection. The LiU framework \[4\] tested attacks on electronic health records (MIMIC-III) and explicitly identified "adaptive trust calibration" as an open problem. A-MemGuard \[3\] proposes dual-memory consensus verification as a defense, achieving 95% reduction in poisoning success. All of these defenses are **reactive**: they detect or sanitize after injection has occurred.
+**Memory poisoning attacks** are well-documented. AGENTPOISON \[1\] demonstrated red-teaming via knowledge-base poisoning at NeurIPS 2024. MINJA \[2\] achieves >95% attack success through query-optimized memory injection. Sunil et al. \[4\] tested MINJA against electronic health record agents on MIMIC-III data and found that memory sanitization needs careful trust-threshold calibration. A-MemGuard \[3\] proposes dual-memory consensus verification as a defense, achieving 95% reduction in poisoning success. All of these defenses are **reactive**: they detect or sanitize after injection has occurred.
 
 **Anomaly detection in multi-agent systems** also exists. Existing runtime monitors such as NeMo Guardrails \[11\], Llama Guard \[12\], and Constitutional AI \[13\] focus on content-level filtering (asking "is this message safe?"). Trace-level approaches like SentinelAgent model execution graphs with LLM oversight, and TraceAegis achieves 94.3% accuracy via hierarchical trace analysis. All of these are **reactive**: they analyze past traces or individual outputs rather than forecasting future agent behavior.
 
@@ -447,7 +447,7 @@ The original hypothesis was that behavioral signals would drift **before** an at
 
 **AWT = 0 on both attacks.** The KL divergence signal shifts concurrently with injection, not proactively.
 
-This finding triggered a pre-defined pivot (documented before any code was written):
+This finding triggered a pre-defined pivot (written into PLAN.md in the repository's first commit, before any signal code was committed or run):
 
 > **Pivot A**: Reframe from "proactive early warning" to "concurrent detection with reliability-weighted allocation." The allocation efficiency contribution becomes primary; concurrent detection via KL divergence is the security contribution.
 
@@ -761,7 +761,7 @@ If you use ChronoAgent in your research, please cite:
 
 \[3\] Wang, H. et al. "A-MemGuard: A Proactive Defense Framework for LLM-Based Agent Memory." *arXiv:2510.17968*, 2025.
 
-\[4\] Liu, Y. et al. "Attack and Defense Framework for Memory-Based LLM Agents." *arXiv:2601.05504*, 2026. *(Unverified: the arXiv ID and author list have not been independently resolved; this entry should be replaced with a verified citation or removed before paper submission.)*
+\[4\] Sunil, B. D., Sinha, I., Maheshwari, P., Todmal, S., Mallik, S. and Mishra, S. "Memory Poisoning Attack and Defense on Memory Based LLM-Agents." *arXiv:2601.05504*, 2026.
 
 \[5\] Adams, R. P. and MacKay, D. J. C. "Bayesian Online Changepoint Detection." *arXiv:0710.3742*, 2007.
 
