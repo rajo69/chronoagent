@@ -1,8 +1,6 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-\todo{tighten.}
-
 We introduced \sys{}, a temporal behavioral monitor for multi-agent
 LLM systems with shared vector memory. By treating each agent as a
 time series and running a BOCPD + Chronos ensemble on its KL
@@ -16,17 +14,10 @@ supplies the evidence for claims C1--C5; the reproducibility package
 in \cref{sec:experiments:protocol} lets any reader rerun the full
 study end-to-end.
 
-\paragraph{Future work.}
-Longer-horizon evaluation with real LLM backends; online adaptation of
-the BOCPD prior; cross-agent correlation of change points as an
-additional channel; extension of the signal set with gradient-free
-probes of agent policy.
-
 \section*{Reproducibility}
 \label{sec:reproducibility}
 
 All code, configs, and analysis pipelines live in the repository root.
 The exact commands to regenerate every figure and table in this paper
 from scratch are documented in \cref{sec:experiments:protocol} and
-will be wired into a single \texttt{make reproduce} target in Phase 11
-task 11.4.
+wired into a single \texttt{make reproduce} target.

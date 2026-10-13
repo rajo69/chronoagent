@@ -1,24 +1,24 @@
 \section{Methodology}
 \label{sec:methodology}
 
-\todo{formalize each subsection.}
-
 \subsection{Behavioral Signals}
 \label{sec:methodology:signals}
 
 Let $s_{a,t} \in \mathbb{R}^6$ denote the signal vector for agent $a$
 at PR-handling step $t$. The six components are:
 \begin{enumerate}
-  \item \textbf{Tool-call entropy} $H(\pi_{\text{tool}})$ over the
-  agent's empirical tool distribution in a sliding window.
-  \item \textbf{Decision latency} (median wall-clock time per step).
-  \item \textbf{Memory-query entropy} $H(\pi_{\text{query}})$ over the
-  embedding cluster IDs that the agent retrieved.
-  \item \textbf{KL divergence} $\kldiv(p_t \parallel p_0)$ of the
-  current signal distribution against a pre-attack baseline.
-  \item \textbf{Retrieval-hit rate} (fraction of memory queries whose
-  top-$k$ contained a relevant document).
-  \item \textbf{Action-repetition rate} over the last $w$ steps.
+  \item \textbf{Response latency} (wall-clock time around the LLM
+  call, ms).
+  \item \textbf{Retrieval count} (documents returned from the shared
+  memory).
+  \item \textbf{Token count} of the LLM input.
+  \item \textbf{KL divergence} $\kldiv(q_t \parallel p_0)$ of the
+  step's retrieval-embedding distribution against a diagonal Gaussian
+  fitted on clean calibration steps.
+  \item \textbf{Tool-call frequency} (tool and retrieval calls per
+  step).
+  \item \textbf{Memory-query entropy} (Shannon entropy of the top-$k$
+  similarity scores).
 \end{enumerate}
 
 \subsection{BOCPD + Chronos Ensemble}
@@ -26,31 +26,32 @@ at PR-handling step $t$. The six components are:
 
 We apply a Bayesian Online Change-Point Detector
 (BOCPD)~\citep{adams2007bocpd} to the KL divergence stream, using a
-Gaussian observation model with conjugate Normal-Gamma prior. The
-run-length posterior $p(r_t \mid s_{1:t})$ collapses when a change
-point is detected; we flag step $t$ whenever
-$p(r_t = 0 \mid s_{1:t}) > \tau_{\text{cpd}}$.
+Gaussian observation model with a Normal-Inverse-Chi-Squared conjugate
+prior. The run-length posterior $p(r_t \mid s_{1:t})$ collapses when a
+change point occurs, and the changepoint probability
+$p(r_t = 0 \mid s_{1:t})$ is the BOCPD anomaly score.
 
-In parallel, a Chronos (T5-small) forecaster~\citep{chronos} is
-conditioned on the last $L=64$ KL divergence samples and emits
-quantile predictions
-$\{\hat{q}_{0.1}, \hat{q}_{0.5}, \hat{q}_{0.9}\}$ for the next step.
-An observation outside $[\hat{q}_{0.1}, \hat{q}_{0.9}]$ is flagged.
-The two detectors are combined with an OR aggregation; the system
-health score is decremented on either branch firing.
+In parallel, a Chronos (T5-small) forecaster~\citep{chronos} forecasts
+the signal from its history (at least 10 steps) and scores how far the
+observation falls outside the predicted
+$[\hat{q}_{0.1}, \hat{q}_{0.9}]$ range. The ensemble fuses the two
+scores into the health score
+$h = 1 - \mathrm{clip}(w_{\text{bocpd}}\, s_{\text{bocpd}} + w_{\text{chronos}}\, s_{\text{chronos}}, 0, 1)$
+with default weights $0.5$ and $0.5$, and promotes the remaining
+weight to $1.0$ when one branch is unavailable.
 
 \subsection{Advance Warning Time}
 \label{sec:methodology:awt}
 
 For each run we define Advance Warning Time as
 \begin{equation}
-  \awt{} = t_{\text{first\_flagged}} - t_{\text{injection}},
+  \awt{} = t_{\text{injection}} - t_{\text{first\_flagged}},
 \end{equation}
 where $t_{\text{injection}}$ is the ground-truth step at which the
-poisoning payload was written to memory. $\awt{} < 0$ means the
-detector fired before the payload took effect (the desired regime);
+poisoning payload was written to memory. $\awt{} > 0$ means the
+detector fired before the payload took effect (early warning);
 $\awt{} = 0$ means concurrent detection (Pivot~A);
-$\awt{} > 0$ means the detector fired only after downstream damage.
+$\awt{} < 0$ means the detector fired after the payload took effect.
 
 \subsection{Health-Weighted Allocation}
 \label{sec:methodology:alloc}
@@ -58,10 +59,13 @@ $\awt{} > 0$ means the detector fired only after downstream damage.
 The allocation layer is a shallow contract-net
 variant~\citep{contractnet}; a Dec-POMDP view of the underlying
 coordination problem is given by~\citet{decpomdp}. Agent $a$'s bid
-for PR $j$ is
+for task $j$ is
 \begin{equation}
-  c_{a,j} = \alpha \cdot \text{queue\_depth}_a + \beta \cdot (1 - h_a),
+  b_{a,j} = \text{cap}(a, j) \cdot h_a,
 \end{equation}
-where $h_a \in [0, 1]$ is the rolling health score. An agent whose
-health score drops to zero becomes non-competitive and receives no new
-work until it recovers.
+where $\text{cap}(a, j) \in (0, 1]$ is a static proficiency matrix
+(1.0 for the designated specialist) and $h_a \in [0, 1]$ is the agent's
+health score. The highest bid at or above a threshold (default 0.25)
+wins the task; when no bid clears it, the task escalates to a human
+reviewer. An agent whose health score drops to zero bids zero and
+receives no new work until it recovers.

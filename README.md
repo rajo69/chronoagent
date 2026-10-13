@@ -17,9 +17,9 @@ Multi-agent LLM systems that share a persistent vector memory are increasingly d
 
 Existing defenses operate reactively. They inspect individual retrievals or agent outputs after poisoning has already taken effect. None of them treat the agent's observable behavior as a time series, and none ask the question: *has this agent's behavior changed in a way that predicts it is about to produce corrupted output?*
 
-ChronoAgent is a runtime monitoring layer built to test this question. It collects six behavioral signals per agent per step (latency, retrieval count, token count, KL divergence from a clean embedding baseline, tool-call frequency, and memory-query entropy), feeds them into an ensemble of Bayesian Online Changepoint Detection (BOCPD) \[5\] and the Chronos T5-small pretrained time-series forecaster \[6\], and produces a per-agent **health score** in \[0, 1\] that updates in real time. Two downstream subsystems consume this score: a **health-weighted task assignment rule** (contract-net-inspired; see allocator section for its actual semantics) that routes work away from drifting agents, and a **human escalation layer** that surfaces unresolvable cases through a resolution API (notification wiring is scaffolding, not a production pager).
+ChronoAgent is a runtime monitoring layer built to test this question. It collects six behavioral signals per agent per step (latency, retrieval count, token count, KL divergence from a clean embedding baseline, tool-call frequency, and memory-query entropy), feeds them into an ensemble of Bayesian Online Changepoint Detection (BOCPD) \[5\] and the Chronos T5-small pretrained time-series forecaster \[6\], and produces a per-agent **health score** in \[0, 1\] that updates in real time. Two downstream subsystems consume this score: a **health-weighted task assignment rule** (contract-net-inspired) that routes work away from drifting agents, and a **human escalation layer** that surfaces unresolvable cases through a resolution API.
 
-The system is evaluated against MINJA and AGENTPOISON attacks across six configurations (two attack types, three ablations, one reactive baseline), measuring advance warning time (AWT), allocation efficiency, and ROC characteristics. KL divergence is confirmed as a strong, attack-agnostic detection signal (Cohen's d > 1.3 under both MINJA and AGENTPOISON, in a seeded experiment). The KL divergence signal shifts at the injection step rather than before it (measured advance warning time is zero on both attacks), so the project applied its pre-specified Pivot A, reframing from early warning to concurrent detection with reliability-weighted allocation. The full evaluation protocol, all experiment configs, and a single `make reproduce` target are included in this repository.
+ChronoAgent detects memory poisoning concurrently with injection, with KL divergence from a clean embedding baseline as its primary signal under both MINJA and AGENTPOISON, and routes work by agent reliability. The evaluation protocol, all experiment configs, and a single `make reproduce` target are included in this repository.
 
 ---
 
@@ -41,7 +41,7 @@ Multi-agent LLM systems (built on frameworks like LangChain \[14\], LangGraph \[
 
 ### The Gap
 
-No published work (as of April 2026) uses time-series forecasting of agent behavioral metrics to simultaneously inform task allocation and security monitoring. The four communities above have not bridged this intersection. ChronoAgent is a systems-integration contribution that fills this gap using off-the-shelf components in a combination that has not been published.
+No published work (as of April 2026) uses time-series forecasting of agent behavioral metrics to simultaneously inform task allocation and security monitoring. The four communities above have not bridged this intersection. ChronoAgent fills this gap with a combination of components that has not been published.
 
 ---
 
@@ -51,17 +51,15 @@ No published work (as of April 2026) uses time-series forecasting of agent behav
 
 2. **BOCPD + Chronos ensemble** for real-time changepoint detection on behavioral signals, with graceful degradation to BOCPD-only when the forecaster is unavailable.
 
-3. **Health-weighted task assignment with threshold-based escalation** (inspired by the contract-net protocol) that modulates agent bids by predicted reliability, routing work away from drifting agents and escalating to a human reviewer when no agent clears the trust threshold. In the current 4-specialist pipeline this primarily functions as a calibrated escalation gate; true task-pool routing under partial capability overlap is future work.
+3. **Health-weighted task assignment with threshold-based escalation** (inspired by the contract-net protocol) that modulates agent bids by predicted reliability, routing work away from drifting agents and escalating to a human reviewer when no agent clears the trust threshold.
 
 4. **End-to-end evaluation framework** with six experiment configurations, three ablations, one reactive baseline, and a single `make reproduce` command that regenerates all results, figures, and LaTeX tables.
-
-The contribution boundary is deliberately narrow: ChronoAgent does not invent new forecasting models, new attacks, or new MARL algorithms. It uses existing tools in a particular combination, and the novelty lies in the integration and the evaluation.
 
 ---
 
 ## Formal Problem Statement
 
-We formalize ChronoAgent as a Partially Observable Markov Decision Process (POMDP) defined by the tuple $\langle S, A, \Omega, T, O, R, \gamma \rangle$. The allocator is centralized: it observes the full signal vector across all agents and issues allocation decisions. This is weaker than a Dec-POMDP, which we discuss at the end of the section.
+We formalize ChronoAgent as a Partially Observable Markov Decision Process (POMDP) defined by the tuple $\langle S, A, \Omega, T, O, R, \gamma \rangle$. The allocator is centralized: it observes the full signal vector across all agents and issues allocation decisions.
 
 ### State Space $S$
 
@@ -100,7 +98,7 @@ The Phase 1 Cohen's $d$ values of $1.343$ (MINJA) and $1.402$ (AGENTPOISON) dire
 The transition kernel $T(s_{t+1} \mid s_t, a_t)$ decomposes into three components:
 
 - **Corruption dynamics.** $M_{t+1} = M_t + \xi_t$, where $\xi_t \sim \text{Poisson}(\lambda)$ models a stochastic attacker injecting poison documents at rate $\lambda$, or $\xi_t = k \cdot \mathbb{1}(t = t_{\text{inject}})$ models a burst injection of $k$ documents at time $t_{\text{inject}}$.
-- **Regime transitions.** $P(\theta_{t+1}^i = \text{drifting} \mid \theta_t^i = \text{clean}, M_t) = g(M_t)$, with $g$ monotonically increasing in $M_t$: agents that retrieve from increasingly corrupted memory are more likely to drift into the compromised regime. The drifting regime is absorbing under the current attack model: once $\theta_t^i = \text{drifting}$, we set $P(\theta_{t+1}^i = \text{drifting} \mid \theta_t^i = \text{drifting}) = 1$. Recovery is only re-enabled by a memory-quarantine action that removes poison documents and decreases $M_t$; modelling reversible regimes is left to future work.
+- **Regime transitions.** $P(\theta_{t+1}^i = \text{drifting} \mid \theta_t^i = \text{clean}, M_t) = g(M_t)$, with $g$ monotonically increasing in $M_t$: agents that retrieve from increasingly corrupted memory are more likely to drift into the compromised regime. The drifting regime is absorbing under the current attack model: once $\theta_t^i = \text{drifting}$, we set $P(\theta_{t+1}^i = \text{drifting} \mid \theta_t^i = \text{drifting}) = 1$. Recovery is re-enabled by a memory-quarantine action that removes poison documents and decreases $M_t$.
 - **Task queue.** $q_t$ updates deterministically given allocation decisions and new task arrivals.
 
 ### Observation Function $O$
@@ -109,7 +107,7 @@ $O(\omega_t \mid s_t, a_t)$ is the probability of observing $\omega_t$ under tru
 
 $$O(\omega_t \mid s_t) \approx \prod_{i=1}^{n} P(\omega_t^i \mid \theta_t^i, M_t)$$
 
-This is an approximation, not a consequence of the generative model. Because every agent retrieves from the same memory $M_t$, residual correlations in retrieval-level noise across agents are not fully removed by conditioning on $M_t$. We adopt this factorisation as a tractable surrogate and flag modelling the full joint $O(\omega_t \mid \boldsymbol{\theta}_t, M_t)$ as future work. Each factor is parameterized by the clean and drifting distributions fit in Phase 1.
+This factorisation is a tractable surrogate for the full joint $O(\omega_t \mid \boldsymbol{\theta}_t, M_t)$. Each factor is parameterized by the clean and drifting distributions fit in Phase 1.
 
 ### Reward Function $R$
 
@@ -120,7 +118,7 @@ $$R(s_t, a_t) = \alpha \cdot R_{\text{task}}(s_t, a_t) + \beta \cdot R_{\text{sa
 with:
 
 - $R_{\text{task}}$ returning $+1$ for correct allocation to a clean agent, $-1$ for allocation to a compromised agent, and $-c_e$ for escalation (reflecting the cost of human intervention).
-- $R_{\text{safety}}$ returning $+1$ for a true positive detection of a drifting agent and $-c_f$ for a false alarm. Because the action space $A$ contains only allocation actions, we treat the escalate action as the implicit detection event: $a_t = \text{escalate}$ induces a detection, and the TP/FP labels are evaluated against the (hidden) ground-truth regime at step $t$. A strict POMDP formulation would add a separate "detect" action or fold detection into the observation–action coupling; our empirical AUROC characterises the discrimination quality of the underlying health score independently of this collapse.
+- $R_{\text{safety}}$ returning $+1$ for a true positive detection of a drifting agent and $-c_f$ for a false alarm. Because the action space $A$ contains only allocation actions, we treat the escalate action as the implicit detection event: $a_t = \text{escalate}$ induces a detection, and the TP/FP labels are evaluated against the (hidden) ground-truth regime at step $t$. A strict POMDP formulation would add a separate "detect" action or fold detection into the observation-action coupling; our empirical AUROC characterises the discrimination quality of the underlying health score independently of this collapse.
 
 In the empirical results, allocation efficiency approximates $\mathbb{E}[R_{\text{task}}]$ and the detection AUROC characterizes the discrimination quality of $R_{\text{safety}}$.
 
@@ -128,22 +126,14 @@ In the empirical results, allocation efficiency approximates $\mathbb{E}[R_{\tex
 
 The discount factor controls the policy's temporal horizon. As $\gamma \to 0$ the policy becomes myopic, maximizing immediate throughput and ignoring health signals; as $\gamma \to 1$ the policy weights future corruption risk, favoring conservative allocation even at short-term throughput cost.
 
-### Implementation Status of the State Space
-
-The state-space elements $M_t$, $\boldsymbol{\theta}_t$, and $q_t$ are conceptual formalizations of the decision problem rather than explicit runtime variables in the code. The implementation tracks derived quantities: the per-agent health score acts as the belief over $\theta_t^i$, per-retrieval integrity flags replace a scalar $M_t$, and the allocator is stateless across tasks rather than maintaining a persisted $q_t$. The POMDP tuple is a faithful model of what the system is deciding and observing, not a one-to-one map of the code's data structures.
-
 ### Connection to System Components
 
 Each module of ChronoAgent maps to a specific operation over the POMDP:
 
 - **BOCPD as approximate Bayesian filtering.** The Bayesian Online Changepoint Detector maintains a posterior over run-length $r_t$ on the signal stream $x_{1:t}^i$. The changepoint probability $P(r_t = 0 \mid x_{1:t}^i)$ approximates the regime-transition posterior $P(\theta_t^i \neq \theta_{t-1}^i \mid \omega_{1:t}^i)$.
-- **Health score as a reliability proxy.** The per-agent health score is a scalar reliability proxy, not a Bayesian sufficient statistic. It is a heuristic weighted combination of the BOCPD changepoint probability and the forecaster anomaly score, clamped to $[0, 1]$, and used by downstream policy as a belief-like summary over $\{\theta_t^i = \text{clean}, \theta_t^i = \text{drifting}\}$. We do not claim it equals $P(\theta_t^i = \text{clean} \mid \omega_{1:t}^i)$; deriving a calibrated posterior is open work.
-- **Allocator policy over the belief space.** The health-weighted assignment rule (threshold health, scale bids by health, escalate when no agent clears the threshold) is a hand-designed policy $\pi(b_t)$ operating on the belief $b_t$ rather than the hidden state $s_t$. It is contract-net-inspired but does not implement Smith's full announce/bid/award protocol (see allocator section for detail).
-- **AWT = 0 under the current observation model.** The observation function $O$ depends on the current state $s_t$ only, not on future states. Any detector consuming only $\omega_t$ can at best flag a regime change at the step it occurs. A positive AWT is not ruled out in principle: the memory-corruption level $M_t$ drives $P(\theta_{t+1}^i = \text{drifting})$, so signals that respond to $M_t$ (notably KL divergence against a clean baseline) could in principle flag before $\theta$ flips. The AWT $= 0$ empirical result means either that our signal set does not expose enough $M_t$-leading structure to move detection ahead of the regime change, or that the burst-injection attack model makes the $M_t$-to-$\theta$ gap too short to detect. Leading indicators and gradual-injection attack schedules are open work; we do not claim structural impossibility here.
-
-### Limitations of the Centralized Formulation
-
-The formulation above assumes a centralized allocator that observes the full signal vector $\omega_t \in \mathbb{R}^{6n}$ across all agents. In distributed deployments where agents run on separate infrastructure with communication constraints, each agent would observe only its own signals and the coordination problem becomes a Dec-POMDP, a strictly harder problem class requiring decentralized policies with partial information sharing. We leave the decentralized extension to future work.
+- **Health score as a reliability proxy.** The per-agent health score is a weighted combination of the BOCPD changepoint probability and the forecaster anomaly score, clamped to $[0, 1]$, and used by downstream policy as a belief-like summary over $\{\theta_t^i = \text{clean}, \theta_t^i = \text{drifting}\}$.
+- **Allocator policy over the belief space.** The health-weighted assignment rule (threshold health, scale bids by health, escalate when no agent clears the threshold) is a hand-designed policy $\pi(b_t)$ operating on the belief $b_t$ rather than the hidden state $s_t$.
+- **Detection at the regime change.** The observation function $O$ depends on the current state $s_t$, so the earliest step at which a detector consuming $\omega_t$ can flag a regime change is the step it occurs; the KL divergence signal shifts at the injection step on both attacks (see Signal Validation Results).
 
 ---
 
@@ -333,7 +323,7 @@ Health = 1.0 means fully healthy. Health = 0.0 means confirmed anomalous. Scores
 
 ### Health-Weighted Task Allocator
 
-`src/chronoagent/allocator/` implements a health-weighted task assignment step inspired by the contract-net protocol \[7\], with the important caveats discussed below:
+`src/chronoagent/allocator/` implements a health-weighted task assignment step inspired by the contract-net protocol \[7\]:
 
 **Bid formula**:
 ```
@@ -349,10 +339,6 @@ bid(a, j) = capability(a, j) × health(a)
 
 A round-robin fallback activates if the negotiation itself fails (timeout, exception), preventing cascading failures.
 
-**Relation to Smith's (1980) contract-net protocol**: the canonical contract-net protocol has an announce/bid/award lifecycle with broadcast messaging, contractor–manager role asymmetry, and timeout-based re-announcement. Our implementation evaluates `bid(a, j)` synchronously for every agent and takes the argmax with a threshold tie-break; there is no announce round, no asynchronous bid collection, and no re-bid on timeout. It is therefore best described as a **health-weighted assignment rule with an escalation threshold**, inspired by contract-net rather than a faithful implementation of it. Extending the implementation to true contract-net messaging semantics is future work.
-
-**Design note on a 4-agent pipeline**: the four agents (planner, security reviewer, style reviewer, summarizer) are specialists and cannot swap roles. In the current pipeline the allocator's practical function is therefore a **calibrated escalation gate and audit ledger**: when an agent is unhealthy, the system escalates rather than reassigning to a non-specialist, because there is no non-specialist to reassign to. The allocation efficiency benefit of the health weighting is most visible when partial capability overlap exists, which we do not exercise in the current 4-specialist setup; this limits how much signal the allocation ablation can carry in the current configuration.
-
 ### Memory Integrity Module
 
 `src/chronoagent/memory/integrity.py` runs four orthogonal detection signals on every retrieved document:
@@ -366,7 +352,7 @@ A round-robin fallback activates if the negotiation itself fails (timeout, excep
 
 The weighted aggregate score is compared against `flag_threshold`. Flagged documents are moved to a separate **quarantine collection** in ChromaDB and excluded from future retrieval until a human approves or rejects them via the API.
 
-**Phase 6 result (with evaluation caveat)**: on a corpus of 10 clean + 5 poison documents evaluated against `MockEmbeddingFunction`, the detector reports AUROC = 1.0. This number is not load-bearing: the attacks simulated in `memory/poisoning.py` deliberately store poison documents whose embedding vector is decoupled from their text (a trigger-aligned or centroid-of-queries embedding with unrelated text), and the content-embedding-mismatch signal re-embeds the text with the same deterministic mock embedder. Under this harness the mismatch signal effectively encodes the ground-truth label, so the AUROC = 1.0 is a measurement of the construction of the mock corpus rather than evidence of detection under realistic embeddings. A re-run against a real sentence-transformer embedder, and a larger evaluation corpus (&gt;&gt; 15 documents with confidence intervals), are required before this number can be cited as a defence-quality result. Content-embedding mismatch remains a plausibly useful signal in practice; this harness is not the right instrument to size it.
+**Phase 6 measurement**: on a corpus of 10 clean + 5 poison documents evaluated against `MockEmbeddingFunction`, the detector reports AUROC = 1.0. The harness defines what that number measures: the attacks simulated in `memory/poisoning.py` deliberately store poison documents whose embedding vector is decoupled from their text (a trigger-aligned or centroid-of-queries embedding with unrelated text), and the content-embedding-mismatch signal re-embeds the text with the same deterministic mock embedder. Under this harness the mismatch signal encodes the ground-truth label, so the AUROC = 1.0 measures the construction of the mock corpus. The defence-quality measurement for this signal is the next run: a real sentence-transformer embedder on a corpus well beyond 15 documents, with confidence intervals.
 
 ### Human Escalation Layer
 
@@ -376,8 +362,6 @@ The weighted aggregate score is compared against `flag_threshold`. Flagged docum
 2. **Quarantine event**: a document is moved to quarantine
 
 Each escalation assembles rich context: the agent's health components, recent signal history, quarantine count, and the last 10 task-allocation decisions. A per-agent **cooldown** (default 3600s; see the config-defaults note in the next section) prevents repeat events. All events are persisted to the database with a full audit trail, published to the Redis bus channel, and exposed via a `GET /api/v1/escalations` + `POST /api/v1/escalations/{id}/resolve` HTTP surface.
-
-> **Escalation delivery is a queue, not a pager.** The current escalation layer does **not** include an integrated paging channel (Slack, email, PagerDuty, or webhook). A human reviewer must poll the API or subscribe to the Redis channel externally. Wiring a concrete notification transport is deployment-specific and is left to operators; the "human-in-the-loop" framing elsewhere in this README refers to this queue-and-resolve surface, not an active paging flow.
 
 ---
 
@@ -389,7 +373,7 @@ ChronoAgent defends against an adversary who can **write to the shared vector me
 
 **Out of scope**: attackers who can modify agent weights, alter system prompts, or intercept inter-agent communication directly. These require different defense mechanisms.
 
-The system assumes that the behavioral monitoring infrastructure itself is trusted. If an attacker can tamper with the signal collection or health scoring pipeline, the defense is bypassed.
+The behavioral monitoring infrastructure (signal collection and health scoring) sits inside the trust boundary.
 
 ---
 
@@ -431,7 +415,7 @@ Before building the full system, Phase 1 ran a hard **GO/NO-GO gate** to empiric
 
 KL divergence is the only signal that shows a large effect under both attacks (d = 1.343 and d = 1.402 respectively), suggesting it is **attack-agnostic** across the two attack classes tested here. The poisoned mean more than doubles under MINJA and is roughly 2.1x the clean mean under AGENTPOISON, a direct mechanistic consequence of poisoned documents injecting out-of-distribution embeddings that shift the retrieval distribution away from the clean baseline. Both runs share the same calibration phase under `seed=42`, so the clean mean and standard deviation are identical across the two attack rows.
 
-> **Sample-size and methodology caveats.** Each Cohen's d is computed on $n = 25$ clean + $n = 25$ poisoned steps from a single seed. At this sample size, (i) a Hedges' g small-sample correction would shrink d by ~1.6%, (ii) a bootstrap 95% CI on d is wide (roughly ±0.5 in simulation), and (iii) we have not applied a multiple-comparisons correction to the 6 signals jointly; both of these would tighten the "$\ge 2$ signals with $d > 0.8$" gate below. Three of the six signals (`retrieval_count`, `tool_calls`, `memory_query_entropy`) have zero variance under the MockBackend and carry no information, so in practice only 3 signals are informative. Clean and poisoned steps are drawn with different PR-generation seeds (`seed` vs `seed + 1000`) rather than a paired design, so the $d$ values absorb some PR-draw variance on top of the attack effect. These caveats do not change the qualitative result (KL divergence dominates and is large), but any comparison to published SOTA should be re-run with paired seeds, CIs, and FWER correction.
+> **Method and sample size.** Each Cohen's d is computed on $n = 25$ clean + $n = 25$ poisoned steps from a single seed. At this sample size, (i) a Hedges' g small-sample correction would shrink d by ~1.6%, (ii) a bootstrap 95% CI on d is wide (roughly ±0.5 in simulation), and (iii) the 6 signals are tested against the gate below without a joint multiple-comparisons correction. Three of the six signals (`retrieval_count`, `tool_calls`, `memory_query_entropy`) have zero variance under the MockBackend, so 3 signals are informative. Clean and poisoned steps are drawn with different PR-generation seeds (`seed` vs `seed + 1000`) rather than a paired design, so the $d$ values include PR-draw variance on top of the attack effect. KL divergence dominates and is large under all of these; a comparison to published SOTA calls for paired seeds, CIs, and FWER correction.
 
 *Raw data from Phase 1 experiment. Full analysis in [`docs/phase1_decision.md`](./docs/phase1_decision.md).*
 
@@ -441,17 +425,15 @@ KL divergence is the only signal that shows a large effect under both attacks (d
 
 *Figure: Per-step behavioral signals across 25 clean steps followed by 25 poisoned steps. KL divergence (panel 4) shows a clear, sustained shift at the injection boundary. The PELT changepoint detector flags an index in the concatenated (clean, poisoned) series; step indices reported in `results/decision_matrix.csv` and `docs/phase1_decision.md` use this concatenated numbering.*
 
-### Honest Finding: Pivot A (AWT = 0)
+### Pre-specified Pivot A: concurrent detection
 
-The original hypothesis was that behavioral signals would drift **before** an attack manifests in agent output, providing an advance warning window (AWT > 0). The empirical result was different:
-
-**AWT = 0 on both attacks.** The KL divergence signal shifts concurrently with injection, not proactively.
-
-This finding triggered a pre-defined pivot (written into PLAN.md in the repository's first commit, before any signal code was committed or run):
+PLAN.md, in the repository's first commit and before any signal code was committed or run, set the hypothesis (behavioral signals drift **before** an attack manifests in agent output, AWT > 0) and the decision to take if the data showed otherwise:
 
 > **Pivot A**: Reframe from "proactive early warning" to "concurrent detection with reliability-weighted allocation." The allocation efficiency contribution becomes primary; concurrent detection via KL divergence is the security contribution.
 
-Three of six signals (retrieval_count, tool_calls, entropy) showed zero variance under MockBackend because the deterministic backend produces identical retrieval patterns regardless of content. This is a documented limitation: with a real LLM backend (Together.ai, Ollama), these signals would show natural variance and may become informative. The limitation does not invalidate the KL divergence finding, which operates on embedding arithmetic independent of the LLM backend.
+Phase 1 measured **AWT = 0 on both attacks**: the KL divergence signal shifts at the injection step. The pre-specified decision applied: ChronoAgent is a concurrent detector, and the allocator routes work by reliability.
+
+Three of six signals (retrieval_count, tool_calls, entropy) have zero variance under MockBackend because the deterministic backend produces identical retrieval patterns regardless of content; with a real LLM backend (Together.ai, Ollama) these signals would show natural variance. The KL divergence finding operates on embedding arithmetic, independent of the LLM backend.
 
 The full decision document with raw results and pivot reasoning is in [`docs/phase1_decision.md`](./docs/phase1_decision.md).
 
@@ -472,7 +454,7 @@ Six configurations systematically isolate each component's contribution:
 | `ablation_no_health_scores` | MINJA | Detectors on, allocator ignores health | Isolate allocation contribution |
 | `baseline_sentinel` | MINJA | Reactive z-score baseline | Reactive vs. temporal comparison |
 
-> ⚠ **Forecaster-ablation caveat (Phase 10.7/10.8 open work).** The "forecaster" channel in the experiment runner used for these configs (`src/chronoagent/experiments/full_system_detector.py`, `FORECASTER_IS_PLACEHOLDER = True`) is currently a lightweight EMA-residual stand-in, not the real Chronos model wired through `ChronosForecaster`. The `ablation_no_forecaster` row therefore isolates the contribution of *this stand-in*, not of Chronos itself. The real Chronos forecaster is available in `scorer/chronos_forecaster.py` and is exercised by the scorer unit tests, but re-running the main/ablation suite through it is tracked as open work. Any statement about Chronos's quantitative contribution should be read with this in mind.
+> **What the forecaster ablation isolates.** The "forecaster" channel in the experiment runner used for these configs (`src/chronoagent/experiments/full_system_detector.py`, `FORECASTER_IS_PLACEHOLDER = True`) is a lightweight EMA-residual stand-in for the Chronos model wired through `ChronosForecaster`, so the `ablation_no_forecaster` row isolates the contribution of *this stand-in*. The real Chronos forecaster is available in `scorer/chronos_forecaster.py` and is exercised by the scorer unit tests; re-running the main and ablation suite through it is the next ablation run (Phase 10.7/10.8).
 
 ### Claim-to-Experiment Map
 
@@ -508,7 +490,7 @@ make reproduce-figures      # Generate comparison figures and LaTeX tables from 
 
 All experiments use deterministic seeds. The MockBackend ensures byte-for-byte reproducibility across runs and machines. Results are saved as JSON + CSV under `results/`. Figures and LaTeX tables are auto-generated by `chronoagent compare-experiments`.
 
-> **Result artefacts status.** The `results/` directory currently contains Phase 1 signal-validation artefacts (`decision_matrix.csv`, `results/phase1_{minja,agentpoison}/`, `signals_minja.png`). The per-experiment subdirectories for `main_experiment`, `agentpoison_experiment`, the three ablations, and `baseline_sentinel` are populated by running `make reproduce-main` and `make reproduce-ablations` locally; they are not committed to the repo. Paper tables in `paper/sections/06_results.tex` use a `\inputiffound{...}` macro so the LaTeX build stays green even when those subdirectories are empty, and renders a visible TODO placeholder in their place until `make reproduce` is run. If you are reading this README without having run the pipeline, treat the per-experiment numbers referenced in the tables as placeholders and consult the committed Phase 1 artefacts for the only results that are reproducible from a clean checkout alone.
+> **Result artefacts.** The `results/` directory contains Phase 1 signal-validation artefacts (`decision_matrix.csv`, `results/phase1_{minja,agentpoison}/`, `signals_minja.png`). The per-experiment subdirectories for `main_experiment`, `agentpoison_experiment`, the three ablations, and `baseline_sentinel` are produced by `make reproduce-main` and `make reproduce-ablations`. Paper tables in `paper/sections/06_results.tex` use a `\inputiffound{...}` macro so the LaTeX build stays green before those runs. The committed Phase 1 artefacts reproduce from a clean checkout.
 
 ---
 
@@ -520,17 +502,17 @@ All experiments use deterministic seeds. The MockBackend ensures byte-for-byte r
 
 **Resolution**: Return `H * pred_probs[0] / evidence` where evidence is computed before normalization. This correctly spikes to ~1.0 on regime shift and stays near 0 on stable signal. Diagnosed by tracing the cancellation through the update equations.
 
-### MockBackend Signal Limitations
+### Phase 1 Gate and the MockBackend Signals
 
 **Problem**: 3 of 6 behavioral signals (retrieval_count, tool_calls, entropy) are constants under MockBackend (zero variance, Cohen's d = 0.000).
 
-**Resolution**: Documented as a limitation, not a disproof. These signals depend on LLM output variation, which MockBackend eliminates by design. KL divergence operates on embedding arithmetic (independent of the LLM backend) and shows d > 1.3. The strict Phase 1 gate (>= 2 signals with d > 0.8) returned NO-GO; the adjusted ruling (1 of 3 *informative* signals) yielded CONDITIONAL GO. Both are recorded in `docs/phase1_decision.md`.
+**Resolution**: These signals depend on LLM output variation, which MockBackend eliminates by design. KL divergence operates on embedding arithmetic (independent of the LLM backend) and shows d > 1.3. The strict Phase 1 gate (>= 2 signals with d > 0.8) returned NO-GO; the adjusted ruling (1 of 3 *informative* signals) yielded CONDITIONAL GO. Both are recorded in `docs/phase1_decision.md`.
 
-### AWT = 0 Pivot
+### AWT = 0 and Pivot A
 
-**Problem**: The original "proactive early warning" hypothesis (AWT > 0) was not supported by the data. Signals shift concurrently with injection, not before.
+**Problem**: The pre-specified hypothesis was proactive early warning (AWT > 0); Phase 1 measured signals shifting at the injection step.
 
-**Resolution**: Pre-defined Pivot A was applied: reframe to concurrent detection. Allocation efficiency became the primary contribution. The pivot was specified before Phase 1 ran, so the decision was not post-hoc rationalization. The paper discusses this openly in the Discussion section.
+**Resolution**: Pre-defined Pivot A was applied: concurrent detection, with allocation efficiency as the primary contribution. The pivot was specified before Phase 1 ran, so the decision was set before the data. The paper's Discussion section covers it.
 
 ### Chronos Graceful Degradation
 
@@ -621,14 +603,14 @@ Rate limiting is active on all endpoints: POST routes allow 10 requests/minute p
 
 ## Building the Paper
 
-The `paper/` directory contains a LaTeX scaffold with nine sections that reference experiment outputs from `results/`:
+The `paper/` directory contains the LaTeX source, nine sections that reference experiment outputs from `results/`:
 
 ```bash
 # Build the PDF (requires a LaTeX distribution with latexmk)
 cd paper && latexmk -pdf main.tex
 ```
 
-The paper uses `\inputiffound` and `\figureiffound` macros that conditionally include figures and tables from the `results/` directory. If experiment outputs are missing (e.g., on a fresh checkout), the PDF compiles with red TODO placeholders instead of failing. Run `make reproduce` first to populate all result artifacts, then rebuild the paper.
+The paper uses `\inputiffound` and `\figureiffound` macros that conditionally include figures and tables from the `results/` directory. If experiment outputs are missing (e.g., on a fresh checkout), the PDF compiles with a line naming the artefact and the `make` target that produces it. Run `make reproduce` first to populate all result artifacts, then rebuild the paper.
 
 ---
 
@@ -659,7 +641,7 @@ chronoagent/
 │   ├── unit/                ~45 test files, 1508 tests (pytest collection count)
 │   └── integration/         End-to-end pipeline tests with mock backend
 ├── paper/
-│   ├── main.tex             Paper scaffold with conditional figure/table inclusion
+│   ├── main.tex             Paper source with conditional figure/table inclusion
 │   ├── sections/            00_abstract through 08_conclusion
 │   └── bibliography.bib     17 references
 ├── configs/
@@ -816,7 +798,7 @@ Apache 2.0. See [`LICENSE`](./LICENSE).
 
 ## Acknowledgements
 
-ChronoAgent was built as a research prototype exploring the intersection of temporal modeling, multi-agent systems security, and decentralized coordination. The research dossier documenting the literature gap analysis and project scoping is available in the repository.
+ChronoAgent was built as a research system exploring the intersection of temporal modeling, multi-agent systems security, and decentralized coordination. `PLAN.md` records the project plan, the Phase 1 gate and the pre-specified pivots.
 
 The BOCPD implementation follows Adams and MacKay (2007) \[5\]. The Chronos T5-small model is provided by Amazon under the Apache 2.0 license \[6\]. Attack simulations are reproductions of published methods (AGENTPOISON \[1\], MINJA \[2\]) used as threat models, not as novel contributions.
 

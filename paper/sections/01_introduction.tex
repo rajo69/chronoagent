@@ -1,8 +1,6 @@
 \section{Introduction}
 \label{sec:intro}
 
-\todo{full intro draft.}
-
 \paragraph{Problem.}
 Vector-memory-backed multi-agent LLM systems, built on frameworks
 such as LangChain~\citep{langchain}, LangGraph~\citep{langgraph},
@@ -23,21 +21,20 @@ already taken effect. Temporal context -- whether an agent's behavior
 has drifted across a sequence of tasks -- is largely unused.
 
 \paragraph{Contribution.}
-This paper argues that agent-level temporal monitoring is both
-sufficient to flag memory-poisoning attacks early and cheap enough to
-run inline. Concretely, we contribute:
+This paper argues that agent-level temporal monitoring detects
+memory-poisoning attacks concurrently with injection and is cheap
+enough to run inline. Concretely, we contribute:
 \begin{enumerate}
   \item \textbf{A six-signal behavioral profile} per agent, measured
   on every PR-handling step (\cref{sec:system}).
   \item \textbf{A BOCPD + Chronos forecaster ensemble} that flags
-  signal-level change points before the attacker's payload stabilizes
-  into a new equilibrium (\cref{sec:methodology}).
+  signal-level change points as the attacker's payload takes effect (\cref{sec:methodology}).
   \item \textbf{A health-weighted decentralized allocator} that routes
   tasks away from drifting agents without pausing the whole system
   (\cref{sec:system}).
   \item \textbf{An end-to-end evaluation} against
   MINJA~\citep{minja} and AgentPoison~\citep{agentpoison} with three
-  ablations and two reactive baselines, reporting Advance Warning
+  ablations and one reactive baseline, reporting Advance Warning
   Time (\awt{}), efficiency under attack, and ROC curves
   (\cref{sec:experiments,sec:results}).
 \end{enumerate}
@@ -47,8 +44,7 @@ run inline. Concretely, we contribute:
 allocators, and online change-point detection.
 \Cref{sec:system} presents the \sys{} architecture.
 \Cref{sec:methodology} details the signals, BOCPD, and forecaster.
-\Cref{sec:experiments} enumerates the six experimental configurations
+\Cref{sec:experiments} enumerates the six experiment configurations
 and maps them to claims C1--C5.
 \Cref{sec:results} reports the measurements.
-\Cref{sec:discussion,sec:conclusion} close with limitations and future
-work.
+\Cref{sec:discussion,sec:conclusion} discuss the results and conclude.

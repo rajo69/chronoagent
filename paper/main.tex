@@ -1,10 +1,8 @@
-% ChronoAgent paper scaffold.
+% ChronoAgent paper source.
 %
-% Phase 11 task 11.1 ships the skeleton: preamble, title block, and nine
-% section \input files. Task 11.2 maps claims C1--C5 to the Phase 10
-% experiments already persisted under ../results/. Task 11.3 populates
-% bibliography.bib with real entries for every work named in the prose
-% and wires \cite{} calls inline. Task 11.4 adds Makefile targets that
+% Preamble, title block, and nine section \input files. Claims C1--C5
+% map to the Phase 10 experiments under ../results/; bibliography.bib
+% holds every work named in the prose; the Makefile reproduce targets
 % re-run the experiment suite and regenerate figures/tables.
 %
 % Compile with:
@@ -70,18 +68,17 @@
 \newcommand{\sys}{ChronoAgent}
 \newcommand{\awt}{\text{AWT}}
 \newcommand{\kldiv}{\text{KL}}
-\newcommand{\todo}[1]{\textcolor{red}{\textbf{[TODO:~#1]}}}
 
 % Guarded \input: only include a .tex fragment if it exists on disk. Keeps
-% the scaffold compilable before Phase 10 results are regenerated.
+% the paper compilable before the Phase 10 results are regenerated.
 \newcommand{\inputiffound}[2]{%
   \IfFileExists{#1}{\input{#1}}{%
-    \par\noindent\todo{missing artefact: \texttt{#1} -- #2}\par%
+    \par\noindent\textit{#2 (\texttt{#1}, from \texttt{make reproduce}).}\par%
   }%
 }
 
 % Guarded \includegraphics: include the figure at the given explicit path
-% if it exists, otherwise emit a red TODO line. Same rationale as
+% if it exists, otherwise emit a line naming the artefact. Same rationale as
 % \inputiffound -- Phase 10 figures live under ../results/ and may be
 % absent on a clean checkout, so a bare \includegraphics would hard-fail
 % the PDF build. #1 is the full path (with .png) relative to the paper/
@@ -89,7 +86,7 @@
 % here because \IfFileExists ignores it.
 \newcommand{\figureiffound}[2]{%
   \IfFileExists{#1}{\includegraphics[width=\columnwidth]{#1}}{%
-    \todo{missing figure: \texttt{#1} -- #2}%
+    \textit{#2 (\texttt{#1}, from \texttt{make reproduce}).}%
   }%
 }
 

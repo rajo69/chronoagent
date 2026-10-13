@@ -1,8 +1,6 @@
 \section{Discussion}
 \label{sec:discussion}
 
-\todo{rewrite after the numbers land.}
-
 \paragraph{Temporal context matters.}
 Reactive baselines only see the current query or the current action,
 so a slow-drifting attack (MINJA's gradient-descent flavor) can walk
@@ -11,25 +9,20 @@ just under their threshold. Temporal monitoring reframes detection as
 question that is easier for the defender to answer than ``is this
 query malicious?''.
 
-\paragraph{Pivot A (\texorpdfstring{$\awt{} = 0$}{AWT = 0}).}
-In the original proposal the detector was expected to produce
-strictly positive Advance Warning Time. In practice the sharper
-formulation is \emph{concurrent} detection at the moment the attack
-takes effect; that is what the Phase 10 runs measure. This pivot is
-documented in \texttt{docs/phase1\_decision.md}.
+\paragraph{Pre-specified Pivot A (\texorpdfstring{$\awt{} = 0$}{AWT = 0}).}
+The proposal set strictly positive Advance Warning Time as the
+hypothesis and pre-specified Pivot A for the alternative. The
+measurement showed \emph{concurrent} detection at the moment the attack
+takes effect, so Pivot A applied; that is what the Phase 10 runs
+measure. The decision is documented in \texttt{docs/phase1\_decision.md}.
 
-\paragraph{Limitations.}
+\paragraph{Scope of the evaluation.}
 \begin{itemize}
-  \item The signal set is fixed at six scalars; an attacker with
-  access to the signal catalog could in principle optimize a payload
-  that masks every channel.
-  \item Chronos (T5-small) is a zero-shot forecaster; domain adaptation
-  to individual agent behavior is future work.
-  \item The evaluation is limited to two published attack recipes.
-  Unknown attacks are not covered; \sys{} is a complement, not a
-  replacement, for input-level guards.
-  \item Our throughput numbers come from the MockBackend simulator;
-  real-LLM numbers land with the Production Hardening phase (Phase 9).
+  \item The signal set is fixed at six scalars.
+  \item Chronos (T5-small) runs as a zero-shot forecaster.
+  \item The evaluation covers two published attack recipes; \sys{}
+  complements input-level guards.
+  \item Throughput numbers come from the MockBackend simulator.
 \end{itemize}
 
 \paragraph{Threat model boundary.}

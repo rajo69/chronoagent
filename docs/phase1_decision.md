@@ -1,7 +1,7 @@
-# Phase 1 Decision Document — Signal Validation GO/NO-GO Ruling
+# Phase 1 Decision Document: Signal Validation GO/NO-GO Ruling
 
 > **Date:** 2026-04-09  
-> **Phase:** 1 — Signal Validation  
+> **Phase:** 1, Signal Validation  
 > **Status:** CONDITIONAL GO with Pivot A applied (concurrent detection reframe)  
 > **Author:** ChronoAgent research log (auto-generated from a deterministic experiment run)
 
@@ -91,7 +91,7 @@ Both signals are constant across all steps (retrieval_count = 6, tool_calls = 2)
 
 The Shannon entropy of the top-k similarity score distribution is 0.000 throughout. The cause is the same MockBackend determinism: fixed responses regardless of query produce identical ChromaDB similarity scores against the fixed knowledge-base embeddings, and a constant entropy cannot differentiate poisoned from clean states.
 
-The same artefact caveat as above applies. Under real LLM inference with token-level query variation, the similarity distribution would vary, in which case entropy may become informative; re-evaluating entropy against a real backend is tracked as open work. Entropy is retained in the signal set on this basis.
+The same MockBackend artefact applies. Under real LLM inference with token-level query variation, the similarity distribution would vary, in which case entropy may become informative; re-evaluating entropy against a real backend is tracked as open work. Entropy is retained in the signal set on this basis.
 
 ### total_latency_ms: small effect, indistinguishable from noise
 
@@ -113,7 +113,7 @@ By the pre-specified gate (≥ 2 signals with Cohen's d > 0.8), both experiments
 
 ### Adjusted ruling: CONDITIONAL GO with Pivot A
 
-The strict NO-GO is substantially explained by MockBackend limitations rather than by a genuine absence of signal:
+The strict NO-GO is substantially explained by the MockBackend's deterministic design rather than by an absence of signal:
 
 | Signal | Can show effect under MockBackend? | Reason |
 |--------|------------------------------------|--------|

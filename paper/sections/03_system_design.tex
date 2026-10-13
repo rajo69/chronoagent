@@ -1,8 +1,6 @@
 \section{System Design}
 \label{sec:system}
 
-\todo{architecture figure + longer prose.}
-
 \sys{} sits between a LangGraph~\citep{langgraph}-orchestrated agent
 pool, built on LangChain~\citep{langchain} primitives, and a shared
 Chroma~\citep{chromadb} vector memory. It exposes three control-plane
@@ -19,11 +17,12 @@ and streams them to the Temporal Health Scorer.
 \paragraph{Temporal Health Scorer (\cref{sec:methodology:detector}).}
 The scorer combines two detectors on the dominant signal
 (KL divergence): a Bayesian Online Change-Point
-Detector~\citep{adams2007bocpd} that flags regime shifts with
-calibrated run-length posteriors, and a Chronos~\citep{chronos}
+Detector~\citep{adams2007bocpd} that flags regime shifts from its
+run-length posterior, and a Chronos~\citep{chronos}
 probabilistic forecaster that supplies an expected-range prior. A
-positive detection from either branch decrements the agent's health
-score; a sustained normal regime lets the score recover.
+weighted sum of the two anomaly scores (default weights 0.5 and 0.5)
+sets the agent's health score in $[0, 1]$; a sustained normal regime
+lets the score recover.
 
 \paragraph{Decentralized Task Allocator (\cref{sec:methodology:alloc}).}
 New PRs are offered via a lightweight contract-net-style negotiation
@@ -36,7 +35,7 @@ its bid falls, and work routes away from it automatically, without
 a centralized kill-switch.
 
 \paragraph{Human Escalation Layer.}
-When the aggregate health score across the pool drops below a
-configurable threshold, or when change-points cluster in a short
-window, the system raises a reviewer alert through the FastAPI
-dashboard (Phase 8) rather than silently quarantining agents.
+When an agent's health score drops below a configurable threshold
+(default 0.3), or a document is moved to quarantine, the system raises
+an escalation that a reviewer resolves through the API and the
+dashboard, rather than silently quarantining agents.
