@@ -24,7 +24,7 @@ from chronoagent.agents.security_reviewer import SecurityFinding, SecurityReview
 from chronoagent.agents.style_reviewer import StyleFinding, StyleReview
 
 # ---------------------------------------------------------------------------
-# Report template knowledge base — 10 entries guiding report structure and
+# Report template knowledge base: 10 entries guiding report structure and
 # risk calibration for different finding profiles.
 # ---------------------------------------------------------------------------
 
@@ -233,7 +233,7 @@ def _compute_overall_risk(security_review: SecurityReview) -> str:
         security_review: The upstream :class:`SecurityReview`.
 
     Returns:
-        Risk level string — one of ``'none'``, ``'low'``, ``'medium'``,
+        Risk level string: one of ``'none'``, ``'low'``, ``'medium'``,
         ``'high'``, or ``'critical'``.
     """
     return security_review.severity
@@ -478,7 +478,7 @@ class SummarizerAgent(BaseAgent):
         """Summarize a security review into a concise report (Phase 1 interface).
 
         Args:
-            pr: The original synthetic pull request.
+            pr: The original generated pull request.
             review: The upstream security review to summarize.
 
         Returns:

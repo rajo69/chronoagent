@@ -99,7 +99,7 @@ def _stub_aggregate(name: str, num_runs: int = 1) -> AggregateResult:
 class _StubRunner:
     """Drop-in replacement for ExperimentRunner that never touches ChromaDB.
 
-    Records raw runs with small synthetic payloads so the downstream plot
+    Records raw runs with small generated payloads so the downstream plot
     code has real files to read when --plots is enabled.
     """
 

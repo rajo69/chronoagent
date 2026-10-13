@@ -93,4 +93,4 @@ reproduce: reproduce-signal reproduce-main reproduce-ablations reproduce-figures
 
 # ── Docs ──────────────────────────────────────────────────────────────────────
 update-readme:
-	@echo "Update README.md manually after each phase — see PLAN.md."
+	@echo "Update README.md manually after each phase; see PLAN.md."

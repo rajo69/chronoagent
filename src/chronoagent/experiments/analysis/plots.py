@@ -369,7 +369,7 @@ def plot_health_score_comparison(
     Note: under the 10.6 design there is no single scalar "health
     score" output, so the per-step combined score from the detector
     decision stream is used as the health-score stand-in. The figure
-    title carries this caveat.
+    title names this choice.
 
     Args:
         results_dir: Runner output root.

@@ -1,4 +1,4 @@
-"""Tests for pipeline/graph.py — ReviewPipeline LangGraph StateGraph."""
+"""Tests for pipeline/graph.py: ReviewPipeline LangGraph StateGraph."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from chronoagent.scorer.health_scorer import HEALTH_CHANNEL, HealthUpdate
 
 @pytest.fixture
 def sample_pr() -> SyntheticPR:
-    """A synthetic PR fixture reused across all test cases."""
+    """A generated PR fixture reused across all test cases."""
     return SyntheticPR(
         pr_id="pr_graph_test",
         title="Add file upload endpoint with path construction",
@@ -248,7 +248,7 @@ class TestAllocatorGating:
         # Winning scores are 1.0 (capability * health = 1.0 * 1.0).
         assert state["security_allocation"].winning_bid is not None
         assert state["security_allocation"].winning_bid.score == pytest.approx(1.0)
-        # Reviews are the real outputs, not placeholders — their
+        # Reviews are the real outputs, not placeholders; their
         # raw_response should not be the negotiation rationale.
         assert state["security_review"].raw_response != state["security_allocation"].rationale
         assert state["style_review"].raw_response != state["style_allocation"].rationale
@@ -341,7 +341,7 @@ class TestAllocatorGating:
         self, sample_pr: SyntheticPR, chroma_client: chromadb.ClientAPI
     ) -> None:
         """`run()` continues to return a ReviewReport even when every
-        task is escalated — the escalation stays inside the graph."""
+        task is escalated; the escalation stays inside the graph."""
         bus = LocalBus()
         allocator = DecentralizedTaskAllocator(bus)
         for agent_id in ("planner", "security_reviewer", "style_reviewer", "summarizer"):

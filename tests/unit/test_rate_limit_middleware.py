@@ -72,7 +72,7 @@ def _build_mini_app(
 
     The stock ``chronoagent`` app pulls in pipelines, ChromaDB, and
     the real lifespan.  For middleware-focused tests we want none of
-    that: a few toy routes and a toy WebSocket give us full coverage
+    that: a few minimal routes and a minimal WebSocket give us full coverage
     of the middleware's branches without any cross-module coupling.
     """
     app = FastAPI()
@@ -263,7 +263,7 @@ class TestExemptPaths:
         config = RateLimitConfig(post_per_minute=1, get_per_minute=1)
         app = _build_mini_app(config=config)
 
-        # Add a toy subpath under /metrics to prove the prefix match.
+        # Add a minimal subpath under /metrics to prove the prefix match.
         @app.get("/metrics/sub")
         def sub() -> dict[str, bool]:
             return {"ok": True}

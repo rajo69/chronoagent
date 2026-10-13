@@ -3,7 +3,6 @@
 > Temporal behavioral monitoring and health-weighted task allocation for multi-agent LLM systems under memory-poisoning attacks.
 
 [![CI](https://github.com/rajo69/chronoagent/actions/workflows/ci.yml/badge.svg)](https://github.com/rajo69/chronoagent/actions/workflows/ci.yml)
-[![Release](https://github.com/rajo69/chronoagent/actions/workflows/release.yml/badge.svg)](https://github.com/rajo69/chronoagent/actions/workflows/release.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
 ![Tests](https://img.shields.io/badge/tests-1508%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-%E2%89%A580%25%20enforced-brightgreen)

@@ -2,10 +2,10 @@
 
 Populates four persistent ChromaDB collections with structured knowledge:
 
-* ``security_patterns``  — ~50 CWE-mapped vulnerability detection notes.
-* ``style_conventions``  — ~30 code quality and style rules.
-* ``report_templates``   — ~10 PR review report structure templates.
-* ``sample_reviews``     — ~20 synthetic PR review summaries for RAG context.
+* ``security_patterns``: ~50 CWE-mapped vulnerability detection notes.
+* ``style_conventions``: ~30 code quality and style rules.
+* ``report_templates``: ~10 PR review report structure templates.
+* ``sample_reviews``: ~20 sample PR review summaries for RAG context.
 
 Usage::
 
@@ -339,7 +339,7 @@ REPORT_TEMPLATES: Final[list[str]] = [
 ]
 
 # ---------------------------------------------------------------------------
-# Sample reviews (~20 synthetic PR review summaries for RAG context)
+# Sample reviews (~20 PR review summaries for RAG context)
 # ---------------------------------------------------------------------------
 
 SAMPLE_REVIEWS: Final[list[str]] = [
@@ -464,7 +464,7 @@ def _upsert_collection(
         try:
             client.delete_collection(name)
             log.info("Deleted existing collection '%s'.", name)
-        except Exception:  # noqa: BLE001 — collection may not exist
+        except Exception:  # noqa: BLE001 (collection may not exist)
             pass
 
     collection = client.get_or_create_collection(name)

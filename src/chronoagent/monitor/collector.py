@@ -5,12 +5,12 @@ the agent pair).  After a run, :meth:`BehavioralCollector.get_signal_matrix`
 returns a ``(T, 6)`` NumPy array ready for statistical analysis.
 
 Signal ordering (column index):
-    0 — total_latency_ms
-    1 — retrieval_count
-    2 — token_count
-    3 — kl_divergence
-    4 — tool_calls
-    5 — memory_query_entropy
+    0: total_latency_ms
+    1: retrieval_count
+    2: token_count
+    3: kl_divergence
+    4: tool_calls
+    5: memory_query_entropy
 
 Baseline calibration
 --------------------
@@ -73,7 +73,7 @@ class StepSignals:
     """Behavioural signals recorded for a single agent-pipeline step.
 
     One step corresponds to the full processing of one unit of work (e.g. one
-    synthetic PR) through the agent pair.
+    generated PR) through the agent pair.
 
     Attributes:
         total_latency_ms: End-to-end wall-clock time for the step in ms.
@@ -153,12 +153,12 @@ class BehavioralCollector:
 
     In addition to in-memory storage, the collector supports:
 
-    * **Baseline calibration** — after the first *n_calibration* steps,
+    * **Baseline calibration**: after the first *n_calibration* steps,
       :attr:`is_calibrated` becomes ``True`` and :attr:`baseline_stats`
       exposes per-signal mean/std.
-    * **Rolling window statistics** — :meth:`rolling_stats` computes mean/std
+    * **Rolling window statistics**: :meth:`rolling_stats` computes mean/std
       over the last *window* steps on demand.
-    * **Database persistence** — :meth:`persist_step` writes a single
+    * **Database persistence**: :meth:`persist_step` writes a single
       :class:`StepSignals` to the DB via a caller-managed SQLAlchemy session.
 
     Usage::
@@ -338,7 +338,7 @@ class BehavioralCollector:
         Returns:
             The freshly created (unsaved) :class:`~chronoagent.db.models.AgentSignalRecord`.
         """
-        from chronoagent.db.models import AgentSignalRecord  # lazy — avoids circular dep
+        from chronoagent.db.models import AgentSignalRecord  # lazy, avoids circular dep
 
         record = AgentSignalRecord(
             agent_id=agent_id,

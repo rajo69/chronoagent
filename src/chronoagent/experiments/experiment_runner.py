@@ -210,8 +210,7 @@ def default_signal_matrix_factory(
 
     if attack_type == "none":
         raise ValueError(
-            "default_signal_matrix_factory requires attack_type in "
-            "{'minja', 'agentpoison'}; 'none' is not yet supported"
+            "default_signal_matrix_factory requires attack_type in {'minja', 'agentpoison'}"
         )
     clean_len = int(injection_step)
     poison_len = int(num_prs) - clean_len

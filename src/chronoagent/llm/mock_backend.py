@@ -145,7 +145,7 @@ _SUMMARY_RESPONSES: list[str] = [
 
 
 class MockEmbeddingFunction:
-    """Deterministic embedding function for ChromaDB — no model downloads.
+    """Deterministic embedding function for ChromaDB, no model downloads.
 
     Produces 384-dimensional unit vectors derived from the SHA-256 hash of each
     input string.  Same text always yields the same embedding; different texts
@@ -247,7 +247,7 @@ class MockBackend(LLM):
 
         Args:
             prompt: Input prompt string.
-            stop: Unused (MockBackend does not support stop sequences).
+            stop: Unused; MockBackend returns fixed responses.
             run_manager: LangChain callback manager (unused).
             **kwargs: Absorbed for interface compatibility.
 

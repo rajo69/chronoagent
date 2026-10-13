@@ -1,4 +1,4 @@
-# Base configuration — overridden by env-specific files then env vars.
+# Base configuration, overridden by env-specific files then env vars.
 env: dev
 llm_backend: together
 together_model: mistralai/Mixtral-8x7B-Instruct-v0.1

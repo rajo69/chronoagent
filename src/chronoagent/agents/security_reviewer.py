@@ -1,4 +1,4 @@
-"""SecurityReviewerAgent: reviews synthetic PRs for security issues.
+"""SecurityReviewerAgent: reviews generated PRs for security issues.
 
 This agent retrieves relevant CWE-mapped security patterns from ChromaDB,
 constructs a prompt, and returns a structured security review with per-finding
@@ -104,7 +104,7 @@ _SECURITY_KNOWLEDGE_BASE: list[str] = [
 
 @dataclass
 class SyntheticPR:
-    """Represents a synthetic pull request used in experiments.
+    """Represents a generated pull request used in experiments.
 
     Attributes:
         pr_id: Unique identifier (e.g. 'pr_001').
@@ -281,7 +281,7 @@ def _parse_review(raw: str, pr_id: str, retrieval: RetrievalResult) -> SecurityR
 
 
 class SecurityReviewerAgent(BaseAgent):
-    """Agent that reviews synthetic PRs for security vulnerabilities.
+    """Agent that reviews generated PRs for security vulnerabilities.
 
     Retrieves relevant security patterns from a ChromaDB knowledge base,
     augments the prompt with retrieved context, and calls the LLM backend
@@ -308,10 +308,10 @@ class SecurityReviewerAgent(BaseAgent):
     )
 
     def review(self, pr: SyntheticPR) -> SecurityReview:
-        """Review a synthetic PR and return a structured security review.
+        """Review a generated PR and return a structured security review.
 
         Args:
-            pr: The synthetic pull request to review.
+            pr: The generated pull request to review.
 
         Returns:
             :class:`SecurityReview` with findings, severity, and retrieval metadata.

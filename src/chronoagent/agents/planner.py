@@ -129,7 +129,7 @@ def _parse_decomposition(
                 if token.startswith("subtask_type="):
                     task_type = token.removeprefix("subtask_type=")
                 elif token.startswith("code_segment="):
-                    # code_segment value may be multi-word — collect the rest.
+                    # code_segment value may be multi-word; collect the rest.
                     idx = stripped.index("code_segment=")
                     code_segment = stripped[idx:].removeprefix("code_segment=").strip()
                     break
@@ -190,7 +190,7 @@ class PlannerAgent(BaseAgent):
         """Decompose a PR into an ordered list of :class:`ReviewSubtask` objects.
 
         Args:
-            pr: The synthetic pull request to plan.
+            pr: The generated pull request to plan.
 
         Returns:
             :class:`DecompositionResult` with subtasks, rationale, and

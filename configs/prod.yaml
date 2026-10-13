@@ -1,4 +1,4 @@
-# Production overrides — sensitive values come from env vars, not this file.
+# Production overrides: sensitive values come from env vars, not this file.
 env: prod
 llm_backend: together
 database_url: postgresql+asyncpg://chrono:changeme@postgres:5432/chronoagent

@@ -171,7 +171,7 @@ class ExperimentConfig(BaseModel):
             for statistical aggregation (mean / std / 95% CI).  PLAN.md
             uses ``5`` as the default so an experiment is feasible on
             CPU-only hardware.
-        num_prs: Number of synthetic PRs each run processes.  Maps to
+        num_prs: Number of generated PRs each run processes.  Maps to
             the ``n_steps`` parameter on the existing Phase 1
             ``SignalValidationRunner`` and to the post-injection step
             count for Phase 10 runners.

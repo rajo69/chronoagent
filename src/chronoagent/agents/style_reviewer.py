@@ -167,7 +167,7 @@ def _categorise(description: str) -> str:
         description: Finding description string.
 
     Returns:
-        Category string — one of ``'complexity'``, ``'naming'``,
+        Category string: one of ``'complexity'``, ``'naming'``,
         ``'documentation'``, ``'formatting'``, ``'readability'``,
         or ``'other'``.
     """
@@ -182,7 +182,7 @@ def _parse_finding(line: str) -> StyleFinding:
 
     Expected format (produced by :data:`StyleReviewerAgent.SYSTEM_PROMPT`)::
 
-        1. Function `process_data` exceeds 50 lines — refactor into smaller units
+        1. Function `process_data` exceeds 50 lines: refactor into smaller units
 
     Args:
         line: A single numbered finding line from the LLM response.
@@ -285,10 +285,10 @@ class StyleReviewerAgent(BaseAgent):
     )
 
     def review(self, pr: SyntheticPR) -> StyleReview:
-        """Review a synthetic PR and return a structured style review.
+        """Review a generated PR and return a structured style review.
 
         Args:
-            pr: The synthetic pull request to review.
+            pr: The generated pull request to review.
 
         Returns:
             :class:`StyleReview` with findings, recommendation, and retrieval

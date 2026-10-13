@@ -1,7 +1,7 @@
-"""Tests for Phase 4: Temporal Health Scorer (tasks 4.1–4.7).
+"""Tests for Phase 4: Temporal Health Scorer (tasks 4.1 to 4.7).
 
 Coverage:
-- BOCPD: synthetic changepoint detection at step 50, property tests
+- BOCPD: injected changepoint detection at step 50, property tests
 - ChronosForecaster: graceful fallback when unavailable, anomaly scoring stub
 - EnsembleScorer: weight normalisation, single-component fallback, [0,1] clamp
 - TemporalHealthScorer: signal processing, health caching, bus integration
@@ -30,7 +30,7 @@ from chronoagent.scorer.health_scorer import (
 )
 
 # ===========================================================================
-# Task 4.1 — BOCPD
+# Task 4.1: BOCPD
 # ===========================================================================
 
 
@@ -81,7 +81,7 @@ class TestBOCPD:
                 detection_step = step
                 break
         assert detection_step is not None, (
-            "BOCPD failed to detect synthetic changepoint within 5 steps"
+            "BOCPD failed to detect injected changepoint within 5 steps"
         )
 
     def test_reset_clears_state(self) -> None:
@@ -109,7 +109,7 @@ class TestBOCPD:
 
 
 # ===========================================================================
-# Task 4.2 — ChronosForecaster
+# Task 4.2: ChronosForecaster
 # ===========================================================================
 
 
@@ -167,12 +167,12 @@ class TestChronosForecaster:
 
     def test_available_property_checks_import(self) -> None:
         forecaster = ChronosForecaster()
-        # available is bool — just check the type
+        # available is bool; just check the type
         assert isinstance(forecaster.available, bool)
 
 
 # ===========================================================================
-# Task 4.3 — EnsembleScorer
+# Task 4.3: EnsembleScorer
 # ===========================================================================
 
 
@@ -219,7 +219,7 @@ class TestEnsembleScorer:
 
 
 # ===========================================================================
-# Task 4.4 — TemporalHealthScorer
+# Task 4.4: TemporalHealthScorer
 # ===========================================================================
 
 
@@ -289,7 +289,7 @@ class TestTemporalHealthScorer:
         stable_health = scorer.get_health("a")
         assert stable_health is not None
 
-        # Abrupt large jump — CP probability should spike at step 1 -> health drops
+        # Abrupt large jump: CP probability should spike at step 1 -> health drops
         bus.publish("signal_updates", {"agent_id": "a", "task_id": "t", "value": 50.0})
         degraded_health = scorer.get_health("a")
         assert degraded_health is not None
@@ -312,7 +312,7 @@ class TestTemporalHealthScorer:
 
 
 # ===========================================================================
-# Task 4.5 — LocalBus
+# Task 4.5: LocalBus
 # ===========================================================================
 
 
@@ -367,7 +367,7 @@ class TestLocalBus:
 
 
 # ===========================================================================
-# Task 4.6 — API routes
+# Task 4.6: API routes
 # ===========================================================================
 
 
@@ -440,7 +440,7 @@ class TestHealthScoresRouter:
 
 
 # ===========================================================================
-# Hypothesis property tests — health always in [0, 1]
+# Hypothesis property tests: health always in [0, 1]
 # ===========================================================================
 
 

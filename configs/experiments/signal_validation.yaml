@@ -1,4 +1,4 @@
-# Signal Validation Experiment — Phase 1, Task 1.7
+# Signal Validation Experiment: Phase 1, Task 1.7
 #
 # Run with:
 #   chronoagent run-experiment \
@@ -20,7 +20,7 @@ experiment:
 runner:
   # Reproducibility
   seed: 42          # MockBackend + attack noise RNG seed
-  pr_seed: 0        # Synthetic PR generator seed
+  pr_seed: 0        # PR generator seed
 
   # Phase sizing
   n_steps: 25       # PRs processed in each of Phase A and Phase C
@@ -30,7 +30,7 @@ runner:
   attack: minja     # "minja" | "agentpoison"
   n_poison_docs: 10 # Malicious documents injected per collection in Phase B
 
-# ── Agent list (informational — runner creates these internally) ───────────
+# ── Agent list (informational; runner creates these internally) ───────────
 agents:
   - id: security_reviewer
     class: SecurityReviewerAgent

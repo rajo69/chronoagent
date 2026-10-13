@@ -97,7 +97,7 @@ class DecentralizedTaskAllocator:
     missing_health_default:
         Health assumed for agents that have not yet published a
         :class:`HealthUpdate`.  Defaults to
-        :data:`DEFAULT_MISSING_HEALTH` (``1.0`` — optimistic at boot).
+        :data:`DEFAULT_MISSING_HEALTH` (``1.0``, optimistic at boot).
     """
 
     def __init__(
@@ -147,7 +147,7 @@ class DecentralizedTaskAllocator:
 
         Only agents that have published at least one health update appear
         in the returned dict.  Missing agents are *not* populated with a
-        synthetic update; use :meth:`get_health_snapshot` for the
+        default update; use :meth:`get_health_snapshot` for the
         projected ``{agent_id: float}`` view if you need a default.
         """
         with self._lock:

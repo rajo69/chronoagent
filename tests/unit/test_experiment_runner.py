@@ -774,7 +774,7 @@ class TestDefaultFactoryIntegration:
             )
 
     def test_default_factory_rejects_attack_none(self) -> None:
-        with pytest.raises(ValueError, match="'none' is not yet supported"):
+        with pytest.raises(ValueError, match="requires attack_type in"):
             default_signal_matrix_factory(
                 attack_type="none",
                 seed=1,

@@ -2,19 +2,19 @@
 
 Orchestrates a four-phase experiment:
 
-Phase A — Clean baseline
-    Run the agent pair on *n_steps* synthetic PRs.  Record ``StepSignals`` for
+Phase A: Clean baseline
+    Run the agent pair on *n_steps* generated PRs.  Record ``StepSignals`` for
     each step and feed retrieval embeddings into :class:`KLCalibrator`.
 
-Phase B — Injection
+Phase B: Injection
     Apply the chosen memory-poisoning attack to the ChromaDB collections used
     by both agents.
 
-Phase C — Poisoned run
-    Run the agent pair on another *n_steps* synthetic PRs with the poisoned
+Phase C: Poisoned run
+    Run the agent pair on another *n_steps* generated PRs with the poisoned
     collection.  Record ``StepSignals``.
 
-Phase D — Statistical analysis
+Phase D: Statistical analysis
     Compute Cohen's d for each of the 6 signals (clean vs poisoned) and return
     a structured :class:`ExperimentResult`.
 
@@ -24,7 +24,7 @@ Usage::
     result = runner.run()
     print(result.summary())
 
-The runner is fully self-contained and uses only ``MockBackend`` — no API keys,
+The runner is fully self-contained and uses only ``MockBackend``: no API keys,
 no GPU, deterministic by seed.
 """
 
@@ -46,7 +46,7 @@ from chronoagent.monitor.entropy import step_entropy
 from chronoagent.monitor.kl_divergence import KLCalibrator
 
 # ---------------------------------------------------------------------------
-# Synthetic PR generator
+# PR generator
 # ---------------------------------------------------------------------------
 
 _PR_TITLES: list[str] = [
@@ -89,7 +89,7 @@ _PR_DIFFS: list[str] = [
 
 
 def _make_synthetic_prs(n: int, seed: int = 0) -> list[SyntheticPR]:
-    """Generate *n* deterministic synthetic PRs.
+    """Generate *n* deterministic PRs.
 
     Args:
         n: Number of PRs to generate.
@@ -131,7 +131,7 @@ def cohens_d(a: NDArray[np.float64], b: NDArray[np.float64]) -> float:
         b: Poisoned-run signal values (1-D).
 
     Returns:
-        Cohen's d ≥ 0.  Large effect: d > 0.8; medium: 0.5–0.8; small: 0.2–0.5.
+        Cohen's d ≥ 0.  Large effect: d > 0.8; medium: 0.5 to 0.8; small: 0.2 to 0.5.
     """
     n_a, n_b = len(a), len(b)
     if n_a < 2 or n_b < 2:
@@ -245,10 +245,10 @@ class SignalValidationRunner:
         attack: Memory poisoning attack instance
             (:class:`~chronoagent.memory.poisoning.MINJAStyleAttack` or
             :class:`~chronoagent.memory.poisoning.AGENTPOISONStyleAttack`).
-        n_steps: Number of synthetic PRs per phase (clean and poisoned).
+        n_steps: Number of generated PRs per phase (clean and poisoned).
         n_poison_docs: Number of malicious documents to inject in Phase B.
         n_calibration: Steps used to calibrate the KL baseline in Phase A.
-        pr_seed: Random seed for synthetic PR generation.
+        pr_seed: Random seed for PR generation.
     """
 
     def __init__(
@@ -283,16 +283,16 @@ class SignalValidationRunner:
         clean_prs = _make_synthetic_prs(self.n_steps, seed=self._pr_seed)
         poisoned_prs = _make_synthetic_prs(self.n_steps, seed=self._pr_seed + 1000)
 
-        # Phase A — clean run
+        # Phase A: clean run
         clean_collector = self._run_phase(clean_prs, calibrate=True)
 
-        # Phase B — inject attack
+        # Phase B: inject attack
         injected_ids = self._inject()
 
-        # Phase C — poisoned run
+        # Phase C: poisoned run
         poison_collector = self._run_phase(poisoned_prs, calibrate=False)
 
-        # Phase D — stats
+        # Phase D: stats
         clean_matrix = clean_collector.get_signal_matrix()
         poison_matrix = poison_collector.get_signal_matrix()
         signal_stats = self._compute_stats(clean_matrix, poison_matrix)
@@ -319,7 +319,7 @@ class SignalValidationRunner:
         """Process a list of PRs through the agent pair, collecting signals.
 
         Args:
-            prs: Synthetic PRs to process.
+            prs: Generated PRs to process.
             calibrate: If ``True``, feed retrieval embeddings into the KL
                 calibrator during this phase.
 
@@ -497,12 +497,12 @@ class SignalValidationRunner:
         can be poisoned with a single attack call targeting each collection.
 
         Args:
-            attack: Attack type — ``'minja'`` or ``'agentpoison'``.
-            n_steps: Number of synthetic PRs per phase.
+            attack: Attack type: ``'minja'`` or ``'agentpoison'``.
+            n_steps: Number of generated PRs per phase.
             n_poison_docs: Number of malicious documents injected per collection.
             n_calibration: Steps used to calibrate the KL baseline.
             seed: Seed for MockBackend and the attack noise generator.
-            pr_seed: Seed for the synthetic PR generator.
+            pr_seed: Seed for the PR generator.
 
         Returns:
             Configured :class:`SignalValidationRunner`.
